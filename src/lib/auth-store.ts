@@ -30,16 +30,7 @@ export const useAuth = create<AuthState>()(
   )
 );
 
-let bootstrapping: Promise<void> | null = null;
 export async function ensureDeviceSession() {
-  if (typeof window === "undefined") return;
-  if (bootstrapping) return bootstrapping;
-  bootstrapping = (async () => {
-    const { data } = await supabase.auth.getSession();
-    if (!data.session) {
-      const { error } = await supabase.auth.signInAnonymously();
-      if (error) console.error("device session error", error);
-    }
-  })();
-  return bootstrapping;
+  // No-op: app uses public anon role with permissive RLS policies.
+  return;
 }
