@@ -14,6 +14,9 @@ import { Route as AppRouteImport } from './routes/_app'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as AppInventoryRouteImport } from './routes/_app.inventory'
 import { Route as AppDashboardRouteImport } from './routes/_app.dashboard'
+import { Route as AppUnitsItemIdRouteImport } from './routes/_app.units.$itemId'
+import { Route as AppInventoryScanRouteImport } from './routes/_app.inventory.scan'
+import { Route as AppInventoryProductIdRouteImport } from './routes/_app.inventory.$productId'
 
 const LoginRoute = LoginRouteImport.update({
   id: '/login',
@@ -39,18 +42,39 @@ const AppDashboardRoute = AppDashboardRouteImport.update({
   path: '/dashboard',
   getParentRoute: () => AppRoute,
 } as any)
+const AppUnitsItemIdRoute = AppUnitsItemIdRouteImport.update({
+  id: '/units/$itemId',
+  path: '/units/$itemId',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppInventoryScanRoute = AppInventoryScanRouteImport.update({
+  id: '/scan',
+  path: '/scan',
+  getParentRoute: () => AppInventoryRoute,
+} as any)
+const AppInventoryProductIdRoute = AppInventoryProductIdRouteImport.update({
+  id: '/$productId',
+  path: '/$productId',
+  getParentRoute: () => AppInventoryRoute,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/login': typeof LoginRoute
   '/dashboard': typeof AppDashboardRoute
-  '/inventory': typeof AppInventoryRoute
+  '/inventory': typeof AppInventoryRouteWithChildren
+  '/inventory/$productId': typeof AppInventoryProductIdRoute
+  '/inventory/scan': typeof AppInventoryScanRoute
+  '/units/$itemId': typeof AppUnitsItemIdRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/login': typeof LoginRoute
   '/dashboard': typeof AppDashboardRoute
-  '/inventory': typeof AppInventoryRoute
+  '/inventory': typeof AppInventoryRouteWithChildren
+  '/inventory/$productId': typeof AppInventoryProductIdRoute
+  '/inventory/scan': typeof AppInventoryScanRoute
+  '/units/$itemId': typeof AppUnitsItemIdRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -58,13 +82,30 @@ export interface FileRoutesById {
   '/_app': typeof AppRouteWithChildren
   '/login': typeof LoginRoute
   '/_app/dashboard': typeof AppDashboardRoute
-  '/_app/inventory': typeof AppInventoryRoute
+  '/_app/inventory': typeof AppInventoryRouteWithChildren
+  '/_app/inventory/$productId': typeof AppInventoryProductIdRoute
+  '/_app/inventory/scan': typeof AppInventoryScanRoute
+  '/_app/units/$itemId': typeof AppUnitsItemIdRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/' | '/login' | '/dashboard' | '/inventory'
+  fullPaths:
+    | '/'
+    | '/login'
+    | '/dashboard'
+    | '/inventory'
+    | '/inventory/$productId'
+    | '/inventory/scan'
+    | '/units/$itemId'
   fileRoutesByTo: FileRoutesByTo
-  to: '/' | '/login' | '/dashboard' | '/inventory'
+  to:
+    | '/'
+    | '/login'
+    | '/dashboard'
+    | '/inventory'
+    | '/inventory/$productId'
+    | '/inventory/scan'
+    | '/units/$itemId'
   id:
     | '__root__'
     | '/'
@@ -72,6 +113,9 @@ export interface FileRouteTypes {
     | '/login'
     | '/_app/dashboard'
     | '/_app/inventory'
+    | '/_app/inventory/$productId'
+    | '/_app/inventory/scan'
+    | '/_app/units/$itemId'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -117,17 +161,54 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppDashboardRouteImport
       parentRoute: typeof AppRoute
     }
+    '/_app/units/$itemId': {
+      id: '/_app/units/$itemId'
+      path: '/units/$itemId'
+      fullPath: '/units/$itemId'
+      preLoaderRoute: typeof AppUnitsItemIdRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/_app/inventory/scan': {
+      id: '/_app/inventory/scan'
+      path: '/scan'
+      fullPath: '/inventory/scan'
+      preLoaderRoute: typeof AppInventoryScanRouteImport
+      parentRoute: typeof AppInventoryRoute
+    }
+    '/_app/inventory/$productId': {
+      id: '/_app/inventory/$productId'
+      path: '/$productId'
+      fullPath: '/inventory/$productId'
+      preLoaderRoute: typeof AppInventoryProductIdRouteImport
+      parentRoute: typeof AppInventoryRoute
+    }
   }
 }
 
+interface AppInventoryRouteChildren {
+  AppInventoryProductIdRoute: typeof AppInventoryProductIdRoute
+  AppInventoryScanRoute: typeof AppInventoryScanRoute
+}
+
+const AppInventoryRouteChildren: AppInventoryRouteChildren = {
+  AppInventoryProductIdRoute: AppInventoryProductIdRoute,
+  AppInventoryScanRoute: AppInventoryScanRoute,
+}
+
+const AppInventoryRouteWithChildren = AppInventoryRoute._addFileChildren(
+  AppInventoryRouteChildren,
+)
+
 interface AppRouteChildren {
   AppDashboardRoute: typeof AppDashboardRoute
-  AppInventoryRoute: typeof AppInventoryRoute
+  AppInventoryRoute: typeof AppInventoryRouteWithChildren
+  AppUnitsItemIdRoute: typeof AppUnitsItemIdRoute
 }
 
 const AppRouteChildren: AppRouteChildren = {
   AppDashboardRoute: AppDashboardRoute,
-  AppInventoryRoute: AppInventoryRoute,
+  AppInventoryRoute: AppInventoryRouteWithChildren,
+  AppUnitsItemIdRoute: AppUnitsItemIdRoute,
 }
 
 const AppRouteWithChildren = AppRoute._addFileChildren(AppRouteChildren)
