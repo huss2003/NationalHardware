@@ -23,7 +23,8 @@ function OrderPage() {
     const { data: mats } = await supabase.from("production_materials").select("product_id").eq("order_id", id);
     const consumed: Record<string, number> = {};
     (mats ?? []).forEach((m: any) => consumed[m.product_id] = (consumed[m.product_id] ?? 0) + 1);
-    const list = (o?.bom?.bom_items ?? []).map((bi: any) => ({
+    if (!o) { setNeed([]); return; }
+    const list = (o.bom?.bom_items ?? []).map((bi: any) => ({
       product_id: bi.component_product_id, name: bi.products.name,
       qty: bi.qty * o.qty, consumed: consumed[bi.component_product_id] ?? 0,
     }));
@@ -39,14 +40,14 @@ function OrderPage() {
     const row = need.find(n => n.product_id === it.product_id);
     if (!row) { toast.error(`${it.product_id.slice(0,6)} not in BOM`); return; }
     if (row.consumed >= row.qty) { toast.error(`Already enough for ${row.name}`); return; }
-    const { error } = await supabase.rpc("consume_material", { _order_id: id, _item_id: code, _actor_user_id: user?.id });
+    const { error } = await supabase.rpc("consume_material", { _order_id: id, _item_id: code, _actor_user_id: user?.id ?? "" });
     if (error) { toast.error(error.message); return; }
     toast.success(`Consumed ${code}`);
     load();
   };
 
   const finish = async () => {
-    const { error } = await supabase.rpc("complete_production", { _order_id: id, _actor_user_id: user?.id });
+    const { error } = await supabase.rpc("complete_production", { _order_id: id, _actor_user_id: user?.id ?? "" });
     if (error) { toast.error(error.message); return; }
     toast.success("Production complete — units minted");
     load();
