@@ -12,9 +12,12 @@ import { Route as rootRouteImport } from './routes/__root'
 import { Route as LoginRouteImport } from './routes/login'
 import { Route as AppRouteImport } from './routes/_app'
 import { Route as IndexRouteImport } from './routes/index'
+import { Route as AppPurchasesRouteImport } from './routes/_app.purchases'
 import { Route as AppInventoryRouteImport } from './routes/_app.inventory'
 import { Route as AppDashboardRouteImport } from './routes/_app.dashboard'
 import { Route as AppUnitsItemIdRouteImport } from './routes/_app.units.$itemId'
+import { Route as AppPurchasesNewRouteImport } from './routes/_app.purchases.new'
+import { Route as AppPurchasesIdRouteImport } from './routes/_app.purchases.$id'
 import { Route as AppInventoryScanRouteImport } from './routes/_app.inventory.scan'
 import { Route as AppInventoryProductIdRouteImport } from './routes/_app.inventory.$productId'
 
@@ -32,6 +35,11 @@ const IndexRoute = IndexRouteImport.update({
   path: '/',
   getParentRoute: () => rootRouteImport,
 } as any)
+const AppPurchasesRoute = AppPurchasesRouteImport.update({
+  id: '/purchases',
+  path: '/purchases',
+  getParentRoute: () => AppRoute,
+} as any)
 const AppInventoryRoute = AppInventoryRouteImport.update({
   id: '/inventory',
   path: '/inventory',
@@ -46,6 +54,16 @@ const AppUnitsItemIdRoute = AppUnitsItemIdRouteImport.update({
   id: '/units/$itemId',
   path: '/units/$itemId',
   getParentRoute: () => AppRoute,
+} as any)
+const AppPurchasesNewRoute = AppPurchasesNewRouteImport.update({
+  id: '/new',
+  path: '/new',
+  getParentRoute: () => AppPurchasesRoute,
+} as any)
+const AppPurchasesIdRoute = AppPurchasesIdRouteImport.update({
+  id: '/$id',
+  path: '/$id',
+  getParentRoute: () => AppPurchasesRoute,
 } as any)
 const AppInventoryScanRoute = AppInventoryScanRouteImport.update({
   id: '/scan',
@@ -63,8 +81,11 @@ export interface FileRoutesByFullPath {
   '/login': typeof LoginRoute
   '/dashboard': typeof AppDashboardRoute
   '/inventory': typeof AppInventoryRouteWithChildren
+  '/purchases': typeof AppPurchasesRouteWithChildren
   '/inventory/$productId': typeof AppInventoryProductIdRoute
   '/inventory/scan': typeof AppInventoryScanRoute
+  '/purchases/$id': typeof AppPurchasesIdRoute
+  '/purchases/new': typeof AppPurchasesNewRoute
   '/units/$itemId': typeof AppUnitsItemIdRoute
 }
 export interface FileRoutesByTo {
@@ -72,8 +93,11 @@ export interface FileRoutesByTo {
   '/login': typeof LoginRoute
   '/dashboard': typeof AppDashboardRoute
   '/inventory': typeof AppInventoryRouteWithChildren
+  '/purchases': typeof AppPurchasesRouteWithChildren
   '/inventory/$productId': typeof AppInventoryProductIdRoute
   '/inventory/scan': typeof AppInventoryScanRoute
+  '/purchases/$id': typeof AppPurchasesIdRoute
+  '/purchases/new': typeof AppPurchasesNewRoute
   '/units/$itemId': typeof AppUnitsItemIdRoute
 }
 export interface FileRoutesById {
@@ -83,8 +107,11 @@ export interface FileRoutesById {
   '/login': typeof LoginRoute
   '/_app/dashboard': typeof AppDashboardRoute
   '/_app/inventory': typeof AppInventoryRouteWithChildren
+  '/_app/purchases': typeof AppPurchasesRouteWithChildren
   '/_app/inventory/$productId': typeof AppInventoryProductIdRoute
   '/_app/inventory/scan': typeof AppInventoryScanRoute
+  '/_app/purchases/$id': typeof AppPurchasesIdRoute
+  '/_app/purchases/new': typeof AppPurchasesNewRoute
   '/_app/units/$itemId': typeof AppUnitsItemIdRoute
 }
 export interface FileRouteTypes {
@@ -94,8 +121,11 @@ export interface FileRouteTypes {
     | '/login'
     | '/dashboard'
     | '/inventory'
+    | '/purchases'
     | '/inventory/$productId'
     | '/inventory/scan'
+    | '/purchases/$id'
+    | '/purchases/new'
     | '/units/$itemId'
   fileRoutesByTo: FileRoutesByTo
   to:
@@ -103,8 +133,11 @@ export interface FileRouteTypes {
     | '/login'
     | '/dashboard'
     | '/inventory'
+    | '/purchases'
     | '/inventory/$productId'
     | '/inventory/scan'
+    | '/purchases/$id'
+    | '/purchases/new'
     | '/units/$itemId'
   id:
     | '__root__'
@@ -113,8 +146,11 @@ export interface FileRouteTypes {
     | '/login'
     | '/_app/dashboard'
     | '/_app/inventory'
+    | '/_app/purchases'
     | '/_app/inventory/$productId'
     | '/_app/inventory/scan'
+    | '/_app/purchases/$id'
+    | '/_app/purchases/new'
     | '/_app/units/$itemId'
   fileRoutesById: FileRoutesById
 }
@@ -147,6 +183,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof IndexRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/_app/purchases': {
+      id: '/_app/purchases'
+      path: '/purchases'
+      fullPath: '/purchases'
+      preLoaderRoute: typeof AppPurchasesRouteImport
+      parentRoute: typeof AppRoute
+    }
     '/_app/inventory': {
       id: '/_app/inventory'
       path: '/inventory'
@@ -167,6 +210,20 @@ declare module '@tanstack/react-router' {
       fullPath: '/units/$itemId'
       preLoaderRoute: typeof AppUnitsItemIdRouteImport
       parentRoute: typeof AppRoute
+    }
+    '/_app/purchases/new': {
+      id: '/_app/purchases/new'
+      path: '/new'
+      fullPath: '/purchases/new'
+      preLoaderRoute: typeof AppPurchasesNewRouteImport
+      parentRoute: typeof AppPurchasesRoute
+    }
+    '/_app/purchases/$id': {
+      id: '/_app/purchases/$id'
+      path: '/$id'
+      fullPath: '/purchases/$id'
+      preLoaderRoute: typeof AppPurchasesIdRouteImport
+      parentRoute: typeof AppPurchasesRoute
     }
     '/_app/inventory/scan': {
       id: '/_app/inventory/scan'
@@ -199,15 +256,31 @@ const AppInventoryRouteWithChildren = AppInventoryRoute._addFileChildren(
   AppInventoryRouteChildren,
 )
 
+interface AppPurchasesRouteChildren {
+  AppPurchasesIdRoute: typeof AppPurchasesIdRoute
+  AppPurchasesNewRoute: typeof AppPurchasesNewRoute
+}
+
+const AppPurchasesRouteChildren: AppPurchasesRouteChildren = {
+  AppPurchasesIdRoute: AppPurchasesIdRoute,
+  AppPurchasesNewRoute: AppPurchasesNewRoute,
+}
+
+const AppPurchasesRouteWithChildren = AppPurchasesRoute._addFileChildren(
+  AppPurchasesRouteChildren,
+)
+
 interface AppRouteChildren {
   AppDashboardRoute: typeof AppDashboardRoute
   AppInventoryRoute: typeof AppInventoryRouteWithChildren
+  AppPurchasesRoute: typeof AppPurchasesRouteWithChildren
   AppUnitsItemIdRoute: typeof AppUnitsItemIdRoute
 }
 
 const AppRouteChildren: AppRouteChildren = {
   AppDashboardRoute: AppDashboardRoute,
   AppInventoryRoute: AppInventoryRouteWithChildren,
+  AppPurchasesRoute: AppPurchasesRouteWithChildren,
   AppUnitsItemIdRoute: AppUnitsItemIdRoute,
 }
 
