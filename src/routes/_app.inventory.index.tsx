@@ -10,7 +10,7 @@ import { useNavigate } from "@tanstack/react-router";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { toast } from "sonner";
 
-export const Route = createFileRoute("/_app/inventory")({ component: Inventory });
+export const Route = createFileRoute("/_app/inventory/")({ component: Inventory });
 
 function Inventory() {
   const [products, setProducts] = useState<any[]>([]);
