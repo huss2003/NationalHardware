@@ -7,7 +7,7 @@ import { PageHeader } from "@/components/erp/PageHeader";
 import { inr } from "@/lib/codes";
 import { Plus } from "lucide-react";
 
-export const Route = createFileRoute("/_app/sales")({ component: Sales });
+export const Route = createFileRoute("/_app/sales/")({ component: Sales });
 function Sales() {
   const [rows, setRows] = useState<any[]>([]);
   useEffect(() => {
