@@ -19,7 +19,7 @@ function SaleDetail() {
       const [a, b, c] = await Promise.all([
         supabase.from("sales").select("*, customers(*)").eq("id", id).single(),
         supabase.from("sales_items").select("*, products(name, hsn)").eq("sale_id", id),
-        supabase.from("app_settings").select("*").eq("id", true).single(),
+        supabase.from("app_settings").select("*").eq("id", true).maybeSingle(),
       ]);
       setS(a.data); setItems(b.data ?? []); setShop(c.data);
     })();
