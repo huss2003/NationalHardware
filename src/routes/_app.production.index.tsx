@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button";
 import { PageHeader } from "@/components/erp/PageHeader";
 import { Plus } from "lucide-react";
 
-export const Route = createFileRoute("/_app/production")({ component: Production });
+export const Route = createFileRoute("/_app/production/")({ component: Production });
 function Production() {
   const [rows, setRows] = useState<any[]>([]);
   useEffect(() => {
