@@ -37,7 +37,7 @@ function UnitPage() {
 
   const damage = async () => {
     const reason = prompt("Reason for damage?") ?? "";
-    const { error } = await supabase.rpc("mark_damaged", { _item_id: itemId, _reason: reason, _actor_user_id: user?.id });
+    const { error } = await supabase.rpc("mark_damaged", { _item_id: itemId, _reason: reason, _actor_user_id: user?.id ?? "" });
     if (error) toast.error(error.message); else { toast.success("Marked damaged"); load(); }
   };
 
