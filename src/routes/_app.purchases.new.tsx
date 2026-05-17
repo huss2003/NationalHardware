@@ -72,7 +72,7 @@ function NewPurchase() {
           gst_rate: l.gst_rate, line_total: l.qty * l.rate,
         }).select().single();
         if (piErr) throw piErr;
-        const { error: mErr } = await supabase.rpc("mint_item_instances", { _purchase_item_id: pi.id, _actor_user_id: user?.id });
+        const { error: mErr } = await supabase.rpc("mint_item_instances", { _purchase_item_id: pi.id, _actor_user_id: user?.id ?? "" });
         if (mErr) throw mErr;
       }
       toast.success("Purchase saved & units minted");
