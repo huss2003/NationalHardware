@@ -16,8 +16,11 @@ function Settings() {
   const [cust, setCust] = useState({ name: "", phone: "", gstin: "", address: "", state: "" });
 
   const load = async () => {
-    const { data } = await supabase.from("app_settings").select("*").eq("id", true).single();
-    setS(data);
+    const { data } = await supabase.from("app_settings").select("*").eq("id", true).maybeSingle();
+    setS(data ?? {
+      shop_name: "My Shop", gstin: "", state: "", address: "",
+      invoice_prefix: "INV", default_label_format: "thermal_50x25",
+    });
     const sup = await supabase.from("suppliers").select("*").order("name"); setSuppliers(sup.data ?? []);
     const c = await supabase.from("customers").select("*").order("name"); setCustomers(c.data ?? []);
   };
