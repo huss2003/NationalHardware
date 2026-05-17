@@ -67,7 +67,7 @@ function NewSale() {
         discount,
         items: lines,
       } as any,
-      _actor_user_id: user?.id,
+      _actor_user_id: user?.id ?? "",
     });
     setBusy(false);
     if (error) { toast.error(error.message); return; }

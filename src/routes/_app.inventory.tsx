@@ -78,7 +78,7 @@ function NewProductDialog({ onCreated }: { onCreated: () => void }) {
   const [form, setForm] = useState({ name: "", category: "plywood", prefix: "PLY", hsn: "", gst_rate: 18, default_cost: 0, default_price: 0, reorder_level: 5, unit: "pcs" });
   const submit = async () => {
     if (!form.name || !form.prefix) { toast.error("Name and prefix required"); return; }
-    const { error } = await supabase.from("products").insert({ ...form, prefix: form.prefix.toUpperCase() });
+    const { error } = await supabase.from("products").insert({ ...form, prefix: form.prefix.toUpperCase() } as any);
     if (error) toast.error(error.message); else { toast.success("Product created"); setOpen(false); onCreated(); }
   };
   return (
