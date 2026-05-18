@@ -1,7 +1,7 @@
 import { Link, useRouterState } from "@tanstack/react-router";
 import {
   LayoutDashboard, Boxes, ShoppingCart, Receipt, Factory,
-  BarChart3, Users, Bell, Settings, Layers, ScanLine,
+  BarChart3, Users, Bell, Settings, Layers, ScanLine, Wrench,
 } from "lucide-react";
 import { useAuth } from "@/lib/auth-store";
 import { Button } from "@/components/ui/button";
@@ -18,6 +18,7 @@ const items = [
   { to: "/employees", label: "Employees", icon: Users },
   { to: "/alerts", label: "Alerts", icon: Bell },
   { to: "/settings", label: "Settings", icon: Settings },
+  { to: "/dev", label: "Dev tools", icon: Wrench },
 ] as const;
 
 export function AppSidebar() {
