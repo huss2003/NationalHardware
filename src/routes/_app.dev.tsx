@@ -35,7 +35,8 @@ function DevTools() {
   const [running, setRunning] = useState(false);
   const [probes, setProbes] = useState<Probe[]>([]);
   const [repaired, setRepaired] = useState<string | null>(null);
-  const lastActionRef = useRef<null | (() => Promise<void>)>(null);
+  const lastActionRef = useRef<null | { name: string; run: () => Promise<void> }>(null);
+  const retryingRef = useRef(false);
   const containerRef = useRef<HTMLDivElement>(null);
 
   const repairActor = (): string => {
@@ -51,34 +52,47 @@ function DevTools() {
     return user.id;
   };
 
-  const withAutoRepair = async <T,>(run: (actorId: string) => Promise<T>): Promise<T> => {
+  // Generic wrapper: records the last action, and on any invalid-UUID RPC
+  // failure repairs the actor and automatically re-runs it once.
+  const runAction = async (name: string, fn: () => Promise<void>) => {
+    const entry = { name, run: () => runAction(name, fn) };
+    lastActionRef.current = entry;
     try {
-      return await run(currentActorId());
+      await fn();
     } catch (e) {
-      if (looksLikeBadActor(e)) {
-        const fixed = repairActor();
-        return await run(fixed);
+      if (looksLikeBadActor(e) && !retryingRef.current) {
+        retryingRef.current = true;
+        repairActor();
+        try {
+          toast.message(`Retrying "${name}"`, { description: "Auto-repair applied" });
+          await fn();
+        } catch (err: any) {
+          toast.error(err?.message ?? `${name} failed after retry`);
+        } finally {
+          retryingRef.current = false;
+        }
+        return;
       }
-      throw e;
+      toast.error((e as any)?.message ?? `${name} failed`);
     }
   };
 
-  const handleSeed = async () => {
-    lastActionRef.current = handleSeed;
-    setSeeding(true);
-    try {
-      const log = await withAutoRepair((id) => seedDemoData(id));
-      setSeedLog((prev) => [...log, ...prev]);
-      toast.success("Demo data seeded");
-    } catch (e: any) {
-      toast.error(e.message ?? "Seed failed");
-    } finally {
-      setSeeding(false);
-    }
-  };
+  const handleSeed = () =>
+    runAction("Seed demo data", async () => {
+      setSeeding(true);
+      try {
+        const log = await seedDemoData(currentActorId());
+        setSeedLog((prev) => [...log, ...prev]);
+        toast.success("Demo data seeded");
+      } finally {
+        setSeeding(false);
+      }
+    });
 
-  const runSmoke = async () => {
-    lastActionRef.current = runSmoke;
+  const runSmoke = () =>
+    runAction("Navigation smoke test", () => smokeImpl());
+
+  const smokeImpl = async () => {
     setRunning(true);
     if (!user || !UUID_RE.test(user.id)) repairActor();
     // Build the route list — list, new, and detail (sampled from DB).
