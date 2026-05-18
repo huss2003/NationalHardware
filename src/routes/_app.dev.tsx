@@ -1,5 +1,5 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { useEffect, useRef, useState } from "react";
+import { useRef, useState } from "react";
 import { PageHeader } from "@/components/erp/PageHeader";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -7,7 +7,20 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/lib/auth-store";
 import { seedDemoData } from "@/lib/seed";
 import { toast } from "sonner";
-import { CheckCircle2, XCircle, Loader2, Database, PlayCircle } from "lucide-react";
+import { CheckCircle2, XCircle, Loader2, Database, PlayCircle, Wrench } from "lucide-react";
+
+const GUEST_UUID = "00000000-0000-0000-0000-000000000001";
+const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+function looksLikeBadActor(err: unknown): boolean {
+  const msg = String((err as any)?.message ?? err ?? "").toLowerCase();
+  return (
+    msg.includes("invalid input syntax for type uuid") ||
+    msg.includes("uuid") && msg.includes("invalid") ||
+    msg.includes("_actor_user_id") ||
+    msg.includes("created_by")
+  );
+}
 
 export const Route = createFileRoute("/_app/dev")({ component: DevTools });
 
@@ -16,16 +29,45 @@ type Probe = { path: string; status: Status; note?: string };
 
 function DevTools() {
   const user = useAuth((s) => s.user);
+  const setUser = useAuth((s) => s.setUser);
   const [seeding, setSeeding] = useState(false);
   const [seedLog, setSeedLog] = useState<string[]>([]);
   const [running, setRunning] = useState(false);
   const [probes, setProbes] = useState<Probe[]>([]);
+  const [repaired, setRepaired] = useState<string | null>(null);
+  const lastActionRef = useRef<null | (() => Promise<void>)>(null);
   const containerRef = useRef<HTMLDivElement>(null);
 
+  const repairActor = (): string => {
+    const fixed = { id: GUEST_UUID, name: user?.name ?? "Guest", role: (user?.role ?? "admin") as any };
+    setUser(fixed);
+    setRepaired(`Reset invalid user id → ${GUEST_UUID}`);
+    toast.message("Auto-repaired user id", { description: "Retrying last action…" });
+    return fixed.id;
+  };
+
+  const currentActorId = (): string => {
+    if (!user || !UUID_RE.test(user.id)) return repairActor();
+    return user.id;
+  };
+
+  const withAutoRepair = async <T,>(run: (actorId: string) => Promise<T>): Promise<T> => {
+    try {
+      return await run(currentActorId());
+    } catch (e) {
+      if (looksLikeBadActor(e)) {
+        const fixed = repairActor();
+        return await run(fixed);
+      }
+      throw e;
+    }
+  };
+
   const handleSeed = async () => {
+    lastActionRef.current = handleSeed;
     setSeeding(true);
     try {
-      const log = await seedDemoData(user?.id ?? "00000000-0000-0000-0000-000000000000");
+      const log = await withAutoRepair((id) => seedDemoData(id));
       setSeedLog((prev) => [...log, ...prev]);
       toast.success("Demo data seeded");
     } catch (e: any) {
@@ -36,7 +78,9 @@ function DevTools() {
   };
 
   const runSmoke = async () => {
+    lastActionRef.current = runSmoke;
     setRunning(true);
+    if (!user || !UUID_RE.test(user.id)) repairActor();
     // Build the route list — list, new, and detail (sampled from DB).
     const staticPaths = [
       "/dashboard",
@@ -95,6 +139,23 @@ function DevTools() {
         subtitle="Seed sample data and run a navigation smoke test across every screen"
       />
       <div className="px-8 pb-8 space-y-5">
+        {repaired && (
+          <Card className="p-4 flex items-center gap-3 border-amber-500/40 bg-amber-500/5">
+            <Wrench className="h-5 w-5 text-amber-600" />
+            <div className="flex-1 text-sm">
+              <div className="font-semibold">Auto-repair applied</div>
+              <div className="text-muted-foreground">{repaired}</div>
+            </div>
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={() => lastActionRef.current?.()}
+              disabled={!lastActionRef.current || seeding || running}
+            >
+              Retry last action
+            </Button>
+          </Card>
+        )}
         <Card className="p-5 space-y-3">
           <div className="flex items-center gap-2 font-bold text-lg">
             <Database className="h-5 w-5" /> Demo data seeder
