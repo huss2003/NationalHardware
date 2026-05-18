@@ -182,8 +182,8 @@ export async function seedDemoData(actorId: string) {
     const { data: order, error: oErr } = await supabase
       .from("production_orders")
       .insert({
-        finished_product_id: finished.id,
-        bom_id: bom.id,
+        finished_product_id: finished!.id,
+        bom_id: bom!.id,
         qty: opts.qty,
         status: "open",
         notes: `Seeded: ${opts.label}`,
