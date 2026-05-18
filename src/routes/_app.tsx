@@ -13,7 +13,7 @@ function AppLayout() {
   const setUser = useAuth((s) => s.setUser);
 
   useEffect(() => {
-    if (!user) setUser({ id: "guest", name: "Guest", role: "admin" });
+    if (!user) setUser({ id: "00000000-0000-0000-0000-000000000001", name: "Guest", role: "admin" });
   }, [user, setUser]);
 
   return (
