@@ -163,7 +163,7 @@ function DevTools() {
             <Button
               size="sm"
               variant="outline"
-              onClick={() => lastActionRef.current?.()}
+              onClick={() => lastActionRef.current?.run()}
               disabled={!lastActionRef.current || seeding || running}
             >
               Retry last action
