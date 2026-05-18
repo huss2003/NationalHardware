@@ -36,7 +36,8 @@ function DevTools() {
   const [probes, setProbes] = useState<Probe[]>([]);
   const [repaired, setRepaired] = useState<string | null>(null);
   const lastActionRef = useRef<null | { name: string; run: () => Promise<void> }>(null);
-  const retryingRef = useRef(false);
+  const retryCountsRef = useRef<Map<string, number>>(new Map());
+  const MAX_RETRIES = 1;
   const containerRef = useRef<HTMLDivElement>(null);
 
   const repairActor = (): string => {
@@ -55,25 +56,42 @@ function DevTools() {
   // Generic wrapper: records the last action, and on any invalid-UUID RPC
   // failure repairs the actor and automatically re-runs it once.
   const runAction = async (name: string, fn: () => Promise<void>) => {
-    const entry = { name, run: () => runAction(name, fn) };
+    const counts = retryCountsRef.current;
+    // Manual invocations (via the Retry button) reset the counter so the
+    // user can deliberately try again after a successful rerun.
+    if (!counts.has(name)) counts.set(name, 0);
+    const entry = {
+      name,
+      run: () => {
+        counts.set(name, 0);
+        return runAction(name, fn);
+      },
+    };
     lastActionRef.current = entry;
     try {
       await fn();
+      counts.set(name, 0); // success → clear retry budget
     } catch (e) {
-      if (looksLikeBadActor(e) && !retryingRef.current) {
-        retryingRef.current = true;
+      const used = counts.get(name) ?? 0;
+      if (looksLikeBadActor(e) && used < MAX_RETRIES) {
+        counts.set(name, used + 1);
         repairActor();
+        toast.message(`Retrying "${name}"`, {
+          description: `Auto-repair applied (attempt ${used + 1}/${MAX_RETRIES})`,
+        });
         try {
-          toast.message(`Retrying "${name}"`, { description: "Auto-repair applied" });
           await fn();
+          counts.set(name, 0);
         } catch (err: any) {
           toast.error(err?.message ?? `${name} failed after retry`);
-        } finally {
-          retryingRef.current = false;
         }
         return;
       }
-      toast.error((e as any)?.message ?? `${name} failed`);
+      if (looksLikeBadActor(e)) {
+        toast.error(`${name} still failing after ${MAX_RETRIES} auto-retry. Please reload.`);
+      } else {
+        toast.error((e as any)?.message ?? `${name} failed`);
+      }
     }
   };
 
