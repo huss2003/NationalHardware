@@ -15,6 +15,7 @@ import { Route as IndexRouteImport } from './routes/index'
 import { Route as AppSettingsRouteImport } from './routes/_app.settings'
 import { Route as AppReportsRouteImport } from './routes/_app.reports'
 import { Route as AppEmployeesRouteImport } from './routes/_app.employees'
+import { Route as AppDevRouteImport } from './routes/_app.dev'
 import { Route as AppDashboardRouteImport } from './routes/_app.dashboard'
 import { Route as AppBomRouteImport } from './routes/_app.bom'
 import { Route as AppAlertsRouteImport } from './routes/_app.alerts'
@@ -59,6 +60,11 @@ const AppReportsRoute = AppReportsRouteImport.update({
 const AppEmployeesRoute = AppEmployeesRouteImport.update({
   id: '/employees',
   path: '/employees',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppDevRoute = AppDevRouteImport.update({
+  id: '/dev',
+  path: '/dev',
   getParentRoute: () => AppRoute,
 } as any)
 const AppDashboardRoute = AppDashboardRouteImport.update({
@@ -148,6 +154,7 @@ export interface FileRoutesByFullPath {
   '/alerts': typeof AppAlertsRoute
   '/bom': typeof AppBomRoute
   '/dashboard': typeof AppDashboardRoute
+  '/dev': typeof AppDevRoute
   '/employees': typeof AppEmployeesRoute
   '/reports': typeof AppReportsRoute
   '/settings': typeof AppSettingsRoute
@@ -171,6 +178,7 @@ export interface FileRoutesByTo {
   '/alerts': typeof AppAlertsRoute
   '/bom': typeof AppBomRoute
   '/dashboard': typeof AppDashboardRoute
+  '/dev': typeof AppDevRoute
   '/employees': typeof AppEmployeesRoute
   '/reports': typeof AppReportsRoute
   '/settings': typeof AppSettingsRoute
@@ -196,6 +204,7 @@ export interface FileRoutesById {
   '/_app/alerts': typeof AppAlertsRoute
   '/_app/bom': typeof AppBomRoute
   '/_app/dashboard': typeof AppDashboardRoute
+  '/_app/dev': typeof AppDevRoute
   '/_app/employees': typeof AppEmployeesRoute
   '/_app/reports': typeof AppReportsRoute
   '/_app/settings': typeof AppSettingsRoute
@@ -221,6 +230,7 @@ export interface FileRouteTypes {
     | '/alerts'
     | '/bom'
     | '/dashboard'
+    | '/dev'
     | '/employees'
     | '/reports'
     | '/settings'
@@ -244,6 +254,7 @@ export interface FileRouteTypes {
     | '/alerts'
     | '/bom'
     | '/dashboard'
+    | '/dev'
     | '/employees'
     | '/reports'
     | '/settings'
@@ -268,6 +279,7 @@ export interface FileRouteTypes {
     | '/_app/alerts'
     | '/_app/bom'
     | '/_app/dashboard'
+    | '/_app/dev'
     | '/_app/employees'
     | '/_app/reports'
     | '/_app/settings'
@@ -334,6 +346,13 @@ declare module '@tanstack/react-router' {
       path: '/employees'
       fullPath: '/employees'
       preLoaderRoute: typeof AppEmployeesRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/_app/dev': {
+      id: '/_app/dev'
+      path: '/dev'
+      fullPath: '/dev'
+      preLoaderRoute: typeof AppDevRouteImport
       parentRoute: typeof AppRoute
     }
     '/_app/dashboard': {
@@ -455,6 +474,7 @@ interface AppRouteChildren {
   AppAlertsRoute: typeof AppAlertsRoute
   AppBomRoute: typeof AppBomRoute
   AppDashboardRoute: typeof AppDashboardRoute
+  AppDevRoute: typeof AppDevRoute
   AppEmployeesRoute: typeof AppEmployeesRoute
   AppReportsRoute: typeof AppReportsRoute
   AppSettingsRoute: typeof AppSettingsRoute
@@ -477,6 +497,7 @@ const AppRouteChildren: AppRouteChildren = {
   AppAlertsRoute: AppAlertsRoute,
   AppBomRoute: AppBomRoute,
   AppDashboardRoute: AppDashboardRoute,
+  AppDevRoute: AppDevRoute,
   AppEmployeesRoute: AppEmployeesRoute,
   AppReportsRoute: AppReportsRoute,
   AppSettingsRoute: AppSettingsRoute,
@@ -505,13 +526,3 @@ const rootRouteChildren: RootRouteChildren = {
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
   ._addFileTypes<FileRouteTypes>()
-
-import type { getRouter } from './router.tsx'
-import type { startInstance } from './start.ts'
-declare module '@tanstack/react-start' {
-  interface Register {
-    ssr: true
-    router: Awaited<ReturnType<typeof getRouter>>
-    config: Awaited<ReturnType<typeof startInstance.getOptions>>
-  }
-}
