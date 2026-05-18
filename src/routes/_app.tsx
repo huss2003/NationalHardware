@@ -13,7 +13,10 @@ function AppLayout() {
   const setUser = useAuth((s) => s.setUser);
 
   useEffect(() => {
-    if (!user) setUser({ id: "guest", name: "Guest", role: "admin" });
+    const uuidRe = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+    if (!user || !uuidRe.test(user.id)) {
+      setUser({ id: "00000000-0000-0000-0000-000000000001", name: "Guest", role: "admin" });
+    }
   }, [user, setUser]);
 
   return (
