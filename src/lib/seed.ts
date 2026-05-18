@@ -116,5 +116,94 @@ export async function seedDemoData(actorId: string) {
     log.push(`Sale ${saleId}`);
   }
 
+  // ---- Production: ensure finished product, BOM, then create + complete an order ----
+  // Finished product (distinct from raw material so consumption makes sense).
+  let { data: finishedRows } = await supabase
+    .from("products")
+    .select("*")
+    .neq("id", product.id)
+    .eq("active", true)
+    .limit(1);
+  let finished = finishedRows?.[0];
+  if (!finished) {
+    const { data: created, error: fErr } = await supabase
+      .from("products")
+      .insert({
+        name: "Demo Assembly",
+        prefix: "ASM",
+        category: "other",
+        unit: "pcs",
+        default_cost: 250,
+        default_price: 400,
+        gst_rate: 18,
+        reorder_level: 2,
+        active: true,
+      })
+      .select()
+      .single();
+    if (fErr) throw fErr;
+    finished = created;
+    log.push(`Finished product ${finished.name}`);
+  }
+
+  // BOM: finished assembly consumes 1x raw material.
+  let { data: bomRows } = await supabase
+    .from("bom")
+    .select("*")
+    .eq("finished_product_id", finished.id)
+    .eq("active", true)
+    .limit(1);
+  let bom = bomRows?.[0];
+  if (!bom) {
+    const { data: createdBom, error: bErr } = await supabase
+      .from("bom")
+      .insert({ finished_product_id: finished.id, version: 1, active: true })
+      .select()
+      .single();
+    if (bErr) throw bErr;
+    bom = createdBom;
+    const { error: biErr } = await supabase
+      .from("bom_items")
+      .insert({ bom_id: bom.id, component_product_id: product.id, qty: 1 });
+    if (biErr) throw biErr;
+    log.push(`BOM v${bom.version} for ${finished.name}`);
+  }
+
+  // Production order for qty 1.
+  const { data: order, error: oErr } = await supabase
+    .from("production_orders")
+    .insert({
+      finished_product_id: finished.id,
+      bom_id: bom.id,
+      qty: 1,
+      status: "open",
+      notes: "Seeded demo production order",
+      created_by: actorId,
+    })
+    .select()
+    .single();
+  if (oErr) throw oErr;
+  log.push(`Production order ${order.id.slice(0, 8)}`);
+
+  // Consume one available raw-material unit.
+  const materialUnit = Array.isArray(minted) ? minted[1] : null;
+  if (materialUnit) {
+    const { error: consErr } = await supabase.rpc("consume_material", {
+      _order_id: order.id,
+      _item_id: materialUnit.id,
+      _actor_user_id: actorId,
+    });
+    if (consErr) throw consErr;
+    log.push(`Consumed material ${materialUnit.id}`);
+  }
+
+  // Complete production — mints finished units.
+  const { error: compErr } = await supabase.rpc("complete_production", {
+    _order_id: order.id,
+    _actor_user_id: actorId,
+  });
+  if (compErr) throw compErr;
+  log.push(`Completed production order (mints ${order.qty} finished unit${order.qty === 1 ? "" : "s"})`);
+
   return log;
 }
