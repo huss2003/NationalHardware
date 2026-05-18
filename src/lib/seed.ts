@@ -169,41 +169,75 @@ export async function seedDemoData(actorId: string) {
     log.push(`BOM v${bom.version} for ${finished.name}`);
   }
 
-  // Production order for qty 1.
-  const { data: order, error: oErr } = await supabase
-    .from("production_orders")
-    .insert({
-      finished_product_id: finished.id,
-      bom_id: bom.id,
-      qty: 1,
-      status: "open",
-      notes: "Seeded demo production order",
-      created_by: actorId,
-    })
-    .select()
-    .single();
-  if (oErr) throw oErr;
-  log.push(`Production order ${order.id.slice(0, 8)}`);
+  const mintedUnits: any[] = Array.isArray(minted) ? minted.slice(1) : []; // unit[0] was sold
 
-  // Consume one available raw-material unit.
-  const materialUnit = Array.isArray(minted) ? minted[1] : null;
-  if (materialUnit) {
-    const { error: consErr } = await supabase.rpc("consume_material", {
-      _order_id: order.id,
-      _item_id: materialUnit.id,
-      _actor_user_id: actorId,
-    });
-    if (consErr) throw consErr;
-    log.push(`Consumed material ${materialUnit.id}`);
+  // Helper: create one production order in the requested status, optionally
+  // consuming a raw-material unit along the way.
+  async function createOrder(opts: {
+    status: "open" | "in_progress" | "completed";
+    qty: number;
+    label: string;
+    consume?: string | null;
+  }) {
+    const { data: order, error: oErr } = await supabase
+      .from("production_orders")
+      .insert({
+        finished_product_id: finished.id,
+        bom_id: bom.id,
+        qty: opts.qty,
+        status: "open",
+        notes: `Seeded: ${opts.label}`,
+        created_by: actorId,
+      })
+      .select()
+      .single();
+    if (oErr) throw oErr;
+
+    if (opts.consume) {
+      const { error: cErr } = await supabase.rpc("consume_material", {
+        _order_id: order.id,
+        _item_id: opts.consume,
+        _actor_user_id: actorId,
+      });
+      if (cErr) throw cErr;
+    }
+
+    if (opts.status === "in_progress") {
+      const { error: uErr } = await supabase
+        .from("production_orders")
+        .update({ status: "in_progress" })
+        .eq("id", order.id);
+      if (uErr) throw uErr;
+    } else if (opts.status === "completed") {
+      const { error: compErr } = await supabase.rpc("complete_production", {
+        _order_id: order.id,
+        _actor_user_id: actorId,
+      });
+      if (compErr) throw compErr;
+    }
+
+    log.push(`${opts.status.toUpperCase()} order ${order.id.slice(0, 8)} — ${opts.label}`);
+    return order;
   }
 
-  // Complete production — mints finished units.
-  const { error: compErr } = await supabase.rpc("complete_production", {
-    _order_id: order.id,
-    _actor_user_id: actorId,
+  // Open order — no materials consumed yet.
+  await createOrder({ status: "open", qty: 1, label: "fresh order awaiting materials" });
+
+  // In-progress order — one raw unit consumed, not yet completed.
+  await createOrder({
+    status: "in_progress",
+    qty: 1,
+    label: "materials consumed, on the floor",
+    consume: mintedUnits[0]?.id ?? null,
   });
-  if (compErr) throw compErr;
-  log.push(`Completed production order (mints ${order.qty} finished unit${order.qty === 1 ? "" : "s"})`);
+
+  // Completed order — consumes another raw unit and mints a finished unit.
+  await createOrder({
+    status: "completed",
+    qty: 1,
+    label: "shipped finished goods",
+    consume: mintedUnits[1]?.id ?? null,
+  });
 
   return log;
 }
