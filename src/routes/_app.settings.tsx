@@ -6,6 +6,9 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { PageHeader } from "@/components/erp/PageHeader";
 import { toast } from "sonner";
+import { Switch } from "@/components/ui/switch";
+import { useUiConfig, saveUiConfig, type UiConfig } from "@/lib/ui-config";
+import { useEffect as useEffectRC, useState as useStateRC } from "react";
 
 export const Route = createFileRoute("/_app/settings")({ component: Settings });
 function Settings() {
@@ -38,6 +41,7 @@ function Settings() {
     <>
       <PageHeader title="Settings" />
       <div className="px-8 pb-8 grid grid-cols-1 lg:grid-cols-2 gap-5">
+        <div className="lg:col-span-2"><AppConfigPanel /></div>
         <Card className="p-5 space-y-3">
           <div className="font-bold text-lg">Shop info</div>
           <Input placeholder="Shop name" value={s.shop_name ?? ""} onChange={(e) => setS({...s, shop_name: e.target.value})} />
