@@ -2,12 +2,12 @@ import { createFileRoute, Outlet, redirect } from "@tanstack/react-router";
 import { AppSidebar } from "@/components/layout/AppSidebar";
 import { useAuth } from "@/lib/auth-store";
 import { Toaster } from "@/components/ui/sonner";
-import { supabase } from "@/integrations/supabase/client";
 
 export const Route = createFileRoute("/_app")({
   beforeLoad: async ({ location }) => {
-    const { data } = await supabase.auth.getSession();
-    if (!data.session) {
+    if (typeof window === "undefined") return;
+    const raw = localStorage.getItem("selected_role_user");
+    if (!raw) {
       throw redirect({ to: "/login", search: { redirect: location.href } as any });
     }
   },
@@ -15,9 +15,8 @@ export const Route = createFileRoute("/_app")({
 });
 
 function AppLayout() {
-  const ready = useAuth((s) => s.ready);
   const user = useAuth((s) => s.user);
-  if (!ready || !user) {
+  if (!user) {
     return <div className="min-h-screen grid place-items-center text-muted-foreground">Loading…</div>;
   }
   return (
