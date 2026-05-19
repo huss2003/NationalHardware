@@ -17,6 +17,12 @@ interface AuthState {
 
 const STORAGE_KEY = "selected_role_user";
 
+const DEFAULT_USER: ActiveUser = {
+  id: "00000000-0000-0000-0000-000000000002",
+  name: "Employee",
+  role: "employee",
+};
+
 function loadFromStorage(): ActiveUser | null {
   if (typeof window === "undefined") return null;
   try {
@@ -47,7 +53,13 @@ export const useAuth = create<AuthState>()((set) => ({
 
 export function initAuthListener() {
   if (typeof window === "undefined") return;
-  const u = loadFromStorage();
+  let u = loadFromStorage();
+  if (!u) {
+    u = DEFAULT_USER;
+    try {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(u));
+    } catch {}
+  }
   useAuth.setState({ user: u, ready: true });
 }
 
