@@ -14,6 +14,15 @@ function ProductDetail() {
   const [items, setItems] = useState<any[]>([]);
   const [filter, setFilter] = useState<string>("all");
   const [page, setPage] = useState(0);
+  const [compact, setCompact] = useState<boolean>(() => {
+    if (typeof window === "undefined") return false;
+    return localStorage.getItem("inv-compact") === "1";
+  });
+  useEffect(() => {
+    if (typeof window !== "undefined") {
+      localStorage.setItem("inv-compact", compact ? "1" : "0");
+    }
+  }, [compact]);
   const PAGE_SIZE = 50;
 
   useEffect(() => {
@@ -47,6 +56,7 @@ function ProductDetail() {
   const isDoor = prefix === "DOR" || product.category === "door";
   const hasDims = isPly || isDoor;
   const dimUnit = isPly ? "ft" : "in";
+  const showDims = hasDims && !compact;
   return (
     <>
       <PageHeader title={product.name} subtitle={`${product.category.toUpperCase()} • ${product.prefix} • HSN ${product.hsn ?? "—"} • GST ${product.gst_rate}%`} />
@@ -76,6 +86,15 @@ function ProductDetail() {
           {["all","available","sold","damaged","used_in_production","returned","reserved"].map(s => (
             <button key={s} onClick={() => setFilter(s)} className={`px-4 py-2 rounded-full text-sm font-semibold border ${filter === s ? "bg-primary text-primary-foreground" : "bg-card"}`}>{s.replace("_"," ")}</button>
           ))}
+          {hasDims && (
+            <button
+              onClick={() => setCompact(c => !c)}
+              className={`px-4 py-2 rounded-full text-sm font-semibold border ml-auto ${compact ? "bg-primary text-primary-foreground" : "bg-card"}`}
+              title="Hide low-importance columns (L×W, area) for faster rendering on small screens"
+            >
+              {compact ? "Compact: on" : "Compact: off"}
+            </button>
+          )}
         </div>
 
         <Card className="overflow-hidden">
@@ -85,17 +104,17 @@ function ProductDetail() {
                 <th className="p-3">Item ID</th>
                 <th className="p-3">Status</th>
                 <th className="p-3">Default (pcs)</th>
-                {hasDims && <th className="p-3">L × W ({dimUnit})</th>}
-                {hasDims && <th className="p-3">Alt (sqft)</th>}
+                {showDims && <th className="p-3">L × W ({dimUnit})</th>}
+                {showDims && <th className="p-3">Alt (sqft)</th>}
                 <th className="p-3">Cost</th>
                 <th className="p-3">Created</th>
               </tr>
             </thead>
             <tbody>
               {pageItems.map((i) => (
-                <ItemRow key={i.id} item={i} hasDims={hasDims} />
+                <ItemRow key={i.id} item={i} hasDims={showDims} />
               ))}
-              {filtered.length === 0 && <tr><td colSpan={hasDims ? 7 : 5} className="p-8 text-center text-muted-foreground">No units</td></tr>}
+              {filtered.length === 0 && <tr><td colSpan={showDims ? 7 : 5} className="p-8 text-center text-muted-foreground">No units</td></tr>}
             </tbody>
           </table>
         </Card>
