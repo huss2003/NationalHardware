@@ -1,5 +1,5 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -17,21 +17,47 @@ function UnitPage() {
   const [item, setItem] = useState<any>(null);
   const [product, setProduct] = useState<any>(null);
   const [history, setHistory] = useState<any[]>([]);
+  const [historyOpen, setHistoryOpen] = useState(false);
+  const [historyLoading, setHistoryLoading] = useState(false);
+  const [historyLoaded, setHistoryLoaded] = useState(false);
   const [bar, setBar] = useState(""); const [qr, setQr] = useState("");
 
-  const load = async () => {
+  const load = useCallback(async () => {
     const { data: i } = await supabase.from("item_instances").select("*").eq("id", itemId).single();
     setItem(i);
     if (i) {
-      const { data: p } = await supabase.from("products").select("*").eq("id", i.product_id).single();
+      // Fetch product + labels in parallel; skip history until timeline is opened
+      const [{ data: p }, b, q] = await Promise.all([
+        supabase.from("products").select("*").eq("id", i.product_id).single(),
+        makeBarcodeDataUrl(i.id),
+        makeQrDataUrl(i.qr_payload),
+      ]);
       setProduct(p);
-      const { data: h } = await supabase.from("item_history").select("*").eq("item_id", itemId).order("created_at", { ascending: false });
-      setHistory(h ?? []);
-      setBar(await makeBarcodeDataUrl(i.id));
-      setQr(await makeQrDataUrl(i.qr_payload));
+      setBar(b);
+      setQr(q);
     }
+  }, [itemId]);
+  useEffect(() => { load(); }, [load]);
+
+  const loadHistory = useCallback(async () => {
+    if (historyLoaded || historyLoading) return;
+    setHistoryLoading(true);
+    const { data: h } = await supabase
+      .from("item_history")
+      .select("id,event,created_at,notes")
+      .eq("item_id", itemId)
+      .order("created_at", { ascending: false })
+      .limit(100);
+    setHistory(h ?? []);
+    setHistoryLoaded(true);
+    setHistoryLoading(false);
+  }, [itemId, historyLoaded, historyLoading]);
+
+  const toggleHistory = () => {
+    const next = !historyOpen;
+    setHistoryOpen(next);
+    if (next) loadHistory();
   };
-  useEffect(() => { load(); }, [itemId]);
 
   if (!item) return <div className="p-8">Loading…</div>;
 
@@ -84,17 +110,40 @@ function UnitPage() {
             {item.status === "available" && <Button variant="destructive" onClick={damage}>Mark damaged</Button>}
           </div>
           <div>
-            <div className="font-bold mb-2">Timeline</div>
-            <ol className="relative border-l-2 border-primary/30 ml-2 space-y-4 pl-5">
-              {history.length === 0 && <li className="text-sm text-muted-foreground">No history yet.</li>}
-              {history.map((h) => (
-                <li key={h.id} className="relative">
-                  <span className="absolute -left-[27px] top-1 h-4 w-4 rounded-full bg-primary"></span>
-                  <div className="font-bold uppercase text-sm">{h.event.replace("_"," ")}</div>
-                  <div className="text-xs text-muted-foreground">{new Date(h.created_at).toLocaleString()}{h.notes ? ` • ${h.notes}` : ""}</div>
-                </li>
-              ))}
-            </ol>
+            <button
+              onClick={toggleHistory}
+              className="w-full flex items-center justify-between font-bold mb-2 py-2 hover:text-primary transition-colors"
+              aria-expanded={historyOpen}
+            >
+              <span>Timeline {historyLoaded && `(${history.length})`}</span>
+              <span className="text-xs text-muted-foreground">{historyOpen ? "Hide ▲" : "Show ▼"}</span>
+            </button>
+            {historyOpen && (
+              <>
+                {historyLoading && (
+                  <div className="space-y-3 pl-5">
+                    {[0,1,2].map(k => (
+                      <div key={k} className="space-y-2">
+                        <div className="h-3 w-24 bg-muted rounded animate-pulse" />
+                        <div className="h-2 w-40 bg-muted/60 rounded animate-pulse" />
+                      </div>
+                    ))}
+                  </div>
+                )}
+                {!historyLoading && (
+                  <ol className="relative border-l-2 border-primary/30 ml-2 space-y-4 pl-5">
+                    {history.length === 0 && <li className="text-sm text-muted-foreground">No history yet.</li>}
+                    {history.map((h) => (
+                      <li key={h.id} className="relative">
+                        <span className="absolute -left-[27px] top-1 h-4 w-4 rounded-full bg-primary"></span>
+                        <div className="font-bold uppercase text-sm">{h.event.replace("_"," ")}</div>
+                        <div className="text-xs text-muted-foreground">{new Date(h.created_at).toLocaleString()}{h.notes ? ` • ${h.notes}` : ""}</div>
+                      </li>
+                    ))}
+                  </ol>
+                )}
+              </>
+            )}
           </div>
         </Card>
         <Card className="p-5 text-center">
