@@ -206,8 +206,8 @@ function NewPurchase() {
   return (
     <>
       <PageHeader title="New purchase" subtitle="Create a bill and mint individual units" />
-      <div className="px-8 pb-8 grid grid-cols-1 lg:grid-cols-3 gap-5">
-        <Card className="p-4 space-y-4 lg:col-span-2">
+      <div className="px-8 pb-8 space-y-5">
+        <Card className="p-4 space-y-4">
           {/* Header fields */}
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-3">
             <div className="relative" ref={supplierBoxRef}>
@@ -448,7 +448,7 @@ function NewPurchase() {
           </div>
         </Card>
 
-        <Card className="p-5 space-y-3 h-fit lg:sticky lg:top-4">
+        <Card className="p-5 space-y-3">
           <div className="flex justify-between">
             <span>Subtotal</span>
             <span className="font-bold">{inr(subtotal)}</span>
