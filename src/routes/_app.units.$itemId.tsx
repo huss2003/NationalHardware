@@ -11,6 +11,9 @@ import { toast } from "sonner";
 
 export const Route = createFileRoute("/_app/units/$itemId")({ component: UnitPage });
 
+// Module-level in-memory cache: itemId -> history rows
+const historyCache = new Map<string, any[]>();
+
 function UnitPage() {
   const { itemId } = Route.useParams();
   const user = useAuth(s => s.user);
@@ -41,6 +44,12 @@ function UnitPage() {
 
   const loadHistory = useCallback(async () => {
     if (historyLoaded || historyLoading) return;
+    const cached = historyCache.get(itemId);
+    if (cached) {
+      setHistory(cached);
+      setHistoryLoaded(true);
+      return;
+    }
     setHistoryLoading(true);
     const { data: h } = await supabase
       .from("item_history")
@@ -48,7 +57,9 @@ function UnitPage() {
       .eq("item_id", itemId)
       .order("created_at", { ascending: false })
       .limit(100);
-    setHistory(h ?? []);
+    const rows = h ?? [];
+    historyCache.set(itemId, rows);
+    setHistory(rows);
     setHistoryLoaded(true);
     setHistoryLoading(false);
   }, [itemId, historyLoaded, historyLoading]);
