@@ -1,24 +1,25 @@
-import { createFileRoute, Outlet } from "@tanstack/react-router";
-import { useEffect } from "react";
+import { createFileRoute, Outlet, redirect } from "@tanstack/react-router";
 import { AppSidebar } from "@/components/layout/AppSidebar";
 import { useAuth } from "@/lib/auth-store";
 import { Toaster } from "@/components/ui/sonner";
+import { supabase } from "@/integrations/supabase/client";
 
 export const Route = createFileRoute("/_app")({
+  beforeLoad: async ({ location }) => {
+    const { data } = await supabase.auth.getSession();
+    if (!data.session) {
+      throw redirect({ to: "/login", search: { redirect: location.href } as any });
+    }
+  },
   component: AppLayout,
 });
 
 function AppLayout() {
+  const ready = useAuth((s) => s.ready);
   const user = useAuth((s) => s.user);
-  const setUser = useAuth((s) => s.setUser);
-
-  useEffect(() => {
-    const uuidRe = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
-    if (!user || !uuidRe.test(user.id)) {
-      setUser({ id: "00000000-0000-0000-0000-000000000001", name: "Guest", role: "admin" });
-    }
-  }, [user, setUser]);
-
+  if (!ready || !user) {
+    return <div className="min-h-screen grid place-items-center text-muted-foreground">Loading…</div>;
+  }
   return (
     <div className="min-h-screen flex bg-background">
       <AppSidebar />
