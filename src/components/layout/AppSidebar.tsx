@@ -5,30 +5,35 @@ import {
 } from "lucide-react";
 import { useAuth } from "@/lib/auth-store";
 import { Button } from "@/components/ui/button";
+import { useUiConfig } from "@/lib/ui-config";
 
 const items = [
-  { to: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
-  { to: "/inventory", label: "Inventory", icon: Boxes },
-  { to: "/inventory/scan", label: "Scan", icon: ScanLine },
-  { to: "/purchases", label: "Purchases", icon: ShoppingCart },
-  { to: "/sales", label: "Sales", icon: Receipt },
-  { to: "/production", label: "Production", icon: Factory },
-  { to: "/bom", label: "BOM", icon: Layers },
-  { to: "/reports", label: "Reports", icon: BarChart3 },
-  { to: "/employees", label: "Employees", icon: Users },
-  { to: "/alerts", label: "Alerts", icon: Bell },
-  { to: "/settings", label: "Settings", icon: Settings },
-  { to: "/dev", label: "Dev tools", icon: Wrench },
+  { key: "dashboard",  to: "/dashboard",       label: "Dashboard",  icon: LayoutDashboard },
+  { key: "inventory",  to: "/inventory",       label: "Inventory",  icon: Boxes },
+  { key: "scan",       to: "/inventory/scan",  label: "Scan",       icon: ScanLine },
+  { key: "purchases",  to: "/purchases",       label: "Purchases",  icon: ShoppingCart },
+  { key: "sales",      to: "/sales",           label: "Sales",      icon: Receipt },
+  { key: "production", to: "/production",      label: "Production", icon: Factory },
+  { key: "bom",        to: "/bom",             label: "BOM",        icon: Layers },
+  { key: "reports",    to: "/reports",         label: "Reports",    icon: BarChart3 },
+  { key: "employees",  to: "/employees",       label: "Employees",  icon: Users },
+  { key: "alerts",     to: "/alerts",          label: "Alerts",     icon: Bell },
+  { key: "settings",   to: "/settings",        label: "Settings",   icon: Settings },
+  { key: "dev",        to: "/dev",             label: "Dev tools",  icon: Wrench },
 ] as const;
 
 export function AppSidebar() {
   const pathname = useRouterState({ select: (r) => r.location.pathname });
   const user = useAuth((s) => s.user);
   const logout = useAuth((s) => s.logout);
+  const cfg = useUiConfig();
+
+  // Settings tile is always visible so users can re-enable hidden modules.
+  const visible = items.filter((it) => it.key === "settings" || cfg.nav[it.key] !== false);
 
   // Pick the single best-matching nav item (longest `to` that matches the
   // current pathname) so nested routes don't highlight two tiles at once.
-  const activeTo = items
+  const activeTo = visible
     .map((it) => it.to)
     .filter((to) => pathname === to || pathname.startsWith(to + "/"))
     .sort((a, b) => b.length - a.length)[0];
@@ -40,7 +45,7 @@ export function AppSidebar() {
         <div className="text-2xl font-extrabold mt-1">Hardware ERP</div>
       </div>
       <nav className="flex-1 p-3 space-y-1 overflow-y-auto">
-        {items.map((it) => {
+        {visible.map((it) => {
           const active = it.to === activeTo;
           return (
             <Link key={it.to} to={it.to} className="sidebar-link" data-active={active}>

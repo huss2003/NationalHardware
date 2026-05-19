@@ -10,6 +10,7 @@ import { useAuth } from "@/lib/auth-store";
 import { toast } from "sonner";
 import { inr } from "@/lib/codes";
 import { AlertOctagon, Trash2 } from "lucide-react";
+import { useUiConfig } from "@/lib/ui-config";
 
 export const Route = createFileRoute("/_app/sales/new")({ component: NewSale });
 
@@ -18,6 +19,8 @@ type Line = { product_id: string; item_instance_id: string | null; name: string;
 function NewSale() {
   const nav = useNavigate();
   const user = useAuth(s => s.user);
+  const cfg = useUiConfig();
+  const f = cfg.forms.new_sale.fields;
   const [customers, setCustomers] = useState<any[]>([]);
   const [customerId, setCustomerId] = useState("");
   const [customerState, setCustomerState] = useState<string>("");
@@ -57,6 +60,8 @@ function NewSale() {
 
   const save = async () => {
     if (lines.length === 0) { toast.error("Scan or add items"); return; }
+    if (f.customer.visible && f.customer.required && !customerId) { toast.error("Customer is required"); return; }
+    if (f.payment_mode.visible && f.payment_mode.required && !paymentMode) { toast.error("Payment mode is required"); return; }
     setBusy(true);
     const { data, error } = await supabase.rpc("record_sale", {
       _payload: {
@@ -92,7 +97,14 @@ function NewSale() {
             ) : (
               <table className="w-full">
                 <thead className="bg-muted text-left text-sm">
-                  <tr><th className="p-3">Item</th><th className="p-3">Qty</th><th className="p-3">Rate</th><th className="p-3">GST%</th><th className="p-3">Total</th><th></th></tr>
+                  <tr>
+                    <th className="p-3">Item</th>
+                    <th className="p-3">Qty</th>
+                    <th className="p-3">Rate</th>
+                    {f.gst_rate.visible && <th className="p-3">GST%</th>}
+                    <th className="p-3">Total</th>
+                    <th></th>
+                  </tr>
                 </thead>
                 <tbody>
                   {lines.map((l, i) => (
@@ -103,7 +115,9 @@ function NewSale() {
                       </td>
                       <td className="p-3"><Input className="w-20 h-10" type="number" value={l.qty} onChange={(e) => upd(i, { qty: Number(e.target.value) })} /></td>
                       <td className="p-3"><Input className="w-28 h-10" type="number" value={l.rate} onChange={(e) => upd(i, { rate: Number(e.target.value) })} /></td>
-                      <td className="p-3"><Input className="w-20 h-10" type="number" value={l.gst_rate} onChange={(e) => upd(i, { gst_rate: Number(e.target.value) })} /></td>
+                      {f.gst_rate.visible && (
+                        <td className="p-3"><Input className="w-20 h-10" type="number" value={l.gst_rate} onChange={(e) => upd(i, { gst_rate: Number(e.target.value) })} /></td>
+                      )}
                       <td className="p-3 font-bold">{inr(l.qty * l.rate)}</td>
                       <td className="p-3"><Button variant="ghost" size="icon" onClick={() => rm(i)}><Trash2 className="h-4 w-4 text-destructive" /></Button></td>
                     </tr>
@@ -115,21 +129,29 @@ function NewSale() {
         </div>
 
         <Card className="p-5 space-y-3 h-fit sticky top-4">
-          <select className="h-12 w-full rounded-md border bg-background px-3" value={customerId} onChange={(e) => setCustomerId(e.target.value)}>
-            <option value="">Walk-in customer</option>
-            {customers.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
-          </select>
-          <select className="h-12 w-full rounded-md border bg-background px-3 font-semibold" value={paymentMode} onChange={(e) => setPaymentMode(e.target.value)}>
-            <option value="cash">Cash</option>
-            <option value="upi">UPI</option>
-            <option value="card">Card</option>
-            <option value="credit">Credit</option>
-          </select>
-          <Input className="h-12" type="number" placeholder="Discount ₹" value={discount} onChange={(e) => setDiscount(Number(e.target.value))} />
+          {f.customer.visible && (
+            <select className="h-12 w-full rounded-md border bg-background px-3" value={customerId} onChange={(e) => setCustomerId(e.target.value)}>
+              <option value="">{f.customer.required ? "-- Customer * --" : "Walk-in customer"}</option>
+              {customers.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
+            </select>
+          )}
+          {f.payment_mode.visible && (
+            <select className="h-12 w-full rounded-md border bg-background px-3 font-semibold" value={paymentMode} onChange={(e) => setPaymentMode(e.target.value)}>
+              <option value="cash">Cash</option>
+              <option value="upi">UPI</option>
+              <option value="card">Card</option>
+              <option value="credit">Credit</option>
+            </select>
+          )}
+          {f.discount.visible && (
+            <Input className="h-12" type="number" placeholder={`Discount ₹${f.discount.required ? " *" : ""}`} value={discount} onChange={(e) => setDiscount(Number(e.target.value))} />
+          )}
           <div className="border-t pt-3 space-y-2">
             <div className="flex justify-between"><span>Subtotal</span><b>{inr(subtotal)}</b></div>
             <div className="flex justify-between"><span>GST</span><b>{inr(tax)}</b></div>
-            <div className="flex justify-between"><span>Discount</span><b>− {inr(discount)}</b></div>
+            {f.discount.visible && (
+              <div className="flex justify-between"><span>Discount</span><b>− {inr(discount)}</b></div>
+            )}
             <div className="flex justify-between text-2xl"><span>Total</span><b>{inr(total)}</b></div>
           </div>
           <Button className="w-full h-14 text-lg" disabled={busy} onClick={save}>Save invoice</Button>

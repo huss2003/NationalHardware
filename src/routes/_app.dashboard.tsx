@@ -6,6 +6,7 @@ import { PageHeader } from "@/components/erp/PageHeader";
 import { inr } from "@/lib/codes";
 import { Boxes, Factory, IndianRupee, ShoppingCart, AlertTriangle, Receipt } from "lucide-react";
 import { BarChart, Bar, XAxis, YAxis, ResponsiveContainer, Tooltip } from "recharts";
+import { useUiConfig } from "@/lib/ui-config";
 
 export const Route = createFileRoute("/_app/dashboard")({ component: Dashboard });
 
@@ -26,6 +27,8 @@ function StatCard({ icon: Icon, label, value, color }: any) {
 }
 
 function Dashboard() {
+  const cfg = useUiConfig();
+  const t = cfg.dashboard.tiles;
   const [stats, setStats] = useState({
     salesToday: 0, purchaseToday: 0, stockValue: 0, lowStock: 0, productionToday: 0, pendingCredit: 0,
   });
@@ -93,12 +96,12 @@ function Dashboard() {
       <PageHeader title="Dashboard" subtitle="Live shop snapshot" />
       <div className="px-8 pb-8 space-y-6">
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
-          <StatCard icon={IndianRupee} label="Today Sales" value={inr(stats.salesToday)} color="bg-emerald-600" />
-          <StatCard icon={ShoppingCart} label="Today Purchase" value={inr(stats.purchaseToday)} color="bg-blue-600" />
-          <StatCard icon={Boxes} label="Stock Value" value={inr(stats.stockValue)} color="bg-indigo-600" />
-          <StatCard icon={AlertTriangle} label="Low Stock Products" value={stats.lowStock} color="bg-amber-500" />
-          <StatCard icon={Factory} label="Production Today" value={stats.productionToday} color="bg-fuchsia-600" />
-          <StatCard icon={Receipt} label="Pending Credit" value={inr(stats.pendingCredit)} color="bg-rose-600" />
+          {t.salesToday      && <StatCard icon={IndianRupee}    label="Today Sales"          value={inr(stats.salesToday)}    color="bg-emerald-600" />}
+          {t.purchaseToday   && <StatCard icon={ShoppingCart}   label="Today Purchase"       value={inr(stats.purchaseToday)} color="bg-blue-600" />}
+          {t.stockValue      && <StatCard icon={Boxes}          label="Stock Value"          value={inr(stats.stockValue)}    color="bg-indigo-600" />}
+          {t.lowStock        && <StatCard icon={AlertTriangle}  label="Low Stock Products"   value={stats.lowStock}           color="bg-amber-500" />}
+          {t.productionToday && <StatCard icon={Factory}        label="Production Today"     value={stats.productionToday}    color="bg-fuchsia-600" />}
+          {t.pendingCredit   && <StatCard icon={Receipt}        label="Pending Credit"       value={inr(stats.pendingCredit)} color="bg-rose-600" />}
         </div>
 
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-5">

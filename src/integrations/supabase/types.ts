@@ -51,6 +51,7 @@ export type Database = {
           invoice_prefix: string
           shop_name: string
           state: string | null
+          ui_config: Json
           updated_at: string
         }
         Insert: {
@@ -62,6 +63,7 @@ export type Database = {
           invoice_prefix?: string
           shop_name?: string
           state?: string | null
+          ui_config?: Json
           updated_at?: string
         }
         Update: {
@@ -73,6 +75,7 @@ export type Database = {
           invoice_prefix?: string
           shop_name?: string
           state?: string | null
+          ui_config?: Json
           updated_at?: string
         }
         Relationships: []

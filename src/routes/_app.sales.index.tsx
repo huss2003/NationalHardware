@@ -6,9 +6,14 @@ import { Button } from "@/components/ui/button";
 import { PageHeader } from "@/components/erp/PageHeader";
 import { inr } from "@/lib/codes";
 import { Plus } from "lucide-react";
+import { useUiConfig } from "@/lib/ui-config";
 
 export const Route = createFileRoute("/_app/sales/")({ component: Sales });
 function Sales() {
+  const cfg = useUiConfig();
+  const c = cfg.lists.sales.columns;
+  const visibleCount = ["invoice","date","customer","mode","total"].filter((k) => c[k] !== false).length;
+  const colSpan = visibleCount + 1;
   const [rows, setRows] = useState<any[]>([]);
   useEffect(() => {
     (async () => {
@@ -23,20 +28,27 @@ function Sales() {
         <Card className="overflow-hidden">
           <table className="w-full">
             <thead className="bg-muted text-left text-sm">
-              <tr><th className="p-3">Invoice</th><th className="p-3">Date</th><th className="p-3">Customer</th><th className="p-3">Mode</th><th className="p-3">Total</th><th className="p-3"></th></tr>
+              <tr>
+                {c.invoice  && <th className="p-3">Invoice</th>}
+                {c.date     && <th className="p-3">Date</th>}
+                {c.customer && <th className="p-3">Customer</th>}
+                {c.mode     && <th className="p-3">Mode</th>}
+                {c.total    && <th className="p-3">Total</th>}
+                <th className="p-3"></th>
+              </tr>
             </thead>
             <tbody>
               {rows.map((r) => (
                 <tr key={r.id} className="border-t">
-                  <td className="p-3 font-mono font-bold">{r.invoice_no}</td>
-                  <td className="p-3">{new Date(r.invoice_date).toLocaleString()}</td>
-                  <td className="p-3">{r.customers?.name ?? "Walk-in"}</td>
-                  <td className="p-3 uppercase text-xs font-bold">{r.payment_mode}</td>
-                  <td className="p-3 font-bold">{inr(r.grand_total)}</td>
+                  {c.invoice  && <td className="p-3 font-mono font-bold">{r.invoice_no}</td>}
+                  {c.date     && <td className="p-3">{new Date(r.invoice_date).toLocaleString()}</td>}
+                  {c.customer && <td className="p-3">{r.customers?.name ?? "Walk-in"}</td>}
+                  {c.mode     && <td className="p-3 uppercase text-xs font-bold">{r.payment_mode}</td>}
+                  {c.total    && <td className="p-3 font-bold">{inr(r.grand_total)}</td>}
                   <td className="p-3 text-right"><Link to="/sales/$id" params={{ id: r.id }} className="text-primary font-semibold">View →</Link></td>
                 </tr>
               ))}
-              {rows.length === 0 && <tr><td colSpan={6} className="p-10 text-center text-muted-foreground">No sales yet</td></tr>}
+              {rows.length === 0 && <tr><td colSpan={colSpan} className="p-10 text-center text-muted-foreground">No sales yet</td></tr>}
             </tbody>
           </table>
         </Card>

@@ -6,10 +6,15 @@ import { Button } from "@/components/ui/button";
 import { PageHeader } from "@/components/erp/PageHeader";
 import { inr } from "@/lib/codes";
 import { Plus } from "lucide-react";
+import { useUiConfig } from "@/lib/ui-config";
 
 export const Route = createFileRoute("/_app/purchases/")({ component: Purchases });
 
 function Purchases() {
+  const cfg = useUiConfig();
+  const c = cfg.lists.purchases.columns;
+  const visible = ["date","bill_no","supplier","total"].filter((k) => c[k] !== false);
+  const colSpan = visible.length + 1;
   const [rows, setRows] = useState<any[]>([]);
   useEffect(() => {
     (async () => {
@@ -32,19 +37,25 @@ function Purchases() {
         <Card className="overflow-hidden">
           <table className="w-full">
             <thead className="bg-muted text-left text-sm">
-              <tr><th className="p-3">Date</th><th className="p-3">Bill #</th><th className="p-3">Supplier</th><th className="p-3">Total</th><th className="p-3"></th></tr>
+              <tr>
+                {c.date     && <th className="p-3">Date</th>}
+                {c.bill_no  && <th className="p-3">Bill #</th>}
+                {c.supplier && <th className="p-3">Supplier</th>}
+                {c.total    && <th className="p-3">Total</th>}
+                <th className="p-3"></th>
+              </tr>
             </thead>
             <tbody>
               {rows.map((r) => (
                 <tr key={r.id} className="border-t">
-                  <td className="p-3">{new Date(r.bill_date).toLocaleDateString()}</td>
-                  <td className="p-3 font-mono">{r.bill_no ?? "—"}</td>
-                  <td className="p-3 font-semibold">{r.suppliers?.name ?? "—"}</td>
-                  <td className="p-3 font-bold">{inr(r.grand_total)}</td>
+                  {c.date     && <td className="p-3">{new Date(r.bill_date).toLocaleDateString()}</td>}
+                  {c.bill_no  && <td className="p-3 font-mono">{r.bill_no ?? "—"}</td>}
+                  {c.supplier && <td className="p-3 font-semibold">{r.suppliers?.name ?? "—"}</td>}
+                  {c.total    && <td className="p-3 font-bold">{inr(r.grand_total)}</td>}
                   <td className="p-3 text-right"><Link to="/purchases/$id" params={{ id: r.id }} className="text-primary font-semibold">View →</Link></td>
                 </tr>
               ))}
-              {rows.length === 0 && <tr><td colSpan={5} className="p-10 text-center text-muted-foreground">No purchases yet</td></tr>}
+              {rows.length === 0 && <tr><td colSpan={colSpan} className="p-10 text-center text-muted-foreground">No purchases yet</td></tr>}
             </tbody>
           </table>
         </Card>
