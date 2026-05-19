@@ -5,9 +5,13 @@ import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { PageHeader } from "@/components/erp/PageHeader";
 import { Plus } from "lucide-react";
+import { useUiConfig } from "@/lib/ui-config";
 
 export const Route = createFileRoute("/_app/production/")({ component: Production });
 function Production() {
+  const cfg = useUiConfig();
+  const c = cfg.lists.production.columns;
+  const colSpan = ["date","product","qty","status"].filter((k) => c[k] !== false).length + 1;
   const [rows, setRows] = useState<any[]>([]);
   useEffect(() => {
     supabase.from("production_orders").select("*, products!finished_product_id(name)").order("created_at", { ascending: false }).then(({ data }) => setRows(data ?? []));
@@ -18,18 +22,26 @@ function Production() {
       <div className="px-8 pb-8">
         <Card className="overflow-hidden">
           <table className="w-full">
-            <thead className="bg-muted text-left text-sm"><tr><th className="p-3">Date</th><th className="p-3">Product</th><th className="p-3">Qty</th><th className="p-3">Status</th><th></th></tr></thead>
+            <thead className="bg-muted text-left text-sm">
+              <tr>
+                {c.date    && <th className="p-3">Date</th>}
+                {c.product && <th className="p-3">Product</th>}
+                {c.qty     && <th className="p-3">Qty</th>}
+                {c.status  && <th className="p-3">Status</th>}
+                <th></th>
+              </tr>
+            </thead>
             <tbody>
               {rows.map(r => (
                 <tr key={r.id} className="border-t">
-                  <td className="p-3">{new Date(r.created_at).toLocaleString()}</td>
-                  <td className="p-3 font-bold">{r.products?.name}</td>
-                  <td className="p-3">{r.qty}</td>
-                  <td className="p-3"><span className="px-2 py-1 rounded-full text-xs font-bold bg-muted uppercase">{r.status}</span></td>
+                  {c.date    && <td className="p-3">{new Date(r.created_at).toLocaleString()}</td>}
+                  {c.product && <td className="p-3 font-bold">{r.products?.name}</td>}
+                  {c.qty     && <td className="p-3">{r.qty}</td>}
+                  {c.status  && <td className="p-3"><span className="px-2 py-1 rounded-full text-xs font-bold bg-muted uppercase">{r.status}</span></td>}
                   <td className="p-3 text-right"><Link to="/production/$id" params={{ id: r.id }} className="text-primary font-semibold">Open →</Link></td>
                 </tr>
               ))}
-              {rows.length === 0 && <tr><td colSpan={5} className="p-10 text-center text-muted-foreground">No production orders</td></tr>}
+              {rows.length === 0 && <tr><td colSpan={colSpan} className="p-10 text-center text-muted-foreground">No production orders</td></tr>}
             </tbody>
           </table>
         </Card>
