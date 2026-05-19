@@ -8,7 +8,6 @@ import { PageHeader } from "@/components/erp/PageHeader";
 import { toast } from "sonner";
 import { Switch } from "@/components/ui/switch";
 import { useUiConfig, saveUiConfig, type UiConfig } from "@/lib/ui-config";
-import { useEffect as useEffectRC, useState as useStateRC } from "react";
 
 export const Route = createFileRoute("/_app/settings")({ component: Settings });
 function Settings() {
@@ -83,3 +82,129 @@ function Settings() {
     </>
   );
 }
+
+/* ---------- Master UI configuration panel ---------- */
+
+function AppConfigPanel() {
+  const live = useUiConfig();
+  const [draft, setDraft] = useState<UiConfig | null>(null);
+  const [saving, setSaving] = useState(false);
+  // Re-sync draft when the live config changes (initial load).
+  useEffect(() => { setDraft(JSON.parse(JSON.stringify(live))); }, [live]);
+
+  if (!draft) return null;
+
+  const setPath = (mutator: (d: UiConfig) => void) => {
+    const next = JSON.parse(JSON.stringify(draft)) as UiConfig;
+    mutator(next);
+    setDraft(next);
+  };
+
+  const save = async () => {
+    setSaving(true);
+    try { await saveUiConfig(draft); toast.success("App configuration saved"); }
+    catch (e: any) { toast.error(e.message ?? "Save failed"); }
+    finally { setSaving(false); }
+  };
+
+  return (
+    <Card className="p-5 space-y-5">
+      <div className="flex items-center justify-between">
+        <div>
+          <div className="font-bold text-lg">App configuration</div>
+          <div className="text-sm text-muted-foreground">
+            Control which tiles, columns and form fields appear across the app. Shared by all users.
+          </div>
+        </div>
+        <Button onClick={save} disabled={saving}>{saving ? "Saving…" : "Save configuration"}</Button>
+      </div>
+
+      <ToggleGroup
+        title="Sidebar navigation"
+        entries={Object.keys(draft.nav).map((k) => ({ key: k, label: k }))}
+        get={(k) => draft.nav[k] !== false}
+        set={(k, v) => setPath((d) => { d.nav[k] = v; })}
+      />
+
+      <ToggleGroup
+        title="Dashboard tiles"
+        entries={Object.keys(draft.dashboard.tiles).map((k) => ({ key: k, label: humanize(k) }))}
+        get={(k) => draft.dashboard.tiles[k] !== false}
+        set={(k, v) => setPath((d) => { d.dashboard.tiles[k] = v; })}
+      />
+
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-5">
+        {(["purchases","sales","production"] as const).map((list) => (
+          <ToggleGroup
+            key={list}
+            title={`${capitalize(list)} list columns`}
+            entries={Object.keys(draft.lists[list].columns).map((k) => ({ key: k, label: humanize(k) }))}
+            get={(k) => draft.lists[list].columns[k] !== false}
+            set={(k, v) => setPath((d) => { d.lists[list].columns[k] = v; })}
+          />
+        ))}
+      </div>
+
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-5">
+        {(["new_purchase","new_sale","new_production"] as const).map((form) => (
+          <FieldGroup
+            key={form}
+            title={`Form: ${humanize(form)}`}
+            fields={draft.forms[form].fields}
+            onChange={(k, patch) => setPath((d) => {
+              d.forms[form].fields[k] = { ...d.forms[form].fields[k], ...patch };
+            })}
+          />
+        ))}
+      </div>
+    </Card>
+  );
+}
+
+function ToggleGroup({ title, entries, get, set }: {
+  title: string;
+  entries: { key: string; label: string }[];
+  get: (k: string) => boolean;
+  set: (k: string, v: boolean) => void;
+}) {
+  return (
+    <div className="space-y-2">
+      <div className="font-semibold">{title}</div>
+      <div className="grid grid-cols-2 gap-y-2 gap-x-4">
+        {entries.map((e) => (
+          <label key={e.key} className="flex items-center justify-between gap-3 text-sm">
+            <span className="capitalize">{e.label}</span>
+            <Switch checked={get(e.key)} onCheckedChange={(v) => set(e.key, v)} />
+          </label>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function FieldGroup({ title, fields, onChange }: {
+  title: string;
+  fields: Record<string, { visible: boolean; required: boolean }>;
+  onChange: (k: string, patch: Partial<{ visible: boolean; required: boolean }>) => void;
+}) {
+  return (
+    <div className="space-y-2">
+      <div className="font-semibold">{title}</div>
+      <div className="space-y-1">
+        <div className="grid grid-cols-[1fr_auto_auto] gap-3 text-xs text-muted-foreground px-1">
+          <span>Field</span><span>Visible</span><span>Required</span>
+        </div>
+        {Object.entries(fields).map(([k, v]) => (
+          <div key={k} className="grid grid-cols-[1fr_auto_auto] gap-3 items-center text-sm">
+            <span className="capitalize">{humanize(k)}</span>
+            <Switch checked={v.visible} onCheckedChange={(val) => onChange(k, { visible: val })} />
+            <Switch checked={v.required} disabled={!v.visible} onCheckedChange={(val) => onChange(k, { required: val })} />
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+const humanize = (s: string) => s.replace(/_/g, " ");
+const capitalize = (s: string) => s.charAt(0).toUpperCase() + s.slice(1);
