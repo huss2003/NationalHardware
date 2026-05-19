@@ -7,12 +7,15 @@ import { Input } from "@/components/ui/input";
 import { PageHeader } from "@/components/erp/PageHeader";
 import { useAuth } from "@/lib/auth-store";
 import { toast } from "sonner";
+import { useUiConfig } from "@/lib/ui-config";
 
 export const Route = createFileRoute("/_app/production/new")({ component: NewOrder });
 
 function NewOrder() {
   const nav = useNavigate();
   const user = useAuth(s => s.user);
+  const cfg = useUiConfig();
+  const f = cfg.forms.new_production.fields;
   const [boms, setBoms] = useState<any[]>([]);
   const [staff, setStaff] = useState<any[]>([]);
   const [bomId, setBomId] = useState("");
@@ -24,7 +27,10 @@ function NewOrder() {
   }, []);
   const save = async () => {
     const bom = boms.find(b => b.id === bomId);
+    if (f.bom.visible && f.bom.required && !bom) { toast.error("Select a BOM"); return; }
     if (!bom) { toast.error("Select a BOM"); return; }
+    if (f.qty.visible && f.qty.required && (!qty || qty < 1)) { toast.error("Qty is required"); return; }
+    if (f.assigned.visible && f.assigned.required && !assigned) { toast.error("Assign a worker"); return; }
     const { data, error } = await supabase.from("production_orders").insert({
       finished_product_id: bom.finished_product_id, bom_id: bom.id, qty, assigned_to: assigned || null, created_by: user?.id, status: "in_progress",
     }).select().single();
@@ -36,15 +42,21 @@ function NewOrder() {
       <PageHeader title="New production order" />
       <div className="px-8 pb-8 max-w-xl">
         <Card className="p-5 space-y-3">
-          <select className="h-12 w-full rounded-md border bg-background px-3" value={bomId} onChange={(e) => setBomId(e.target.value)}>
-            <option value="">-- Choose BOM --</option>
-            {boms.map(b => <option key={b.id} value={b.id}>{b.products?.name} v{b.version}</option>)}
-          </select>
-          <Input type="number" className="h-12" placeholder="Qty" value={qty} onChange={(e) => setQty(Math.max(1, Number(e.target.value)))} />
-          <select className="h-12 w-full rounded-md border bg-background px-3" value={assigned} onChange={(e) => setAssigned(e.target.value)}>
-            <option value="">-- Assign worker --</option>
-            {staff.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
-          </select>
+          {f.bom.visible && (
+            <select className="h-12 w-full rounded-md border bg-background px-3" value={bomId} onChange={(e) => setBomId(e.target.value)}>
+              <option value="">{`-- Choose BOM${f.bom.required ? " *" : ""} --`}</option>
+              {boms.map(b => <option key={b.id} value={b.id}>{b.products?.name} v{b.version}</option>)}
+            </select>
+          )}
+          {f.qty.visible && (
+            <Input type="number" className="h-12" placeholder={`Qty${f.qty.required ? " *" : ""}`} value={qty} onChange={(e) => setQty(Math.max(1, Number(e.target.value)))} />
+          )}
+          {f.assigned.visible && (
+            <select className="h-12 w-full rounded-md border bg-background px-3" value={assigned} onChange={(e) => setAssigned(e.target.value)}>
+              <option value="">{`-- Assign worker${f.assigned.required ? " *" : ""} --`}</option>
+              {staff.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
+            </select>
+          )}
           <Button className="h-12 w-full" onClick={save}>Create order</Button>
         </Card>
       </div>
