@@ -1,5 +1,5 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { useEffect, useState } from "react";
+import { useEffect, useState, useMemo, memo } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Card } from "@/components/ui/card";
 import { PageHeader } from "@/components/erp/PageHeader";
@@ -13,6 +13,8 @@ function ProductDetail() {
   const [product, setProduct] = useState<any>(null);
   const [items, setItems] = useState<any[]>([]);
   const [filter, setFilter] = useState<string>("all");
+  const [page, setPage] = useState(0);
+  const PAGE_SIZE = 50;
 
   useEffect(() => {
     (async () => {
@@ -23,7 +25,21 @@ function ProductDetail() {
     })();
   }, [productId]);
 
-  const filtered = filter === "all" ? items : items.filter((i) => i.status === filter);
+  const filtered = useMemo(
+    () => (filter === "all" ? items : items.filter((i) => i.status === filter)),
+    [items, filter]
+  );
+  useEffect(() => { setPage(0); }, [filter, productId]);
+  const pageCount = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
+  const currentPage = Math.min(page, pageCount - 1);
+  const pageItems = useMemo(
+    () => filtered.slice(currentPage * PAGE_SIZE, currentPage * PAGE_SIZE + PAGE_SIZE),
+    [filtered, currentPage]
+  );
+  const totalSqft = useMemo(
+    () => filtered.reduce((sum, i) => sum + (Number(i.area_sqft) || 0), 0),
+    [filtered]
+  );
 
   if (!product) return <div className="p-8">Loading…</div>;
   const prefix = (product.prefix ?? "").toUpperCase();
@@ -31,7 +47,6 @@ function ProductDetail() {
   const isDoor = prefix === "DOR" || product.category === "door";
   const hasDims = isPly || isDoor;
   const dimUnit = isPly ? "ft" : "in";
-  const totalSqft = filtered.reduce((sum, i) => sum + (Number(i.area_sqft) || 0), 0);
   return (
     <>
       <PageHeader title={product.name} subtitle={`${product.category.toUpperCase()} • ${product.prefix} • HSN ${product.hsn ?? "—"} • GST ${product.gst_rate}%`} />
@@ -77,32 +92,60 @@ function ProductDetail() {
               </tr>
             </thead>
             <tbody>
-              {filtered.map((i) => (
-                <tr key={i.id} className="border-t hover:bg-muted/40">
-                  <td className="p-3 font-mono font-bold"><Link to="/units/$itemId" params={{ itemId: i.id }} className="text-primary">{i.id}</Link></td>
-                  <td className="p-3"><StatusPill status={i.status} /></td>
-                  <td className="p-3 font-semibold">1 pc</td>
-                  {hasDims && (
-                    <td className="p-3">
-                      {i.length_value && i.width_value
-                        ? `${i.length_value} × ${i.width_value}`
-                        : <span className="text-muted-foreground">—</span>}
-                    </td>
-                  )}
-                  {hasDims && (
-                    <td className="p-3 font-semibold">
-                      {i.area_sqft != null ? Number(i.area_sqft).toFixed(2) : <span className="text-muted-foreground">—</span>}
-                    </td>
-                  )}
-                  <td className="p-3">{inr(i.cost_price)}</td>
-                  <td className="p-3">{new Date(i.created_at).toLocaleDateString()}</td>
-                </tr>
+              {pageItems.map((i) => (
+                <ItemRow key={i.id} item={i} hasDims={hasDims} />
               ))}
               {filtered.length === 0 && <tr><td colSpan={hasDims ? 7 : 5} className="p-8 text-center text-muted-foreground">No units</td></tr>}
             </tbody>
           </table>
         </Card>
+        {pageCount > 1 && (
+          <div className="flex items-center justify-between text-sm">
+            <div className="text-muted-foreground">
+              Showing {currentPage * PAGE_SIZE + 1}–{Math.min((currentPage + 1) * PAGE_SIZE, filtered.length)} of {filtered.length}
+            </div>
+            <div className="flex gap-2">
+              <button
+                onClick={() => setPage(p => Math.max(0, p - 1))}
+                disabled={currentPage === 0}
+                className="px-3 py-1.5 rounded-md border bg-card disabled:opacity-40"
+              >Prev</button>
+              <span className="px-3 py-1.5">Page {currentPage + 1} / {pageCount}</span>
+              <button
+                onClick={() => setPage(p => Math.min(pageCount - 1, p + 1))}
+                disabled={currentPage >= pageCount - 1}
+                className="px-3 py-1.5 rounded-md border bg-card disabled:opacity-40"
+              >Next</button>
+            </div>
+          </div>
+        )}
       </div>
     </>
   );
 }
+
+const ItemRow = memo(function ItemRow({ item: i, hasDims }: { item: any; hasDims: boolean }) {
+  return (
+    <tr className="border-t hover:bg-muted/40">
+      <td className="p-3 font-mono font-bold">
+        <Link to="/units/$itemId" params={{ itemId: i.id }} preload="intent" className="text-primary">{i.id}</Link>
+      </td>
+      <td className="p-3"><StatusPill status={i.status} /></td>
+      <td className="p-3 font-semibold">1 pc</td>
+      {hasDims && (
+        <td className="p-3">
+          {i.length_value && i.width_value
+            ? `${i.length_value} × ${i.width_value}`
+            : <span className="text-muted-foreground">—</span>}
+        </td>
+      )}
+      {hasDims && (
+        <td className="p-3 font-semibold">
+          {i.area_sqft != null ? Number(i.area_sqft).toFixed(2) : <span className="text-muted-foreground">—</span>}
+        </td>
+      )}
+      <td className="p-3">{inr(i.cost_price)}</td>
+      <td className="p-3">{new Date(i.created_at).toLocaleDateString()}</td>
+    </tr>
+  );
+});
