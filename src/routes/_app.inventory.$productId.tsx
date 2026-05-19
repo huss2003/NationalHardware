@@ -69,8 +69,9 @@ function ProductDetail() {
               <tr className="text-left">
                 <th className="p-3">Item ID</th>
                 <th className="p-3">Status</th>
+                <th className="p-3">Default (pcs)</th>
                 {hasDims && <th className="p-3">L × W ({dimUnit})</th>}
-                {hasDims && <th className="p-3">Area (sqft)</th>}
+                {hasDims && <th className="p-3">Alt (sqft)</th>}
                 <th className="p-3">Cost</th>
                 <th className="p-3">Created</th>
               </tr>
@@ -80,6 +81,7 @@ function ProductDetail() {
                 <tr key={i.id} className="border-t hover:bg-muted/40">
                   <td className="p-3 font-mono font-bold"><Link to="/units/$itemId" params={{ itemId: i.id }} className="text-primary">{i.id}</Link></td>
                   <td className="p-3"><StatusPill status={i.status} /></td>
+                  <td className="p-3 font-semibold">1 pc</td>
                   {hasDims && (
                     <td className="p-3">
                       {i.length_value && i.width_value
@@ -96,7 +98,7 @@ function ProductDetail() {
                   <td className="p-3">{new Date(i.created_at).toLocaleDateString()}</td>
                 </tr>
               ))}
-              {filtered.length === 0 && <tr><td colSpan={hasDims ? 6 : 4} className="p-8 text-center text-muted-foreground">No units</td></tr>}
+              {filtered.length === 0 && <tr><td colSpan={hasDims ? 7 : 5} className="p-8 text-center text-muted-foreground">No units</td></tr>}
             </tbody>
           </table>
         </Card>

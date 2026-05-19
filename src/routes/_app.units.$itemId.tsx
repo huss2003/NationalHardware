@@ -35,6 +35,12 @@ function UnitPage() {
 
   if (!item) return <div className="p-8">Loading…</div>;
 
+  const prefix = (product?.prefix ?? "").toUpperCase();
+  const isPly = prefix === "PLY" || product?.category === "plywood";
+  const isDoor = prefix === "DOR" || product?.category === "door";
+  const hasDims = isPly || isDoor;
+  const dimUnit = item.dimension_unit ?? (isPly ? "feet" : isDoor ? "inches" : "");
+
   const damage = async () => {
     const reason = prompt("Reason for damage?") ?? "";
     const { error } = await supabase.rpc("mark_damaged", { _item_id: itemId, _reason: reason, _actor_user_id: user?.id ?? "" });
@@ -46,16 +52,41 @@ function UnitPage() {
       <PageHeader title={item.id} subtitle={product?.name} actions={<StatusPill status={item.status} />} />
       <div className="px-8 pb-8 grid grid-cols-1 lg:grid-cols-3 gap-5">
         <Card className="p-5 lg:col-span-2 space-y-4">
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
             <div><div className="text-xs text-muted-foreground">Cost</div><div className="text-xl font-bold">{inr(item.cost_price)}</div></div>
-            <div><div className="text-xs text-muted-foreground">Created</div><div className="text-xl font-bold">{new Date(item.created_at).toLocaleString()}</div></div>
+            <div><div className="text-xs text-muted-foreground">Default unit</div><div className="text-xl font-bold">1 pc</div></div>
+            {hasDims && (
+              <>
+                <div>
+                  <div className="text-xs text-muted-foreground">L × W ({dimUnit})</div>
+                  <div className="text-xl font-bold">
+                    {item.length_value && item.width_value
+                      ? `${item.length_value} × ${item.width_value}`
+                      : "—"}
+                  </div>
+                </div>
+                <div>
+                  <div className="text-xs text-muted-foreground">Area (sqft)</div>
+                  <div className="text-xl font-bold">
+                    {item.area_sqft != null ? Number(item.area_sqft).toFixed(2) : "—"}
+                  </div>
+                </div>
+              </>
+            )}
+            <div className="md:col-span-2"><div className="text-xs text-muted-foreground">Created</div><div className="text-base font-bold">{new Date(item.created_at).toLocaleString()}</div></div>
           </div>
+          {hasDims && (
+            <div className="text-xs text-muted-foreground">
+              Formula: <code className="font-mono">{isPly ? "L × W (feet)" : "L × W ÷ 144 (inches)"}</code>
+            </div>
+          )}
           <div className="flex gap-2">
             {item.status === "available" && <Button variant="destructive" onClick={damage}>Mark damaged</Button>}
           </div>
           <div>
             <div className="font-bold mb-2">Timeline</div>
             <ol className="relative border-l-2 border-primary/30 ml-2 space-y-4 pl-5">
+              {history.length === 0 && <li className="text-sm text-muted-foreground">No history yet.</li>}
               {history.map((h) => (
                 <li key={h.id} className="relative">
                   <span className="absolute -left-[27px] top-1 h-4 w-4 rounded-full bg-primary"></span>
