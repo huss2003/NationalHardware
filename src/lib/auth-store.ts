@@ -29,8 +29,8 @@ function loadFromStorage(): ActiveUser | null {
 }
 
 export const useAuth = create<AuthState>()((set) => ({
-  user: loadFromStorage(),
-  ready: true,
+  user: null,
+  ready: false,
   setUser: (user) => {
     if (typeof window !== "undefined") {
       if (user) localStorage.setItem(STORAGE_KEY, JSON.stringify(user));
@@ -46,7 +46,9 @@ export const useAuth = create<AuthState>()((set) => ({
 }));
 
 export function initAuthListener() {
-  // no-op (kept for back-compat)
+  if (typeof window === "undefined") return;
+  const u = loadFromStorage();
+  useAuth.setState({ user: u, ready: true });
 }
 
 export async function ensureDeviceSession() {
