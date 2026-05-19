@@ -284,10 +284,13 @@ export type Database = {
       }
       item_instances: {
         Row: {
+          area_sqft: number | null
           barcode_payload: string
           cost_price: number
           created_at: string
+          dimension_unit: string | null
           id: string
+          length_value: number | null
           location: string | null
           produced_by_order_id: string | null
           product_id: string
@@ -295,12 +298,16 @@ export type Database = {
           source_purchase_item_id: string | null
           status: Database["public"]["Enums"]["item_status"]
           updated_at: string
+          width_value: number | null
         }
         Insert: {
+          area_sqft?: number | null
           barcode_payload: string
           cost_price?: number
           created_at?: string
+          dimension_unit?: string | null
           id: string
+          length_value?: number | null
           location?: string | null
           produced_by_order_id?: string | null
           product_id: string
@@ -308,12 +315,16 @@ export type Database = {
           source_purchase_item_id?: string | null
           status?: Database["public"]["Enums"]["item_status"]
           updated_at?: string
+          width_value?: number | null
         }
         Update: {
+          area_sqft?: number | null
           barcode_payload?: string
           cost_price?: number
           created_at?: string
+          dimension_unit?: string | null
           id?: string
+          length_value?: number | null
           location?: string | null
           produced_by_order_id?: string | null
           product_id?: string
@@ -321,6 +332,7 @@ export type Database = {
           source_purchase_item_id?: string | null
           status?: Database["public"]["Enums"]["item_status"]
           updated_at?: string
+          width_value?: number | null
         }
         Relationships: [
           {
@@ -951,10 +963,13 @@ export type Database = {
       complete_production: {
         Args: { _actor_user_id: string; _order_id: string }
         Returns: {
+          area_sqft: number | null
           barcode_payload: string
           cost_price: number
           created_at: string
+          dimension_unit: string | null
           id: string
+          length_value: number | null
           location: string | null
           produced_by_order_id: string | null
           product_id: string
@@ -962,6 +977,7 @@ export type Database = {
           source_purchase_item_id: string | null
           status: Database["public"]["Enums"]["item_status"]
           updated_at: string
+          width_value: number | null
         }[]
         SetofOptions: {
           from: "*"
@@ -990,10 +1006,13 @@ export type Database = {
       mint_item_instances: {
         Args: { _actor_user_id: string; _purchase_item_id: string }
         Returns: {
+          area_sqft: number | null
           barcode_payload: string
           cost_price: number
           created_at: string
+          dimension_unit: string | null
           id: string
+          length_value: number | null
           location: string | null
           produced_by_order_id: string | null
           product_id: string
@@ -1001,6 +1020,7 @@ export type Database = {
           source_purchase_item_id: string | null
           status: Database["public"]["Enums"]["item_status"]
           updated_at: string
+          width_value: number | null
         }[]
         SetofOptions: {
           from: "*"
