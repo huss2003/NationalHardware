@@ -9,6 +9,7 @@ import { useAuth } from "@/lib/auth-store";
 import { Trash2, Plus, Minus } from "lucide-react";
 import { toast } from "sonner";
 import { inr } from "@/lib/codes";
+import { useUiConfig } from "@/lib/ui-config";
 
 export const Route = createFileRoute("/_app/purchases/new")({ component: NewPurchase });
 
@@ -17,6 +18,8 @@ type Line = { product_id: string; name: string; qty: number; rate: number; gst_r
 function NewPurchase() {
   const nav = useNavigate();
   const user = useAuth(s => s.user);
+  const cfg = useUiConfig();
+  const f = cfg.forms.new_purchase.fields;
   const [suppliers, setSuppliers] = useState<any[]>([]);
   const [products, setProducts] = useState<any[]>([]);
   const [supplierId, setSupplierId] = useState("");
@@ -50,6 +53,12 @@ function NewPurchase() {
 
   const save = async () => {
     if (lines.length === 0) { toast.error("Add at least one product"); return; }
+    // Required-field checks from settings
+    if (f.supplier.visible && f.supplier.required && !supplierId) { toast.error("Supplier is required"); return; }
+    if (f.bill_no.visible  && f.bill_no.required  && !billNo)      { toast.error("Bill number is required"); return; }
+    if (f.bill_date.visible && f.bill_date.required && !billDate)  { toast.error("Bill date is required"); return; }
+    if (f.bill_image.visible && f.bill_image.required && !billFile){ toast.error("Bill image is required"); return; }
+    if (f.notes.visible && f.notes.required && !notes.trim())      { toast.error("Notes are required"); return; }
     setBusy(true);
     try {
       let billUrl: string | null = null;
@@ -88,13 +97,21 @@ function NewPurchase() {
       <div className="px-8 pb-8 grid grid-cols-1 lg:grid-cols-3 gap-5">
         <Card className="p-5 space-y-3 lg:col-span-2">
           <div className="grid grid-cols-2 gap-3">
-            <select className="h-12 rounded-md border bg-background px-3 text-base" value={supplierId} onChange={(e) => setSupplierId(e.target.value)}>
-              <option value="">-- Supplier --</option>
-              {suppliers.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
-            </select>
-            <Input className="h-12" placeholder="Bill number" value={billNo} onChange={(e) => setBillNo(e.target.value)} />
-            <Input className="h-12" type="date" value={billDate} onChange={(e) => setBillDate(e.target.value)} />
-            <Input className="h-12" type="file" accept="image/*" onChange={(e) => setBillFile(e.target.files?.[0] ?? null)} />
+            {f.supplier.visible && (
+              <select className="h-12 rounded-md border bg-background px-3 text-base" value={supplierId} onChange={(e) => setSupplierId(e.target.value)}>
+                <option value="">-- Supplier{f.supplier.required ? " *" : ""} --</option>
+                {suppliers.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
+              </select>
+            )}
+            {f.bill_no.visible && (
+              <Input className="h-12" placeholder={`Bill number${f.bill_no.required ? " *" : ""}`} value={billNo} onChange={(e) => setBillNo(e.target.value)} />
+            )}
+            {f.bill_date.visible && (
+              <Input className="h-12" type="date" value={billDate} onChange={(e) => setBillDate(e.target.value)} />
+            )}
+            {f.bill_image.visible && (
+              <Input className="h-12" type="file" accept="image/*" onChange={(e) => setBillFile(e.target.files?.[0] ?? null)} />
+            )}
           </div>
 
           <div>
@@ -116,14 +133,18 @@ function NewPurchase() {
                 <Input className="w-20 h-10 text-center" type="number" value={l.qty} onChange={(e) => upd(i, { qty: Math.max(1, Number(e.target.value)) })} />
                 <Button size="icon" variant="outline" onClick={() => upd(i, { qty: l.qty + 1 })}><Plus className="h-4 w-4" /></Button>
                 <Input className="w-28 h-10" type="number" value={l.rate} onChange={(e) => upd(i, { rate: Number(e.target.value) })} placeholder="Rate" />
-                <Input className="w-20 h-10" type="number" value={l.gst_rate} onChange={(e) => upd(i, { gst_rate: Number(e.target.value) })} placeholder="GST" />
+                {f.gst_rate.visible && (
+                  <Input className="w-20 h-10" type="number" value={l.gst_rate} onChange={(e) => upd(i, { gst_rate: Number(e.target.value) })} placeholder="GST" />
+                )}
                 <div className="w-28 text-right font-bold">{inr(l.qty * l.rate)}</div>
                 <Button size="icon" variant="ghost" onClick={() => rm(i)}><Trash2 className="h-4 w-4 text-destructive" /></Button>
               </div>
             ))}
           </div>
 
-          <Input placeholder="Notes" value={notes} onChange={(e) => setNotes(e.target.value)} />
+          {f.notes.visible && (
+            <Input placeholder={`Notes${f.notes.required ? " *" : ""}`} value={notes} onChange={(e) => setNotes(e.target.value)} />
+          )}
         </Card>
 
         <Card className="p-5 space-y-3 h-fit sticky top-4">
