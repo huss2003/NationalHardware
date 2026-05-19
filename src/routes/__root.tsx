@@ -9,6 +9,8 @@ import {
 } from "@tanstack/react-router";
 
 import appCss from "../styles.css?url";
+import { useEffect } from "react";
+import { initAuthListener } from "@/lib/auth-store";
 
 function NotFoundComponent() {
   return (
@@ -122,6 +124,22 @@ function RootShell({ children }: { children: React.ReactNode }) {
 
 function RootComponent() {
   const { queryClient } = Route.useRouteContext();
+  const router = useRouter();
+
+  useEffect(() => {
+    initAuthListener();
+  }, []);
+
+  useEffect(() => {
+    // Invalidate routes when auth state changes
+    import("@/integrations/supabase/client").then(({ supabase }) => {
+      const { data: { subscription } } = supabase.auth.onAuthStateChange(() => {
+        router.invalidate();
+        queryClient.invalidateQueries();
+      });
+      return () => subscription.unsubscribe();
+    });
+  }, [router, queryClient]);
 
   return (
     <QueryClientProvider client={queryClient}>
