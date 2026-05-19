@@ -23,7 +23,7 @@ function NewOrder() {
   const [assigned, setAssigned] = useState("");
   useEffect(() => {
     supabase.from("bom").select("*, products!finished_product_id(*)").eq("active", true).then(({ data }) => setBoms(data ?? []));
-    supabase.from("shop_users").select("*").eq("active", true).then(({ data }) => setStaff(data ?? []));
+    supabase.from("profiles").select("id, display_name").then(({ data }) => setStaff((data ?? []).map((p: any) => ({ id: p.id, name: p.display_name ?? "User" }))));
   }, []);
   const save = async () => {
     const bom = boms.find(b => b.id === bomId);
