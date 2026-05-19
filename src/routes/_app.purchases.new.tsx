@@ -206,13 +206,13 @@ function NewPurchase() {
     <>
       <PageHeader title="New purchase" subtitle="Create a bill and mint individual units" />
       <div className="px-8 pb-8 grid grid-cols-1 lg:grid-cols-3 gap-5">
-        <Card className="p-5 space-y-5 lg:col-span-2">
+        <Card className="p-4 space-y-4 lg:col-span-2">
           {/* Header fields */}
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-3">
             <div className="relative" ref={supplierBoxRef}>
               <label className="text-xs font-semibold text-muted-foreground">Supplier name</label>
               <Input
-                className="h-12 mt-1"
+                className="h-9 mt-1"
                 placeholder="Start typing supplier name..."
                 value={supplierName}
                 onFocus={() => setSupplierFocus(true)}
@@ -253,7 +253,7 @@ function NewPurchase() {
             <div>
               <label className="text-xs font-semibold text-muted-foreground">Invoice number</label>
               <Input
-                className="h-12 mt-1"
+                className="h-9 mt-1"
                 placeholder="INV-001"
                 value={billNo}
                 onChange={(e) => setBillNo(e.target.value)}
@@ -262,7 +262,7 @@ function NewPurchase() {
             <div>
               <label className="text-xs font-semibold text-muted-foreground">Bill type</label>
               <select
-                className="h-12 mt-1 w-full rounded-md border bg-background px-3 text-base"
+                className="h-9 mt-1 w-full rounded-md border bg-background px-3 text-sm"
                 value={billType}
                 onChange={(e) => setBillType(e.target.value as "gst" | "non_gst")}
               >
@@ -273,11 +273,36 @@ function NewPurchase() {
             <div>
               <label className="text-xs font-semibold text-muted-foreground">Invoice date</label>
               <Input
-                className="h-12 mt-1"
+                className="h-9 mt-1"
                 type="date"
                 value={billDate}
                 onChange={(e) => setBillDate(e.target.value)}
               />
+            </div>
+          </div>
+
+          {/* Notes + bill image */}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+            <div>
+              <label className="text-xs font-semibold text-muted-foreground">Notes</label>
+              <textarea
+                className="mt-1 w-full min-h-[60px] rounded-md border bg-background px-3 py-2 text-sm"
+                placeholder="Optional notes about this purchase..."
+                value={notes}
+                onChange={(e) => setNotes(e.target.value)}
+              />
+            </div>
+            <div>
+              <label className="text-xs font-semibold text-muted-foreground">Bill image</label>
+              <Input
+                className="h-9 mt-1 file:mr-2"
+                type="file"
+                accept="image/*"
+                onChange={(e) => setBillFile(e.target.files?.[0] ?? null)}
+              />
+              {billFile && (
+                <div className="text-xs text-muted-foreground mt-1 truncate">{billFile.name}</div>
+              )}
             </div>
           </div>
 
@@ -364,12 +389,17 @@ function NewPurchase() {
                       </td>
                       {billType === "gst" && (
                         <td className="p-2">
-                          <Input
-                            className="h-8"
-                            type="number"
+                          <select
+                            className="h-8 w-full rounded-md border bg-background px-2 text-sm"
                             value={l.gst_rate}
                             onChange={(e) => upd(i, { gst_rate: Number(e.target.value) })}
-                          />
+                          >
+                            <option value={0}>0%</option>
+                            <option value={5}>5%</option>
+                            <option value={12}>12%</option>
+                            <option value={18}>18%</option>
+                            <option value={28}>28%</option>
+                          </select>
                         </td>
                       )}
                       <td className="p-2 text-right font-bold">{inr(l.qty * l.rate)}</td>
