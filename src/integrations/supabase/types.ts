@@ -556,6 +556,27 @@ export type Database = {
         }
         Relationships: []
       }
+      profiles: {
+        Row: {
+          created_at: string
+          display_name: string | null
+          id: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          display_name?: string | null
+          id: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          display_name?: string | null
+          id?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       purchase_items: {
         Row: {
           created_at: string
@@ -901,6 +922,27 @@ export type Database = {
         }
         Relationships: []
       }
+      user_roles: {
+        Row: {
+          created_at: string
+          id: string
+          role: Database["public"]["Enums"]["app_role"]
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          role: Database["public"]["Enums"]["app_role"]
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          role?: Database["public"]["Enums"]["app_role"]
+          user_id?: string
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
@@ -932,7 +974,14 @@ export type Database = {
         Args: { _actor_user_id: string; _item_id: string; _order_id: string }
         Returns: undefined
       }
-      hash_pin: { Args: { _pin: string }; Returns: string }
+      current_user_is_admin: { Args: never; Returns: boolean }
+      has_role: {
+        Args: {
+          _role: Database["public"]["Enums"]["app_role"]
+          _user_id: string
+        }
+        Returns: boolean
+      }
       is_signed_in: { Args: never; Returns: boolean }
       mark_damaged: {
         Args: { _actor_user_id: string; _item_id: string; _reason: string }
@@ -965,10 +1014,6 @@ export type Database = {
         Args: { _actor_user_id: string; _payload: Json }
         Returns: string
       }
-      set_shop_user_pin: {
-        Args: { _pin: string; _user_id: string }
-        Returns: undefined
-      }
       shop_user_has_role: {
         Args: {
           _role: Database["public"]["Enums"]["user_role"]
@@ -980,17 +1025,10 @@ export type Database = {
         Args: { _actor_user_id: string; _reason: string; _sale_id: string }
         Returns: undefined
       }
-      verify_pin: {
-        Args: { _name: string; _pin: string }
-        Returns: {
-          name: string
-          role: Database["public"]["Enums"]["user_role"]
-          user_id: string
-        }[]
-      }
     }
     Enums: {
       alert_severity: "info" | "warning" | "critical"
+      app_role: "admin" | "billing" | "store" | "production"
       history_event:
         | "purchased"
         | "sold"
@@ -1139,6 +1177,7 @@ export const Constants = {
   public: {
     Enums: {
       alert_severity: ["info", "warning", "critical"],
+      app_role: ["admin", "billing", "store", "production"],
       history_event: [
         "purchased",
         "sold",
