@@ -40,6 +40,7 @@ function NewPurchase() {
   const [notes, setNotes] = useState("");
   const [billFile, setBillFile] = useState<File | null>(null);
   const supplierBoxRef = useRef<HTMLDivElement>(null);
+  const billFileRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     (async () => {
@@ -295,13 +296,37 @@ function NewPurchase() {
             <div>
               <label className="text-xs font-semibold text-muted-foreground">Bill image</label>
               <Input
+                ref={billFileRef}
                 className="h-9 mt-1 file:mr-2"
                 type="file"
                 accept="image/*"
                 onChange={(e) => setBillFile(e.target.files?.[0] ?? null)}
               />
               {billFile && (
-                <div className="text-xs text-muted-foreground mt-1 truncate">{billFile.name}</div>
+                <div className="flex items-center gap-2 mt-1">
+                  <div className="text-xs text-muted-foreground truncate flex-1">{billFile.name}</div>
+                  <Button
+                    type="button"
+                    size="sm"
+                    variant="outline"
+                    className="h-7 px-2 text-xs"
+                    onClick={() => billFileRef.current?.click()}
+                  >
+                    Replace
+                  </Button>
+                  <Button
+                    type="button"
+                    size="sm"
+                    variant="ghost"
+                    className="h-7 px-2 text-xs text-destructive"
+                    onClick={() => {
+                      setBillFile(null);
+                      if (billFileRef.current) billFileRef.current.value = "";
+                    }}
+                  >
+                    Remove
+                  </Button>
+                </div>
               )}
             </div>
           </div>
