@@ -37,6 +37,8 @@ function NewPurchase() {
   const [lines, setLines] = useState<Line[]>([]);
   const [productPick, setProductPick] = useState("");
   const [busy, setBusy] = useState(false);
+  const [notes, setNotes] = useState("");
+  const [billFile, setBillFile] = useState<File | null>(null);
   const supplierBoxRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -142,13 +144,23 @@ function NewPurchase() {
     }
     setBusy(true);
     try {
+      let billUrl: string | null = null;
+      if (billFile) {
+        const path = `${Date.now()}-${billFile.name.replace(/[^a-zA-Z0-9._-]/g, "_")}`;
+        const { error: upErr } = await supabase.storage
+          .from("bill-images")
+          .upload(path, billFile);
+        if (upErr) throw upErr;
+        billUrl = path;
+      }
       const { data: pur, error: pErr } = await supabase
         .from("purchases")
         .insert({
           supplier_id: supplierId,
           bill_no: billNo,
           bill_date: billDate,
-          notes: billType === "gst" ? "GST bill" : "Non-GST bill",
+          notes: notes.trim() || (billType === "gst" ? "GST bill" : "Non-GST bill"),
+          bill_image_url: billUrl,
           subtotal,
           tax_total: tax,
           grand_total: total,
