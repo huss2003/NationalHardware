@@ -26,6 +26,13 @@ export function AppSidebar() {
   const user = useAuth((s) => s.user);
   const logout = useAuth((s) => s.logout);
 
+  // Pick the single best-matching nav item (longest `to` that matches the
+  // current pathname) so nested routes don't highlight two tiles at once.
+  const activeTo = items
+    .map((it) => it.to)
+    .filter((to) => pathname === to || pathname.startsWith(to + "/"))
+    .sort((a, b) => b.length - a.length)[0];
+
   return (
     <aside className="w-64 shrink-0 bg-sidebar text-sidebar-foreground flex flex-col min-h-screen">
       <div className="px-6 py-6 border-b border-sidebar-border">
@@ -34,7 +41,7 @@ export function AppSidebar() {
       </div>
       <nav className="flex-1 p-3 space-y-1 overflow-y-auto">
         {items.map((it) => {
-          const active = pathname === it.to || (it.to !== "/dashboard" && pathname.startsWith(it.to));
+          const active = it.to === activeTo;
           return (
             <Link key={it.to} to={it.to} className="sidebar-link" data-active={active}>
               <it.icon className="h-5 w-5" />
