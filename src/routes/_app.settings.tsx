@@ -5,6 +5,7 @@ import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { PageHeader } from "@/components/erp/PageHeader";
+import { DetailSkeleton } from "@/components/erp/Skeletons";
 import { toast } from "sonner";
 import { Switch } from "@/components/ui/switch";
 import { useUiConfig, saveUiConfig, type UiConfig } from "@/lib/ui-config";
@@ -35,7 +36,11 @@ function Settings() {
     if (error) toast.error(error.message); else toast.success("Settings saved");
   };
 
-  if (!s) return <div className="p-8">Loading…</div>;
+  if (!s) return (
+    <div className="p-8 max-w-[1400px] mx-auto">
+      <DetailSkeleton rows={6} />
+    </div>
+  );
   return (
     <>
       <PageHeader title="Settings" />
