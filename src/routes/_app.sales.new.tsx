@@ -9,7 +9,10 @@ import { ScanInput } from "@/components/erp/ScanInput";
 import { useAuth } from "@/lib/auth-store";
 import { toast } from "sonner";
 import { inr } from "@/lib/codes";
-import { AlertOctagon, Trash2 } from "lucide-react";
+import {
+  AlertOctagon, Trash2, ArrowLeft, Check, User, Wallet, ScanLine,
+  ShoppingCart, Banknote, CreditCard, Smartphone, Clock, Minus, Plus,
+} from "lucide-react";
 import { useUiConfig } from "@/lib/ui-config";
 
 export const Route = createFileRoute("/_app/sales/new")({ component: NewSale });
@@ -82,81 +85,301 @@ function NewSale() {
 
   return (
     <>
-      <PageHeader title="New sale" subtitle="Scan items to add — barcode or QR" />
-      <div className="px-8 pb-8 grid grid-cols-1 lg:grid-cols-3 gap-5">
-        <div className="lg:col-span-2 space-y-4">
-          <ScanInput onScan={onScan} />
-          {warn && (
-            <div className="p-4 rounded-xl bg-destructive text-destructive-foreground flex items-center gap-3 font-bold">
-              <AlertOctagon className="h-6 w-6" /> {warn}
-            </div>
-          )}
-          <Card className="overflow-hidden">
-            {lines.length === 0 ? (
-              <div className="p-10 text-center text-muted-foreground">No items scanned yet</div>
-            ) : (
-              <table className="w-full">
-                <thead className="bg-muted text-left text-sm">
-                  <tr>
-                    <th className="p-3">Item</th>
-                    <th className="p-3">Qty</th>
-                    <th className="p-3">Rate</th>
-                    {f.gst_rate.visible && <th className="p-3">GST%</th>}
-                    <th className="p-3">Total</th>
-                    <th></th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {lines.map((l, i) => (
-                    <tr key={i} className="border-t">
-                      <td className="p-3">
-                        <div className="font-bold">{l.name}</div>
-                        <div className="font-mono text-xs text-muted-foreground">{l.item_instance_id}</div>
-                      </td>
-                      <td className="p-3"><Input className="w-20 h-10" type="number" value={l.qty} onChange={(e) => upd(i, { qty: Number(e.target.value) })} /></td>
-                      <td className="p-3"><Input className="w-28 h-10" type="number" value={l.rate} onChange={(e) => upd(i, { rate: Number(e.target.value) })} /></td>
-                      {f.gst_rate.visible && (
-                        <td className="p-3"><Input className="w-20 h-10" type="number" value={l.gst_rate} onChange={(e) => upd(i, { gst_rate: Number(e.target.value) })} /></td>
-                      )}
-                      <td className="p-3 font-bold">{inr(l.qty * l.rate)}</td>
-                      <td className="p-3"><Button variant="ghost" size="icon" onClick={() => rm(i)}><Trash2 className="h-4 w-4 text-destructive" /></Button></td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            )}
-          </Card>
-        </div>
+      <PageHeader
+        title="New Sale"
+        subtitle="Scan items, choose a customer, and record payment."
+        actions={
+          <>
+            <Button variant="outline" size="sm" className="gap-2" onClick={() => nav({ to: "/sales" })}>
+              <ArrowLeft className="h-4 w-4" /> Back
+            </Button>
+            <Button size="sm" disabled={busy} onClick={save} className="gap-2">
+              <Check className="h-4 w-4" /> {busy ? "Saving…" : "Save Invoice"}
+            </Button>
+          </>
+        }
+      />
+      <div className="px-8 pb-10 max-w-[1400px] mx-auto w-full">
+        <div className="grid gap-5 grid-cols-1 lg:grid-cols-3">
+          {/* Main column */}
+          <div className="lg:col-span-2 space-y-5">
+            {/* Scanner */}
+            <Card className="p-6">
+              <SectionHeader
+                icon={ScanLine}
+                title="Scan Items"
+                description="Use a barcode or QR scanner to add available stock."
+              />
+              <div className="mt-5">
+                <ScanInput onScan={onScan} />
+              </div>
+              {warn && (
+                <div className="mt-3 px-3 py-2.5 rounded-md bg-destructive/10 text-destructive flex items-center gap-2 text-sm font-medium">
+                  <AlertOctagon className="h-4 w-4 shrink-0" />
+                  <span>{warn}</span>
+                </div>
+              )}
+            </Card>
 
-        <Card className="p-5 space-y-3 h-fit sticky top-4">
-          {f.customer.visible && (
-            <select className="h-12 w-full rounded-md border bg-background px-3" value={customerId} onChange={(e) => setCustomerId(e.target.value)}>
-              <option value="">{f.customer.required ? "-- Customer * --" : "Walk-in customer"}</option>
-              {customers.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
-            </select>
-          )}
-          {f.payment_mode.visible && (
-            <select className="h-12 w-full rounded-md border bg-background px-3 font-semibold" value={paymentMode} onChange={(e) => setPaymentMode(e.target.value)}>
-              <option value="cash">Cash</option>
-              <option value="upi">UPI</option>
-              <option value="card">Card</option>
-              <option value="credit">Credit</option>
-            </select>
-          )}
-          {f.discount.visible && (
-            <Input className="h-12" type="number" placeholder={`Discount ₹${f.discount.required ? " *" : ""}`} value={discount} onChange={(e) => setDiscount(Number(e.target.value))} />
-          )}
-          <div className="border-t pt-3 space-y-2">
-            <div className="flex justify-between"><span>Subtotal</span><b>{inr(subtotal)}</b></div>
-            <div className="flex justify-between"><span>GST</span><b>{inr(tax)}</b></div>
-            {f.discount.visible && (
-              <div className="flex justify-between"><span>Discount</span><b>− {inr(discount)}</b></div>
-            )}
-            <div className="flex justify-between text-2xl"><span>Total</span><b>{inr(total)}</b></div>
+            {/* Cart */}
+            <Card className="p-6">
+              <div className="flex items-center justify-between">
+                <SectionHeader
+                  icon={ShoppingCart}
+                  title="Cart"
+                  description={`${lines.length} item${lines.length === 1 ? "" : "s"} in this invoice.`}
+                />
+                {lines.length > 0 && (
+                  <span className="text-sm font-semibold tabular-nums">
+                    {inr(subtotal)}
+                  </span>
+                )}
+              </div>
+
+              <div className="mt-5">
+                {lines.length === 0 ? (
+                  <div className="border border-dashed border-border/60 rounded-xl py-14 px-6 text-center">
+                    <ScanLine className="h-7 w-7 text-muted-foreground mx-auto mb-2" />
+                    <div className="text-sm font-semibold text-foreground">No items scanned yet</div>
+                    <div className="text-xs text-muted-foreground mt-1">
+                      Scan a barcode above to add an item to this sale.
+                    </div>
+                  </div>
+                ) : (
+                  <div className="overflow-x-auto">
+                    <table className="w-full text-sm">
+                      <thead>
+                        <tr className="text-[11px] uppercase tracking-wider text-muted-foreground border-b border-border/60">
+                          <th className="text-left font-medium py-2 pr-3">Item</th>
+                          <th className="text-left font-medium py-2 px-3 w-36">Qty</th>
+                          <th className="text-left font-medium py-2 px-3 w-28">Rate</th>
+                          {f.gst_rate.visible && (
+                            <th className="text-left font-medium py-2 px-3 w-20">GST</th>
+                          )}
+                          <th className="text-right font-medium py-2 px-3 w-28">Total</th>
+                          <th className="w-8"></th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-border/60">
+                        {lines.map((l, i) => (
+                          <tr key={i}>
+                            <td className="py-3 pr-3">
+                              <div className="font-medium text-foreground">{l.name}</div>
+                              <div className="font-mono text-[11px] text-muted-foreground truncate max-w-[220px]">
+                                {l.item_instance_id}
+                              </div>
+                            </td>
+                            <td className="py-3 px-3">
+                              <div className="inline-flex items-center rounded-md border border-input">
+                                <button
+                                  type="button"
+                                  className="h-8 w-8 grid place-items-center text-muted-foreground hover:text-foreground"
+                                  onClick={() => upd(i, { qty: Math.max(1, l.qty - 1) })}
+                                >
+                                  <Minus className="h-3 w-3" />
+                                </button>
+                                <input
+                                  className="h-8 w-12 text-center text-sm bg-transparent border-x border-input focus:outline-none tabular-nums"
+                                  type="number"
+                                  value={l.qty}
+                                  onChange={(e) =>
+                                    upd(i, { qty: Math.max(1, Number(e.target.value)) })
+                                  }
+                                />
+                                <button
+                                  type="button"
+                                  className="h-8 w-8 grid place-items-center text-muted-foreground hover:text-foreground"
+                                  onClick={() => upd(i, { qty: l.qty + 1 })}
+                                >
+                                  <Plus className="h-3 w-3" />
+                                </button>
+                              </div>
+                            </td>
+                            <td className="py-3 px-3">
+                              <Input
+                                className="h-8 tabular-nums"
+                                type="number"
+                                value={l.rate}
+                                onChange={(e) => upd(i, { rate: Number(e.target.value) })}
+                              />
+                            </td>
+                            {f.gst_rate.visible && (
+                              <td className="py-3 px-3">
+                                <Input
+                                  className="h-8 tabular-nums"
+                                  type="number"
+                                  value={l.gst_rate}
+                                  onChange={(e) =>
+                                    upd(i, { gst_rate: Number(e.target.value) })
+                                  }
+                                />
+                              </td>
+                            )}
+                            <td className="py-3 px-3 text-right font-semibold tabular-nums">
+                              {inr(l.qty * l.rate)}
+                            </td>
+                            <td className="py-3 pl-1">
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                className="h-8 w-8 text-muted-foreground hover:text-destructive"
+                                onClick={() => rm(i)}
+                              >
+                                <Trash2 className="h-4 w-4" />
+                              </Button>
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                )}
+              </div>
+            </Card>
           </div>
-          <Button className="w-full h-14 text-lg" disabled={busy} onClick={save}>Save invoice</Button>
-        </Card>
+
+          {/* Sidebar */}
+          <div className="space-y-5">
+            <Card className="p-6 lg:sticky lg:top-6 space-y-5">
+              {f.customer.visible && (
+                <div>
+                  <FieldLabel icon={User}>
+                    Customer {f.customer.required && <span className="text-destructive">*</span>}
+                  </FieldLabel>
+                  <select
+                    className="h-10 w-full rounded-md border border-input bg-background px-3 text-sm"
+                    value={customerId}
+                    onChange={(e) => setCustomerId(e.target.value)}
+                  >
+                    <option value="">
+                      {f.customer.required ? "Select customer" : "Walk-in customer"}
+                    </option>
+                    {customers.map((c) => (
+                      <option key={c.id} value={c.id}>{c.name}</option>
+                    ))}
+                  </select>
+                </div>
+              )}
+
+              {f.payment_mode.visible && (
+                <div>
+                  <FieldLabel icon={Wallet}>Payment Method</FieldLabel>
+                  <div className="grid grid-cols-2 gap-2">
+                    {[
+                      { v: "cash", label: "Cash", icon: Banknote },
+                      { v: "upi", label: "UPI", icon: Smartphone },
+                      { v: "card", label: "Card", icon: CreditCard },
+                      { v: "credit", label: "Credit", icon: Clock },
+                    ].map((o) => {
+                      const Icon = o.icon;
+                      const active = paymentMode === o.v;
+                      return (
+                        <button
+                          key={o.v}
+                          type="button"
+                          onClick={() => setPaymentMode(o.v)}
+                          className={`flex items-center gap-2 h-10 px-3 rounded-md text-sm font-medium transition-colors border ${
+                            active
+                              ? "border-primary bg-primary/5 text-foreground"
+                              : "border-input text-muted-foreground hover:text-foreground hover:bg-muted/50"
+                          }`}
+                        >
+                          <Icon className="h-4 w-4" />
+                          {o.label}
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
+
+              {f.discount.visible && (
+                <div>
+                  <FieldLabel>
+                    Discount {f.discount.required && <span className="text-destructive">*</span>}
+                  </FieldLabel>
+                  <Input
+                    className="h-10 tabular-nums"
+                    type="number"
+                    placeholder="0"
+                    value={discount}
+                    onChange={(e) => setDiscount(Number(e.target.value))}
+                  />
+                </div>
+              )}
+
+              <div className="border-t border-border/60 pt-4 space-y-2.5 text-sm">
+                <Row label="Subtotal" value={inr(subtotal)} />
+                <Row label="GST" value={inr(tax)} />
+                {f.discount.visible && discount > 0 && (
+                  <Row label="Discount" value={`− ${inr(discount)}`} />
+                )}
+              </div>
+              <div className="border-t border-border/60 pt-4 flex items-baseline justify-between">
+                <span className="text-sm font-medium text-muted-foreground">Total</span>
+                <span className="text-2xl font-semibold tracking-tight tabular-nums">
+                  {inr(total)}
+                </span>
+              </div>
+
+              <Button
+                className="w-full gap-2"
+                size="lg"
+                disabled={busy}
+                onClick={save}
+              >
+                <Check className="h-4 w-4" />
+                {busy ? "Saving…" : "Save Invoice"}
+              </Button>
+              <Button
+                variant="ghost"
+                className="w-full -mt-2"
+                onClick={() => nav({ to: "/sales" })}
+              >
+                Cancel
+              </Button>
+            </Card>
+          </div>
+        </div>
       </div>
     </>
+  );
+}
+
+function SectionHeader({
+  icon: Icon, title, description,
+}: { icon: any; title: string; description?: string }) {
+  return (
+    <div className="flex items-start gap-3">
+      <div className="h-9 w-9 rounded-lg bg-primary/10 text-primary grid place-items-center shrink-0">
+        <Icon className="h-4 w-4" />
+      </div>
+      <div>
+        <h2 className="text-base font-semibold tracking-tight text-foreground">{title}</h2>
+        {description && (
+          <p className="text-xs text-muted-foreground mt-0.5">{description}</p>
+        )}
+      </div>
+    </div>
+  );
+}
+
+function FieldLabel({
+  icon: Icon, children,
+}: { icon?: any; children: React.ReactNode }) {
+  return (
+    <label className="flex items-center gap-1.5 text-xs font-medium text-muted-foreground mb-1.5">
+      {Icon && <Icon className="h-3.5 w-3.5" />}
+      {children}
+    </label>
+  );
+}
+
+function Row({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="flex items-center justify-between">
+      <span className="text-muted-foreground">{label}</span>
+      <span className="font-semibold tabular-nums">{value}</span>
+    </div>
   );
 }
