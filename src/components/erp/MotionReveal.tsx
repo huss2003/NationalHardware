@@ -1,7 +1,7 @@
 import { motion, useReducedMotion, type HTMLMotionProps } from "framer-motion";
-import { forwardRef } from "react";
+import { forwardRef, type ReactNode } from "react";
 
-type Props = HTMLMotionProps<"div"> & { delay?: number };
+type Props = Omit<HTMLMotionProps<"div">, "children"> & { delay?: number; children?: ReactNode };
 
 /** Lightweight scroll-reveal wrapper. Fades + lifts in once on view. */
 export const MotionReveal = forwardRef<HTMLDivElement, Props>(
