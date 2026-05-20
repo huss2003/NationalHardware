@@ -363,11 +363,8 @@ function Inventory() {
                 {historyRows.map((h) => (
                   <li key={h.id} className="relative">
                     <span className="absolute -left-[27px] top-1.5 h-3 w-3 rounded-full bg-primary" />
-                    <div className="flex items-center gap-2">
-                      <span className="text-xs font-semibold uppercase tracking-wider">
-                        {String(h.event).replace(/_/g, " ")}
-                      </span>
-                      <StatusPill status={String(h.event).toLowerCase()} />
+                    <div className="text-xs font-semibold uppercase tracking-wider">
+                      {String(h.event).replace(/_/g, " ")}
                     </div>
                     <div className="text-xs text-muted-foreground mt-0.5">
                       {new Date(h.created_at).toLocaleString()}
