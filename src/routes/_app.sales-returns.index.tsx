@@ -16,7 +16,7 @@ import { inr } from "@/lib/codes";
 import { toast } from "sonner";
 import { useAuth } from "@/lib/auth-store";
 import {
-  Plus, Undo2, Receipt, Wallet, TrendingDown, Calendar, User,
+  Plus, Undo2, Receipt, Wallet, TrendingDown, Calendar,
 } from "lucide-react";
 
 export const Route = createFileRoute("/_app/sales-returns/")({ component: SalesReturns });
