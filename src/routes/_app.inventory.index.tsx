@@ -142,7 +142,14 @@ function Inventory() {
               </TableRow>
             </TableHeader>
             <TableBody>
-              {filtered.map((p) => {
+              {loading && (
+                <TableRow>
+                  <TableCell colSpan={7} className="p-0">
+                    <TableSkeleton rows={6} columns={7} showHeader={false} />
+                  </TableCell>
+                </TableRow>
+              )}
+              {!loading && filtered.map((p) => {
                 const count = counts[p.id] ?? 0;
                 const cap = Math.max(count, p.reorder_level * 4, 50);
                 const pct = Math.min(100, Math.round((count / cap) * 100));
@@ -237,7 +244,7 @@ function Inventory() {
                   </TableRow>
                 );
               })}
-              {filtered.length === 0 && (
+              {!loading && filtered.length === 0 && (
                 <TableRow>
                   <TableCell colSpan={7} className="text-center py-12 text-muted-foreground">
                     No products match these filters.
