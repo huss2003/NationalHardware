@@ -108,15 +108,7 @@ export type Database = {
           ref_id?: string | null
           ref_table?: string | null
         }
-        Relationships: [
-          {
-            foreignKeyName: "audit_log_actor_user_id_fkey"
-            columns: ["actor_user_id"]
-            isOneToOne: false
-            referencedRelation: "shop_users"
-            referencedColumns: ["id"]
-          },
-        ]
+        Relationships: []
       }
       bom: {
         Row: {
@@ -321,13 +313,6 @@ export type Database = {
         }
         Relationships: [
           {
-            foreignKeyName: "item_history_actor_user_id_fkey"
-            columns: ["actor_user_id"]
-            isOneToOne: false
-            referencedRelation: "shop_users"
-            referencedColumns: ["id"]
-          },
-          {
             foreignKeyName: "item_history_item_id_fkey"
             columns: ["item_id"]
             isOneToOne: false
@@ -478,13 +463,6 @@ export type Database = {
         }
         Relationships: [
           {
-            foreignKeyName: "production_materials_actor_user_id_fkey"
-            columns: ["actor_user_id"]
-            isOneToOne: false
-            referencedRelation: "shop_users"
-            referencedColumns: ["id"]
-          },
-          {
             foreignKeyName: "production_materials_item_instance_id_fkey"
             columns: ["item_instance_id"]
             isOneToOne: false
@@ -549,24 +527,10 @@ export type Database = {
         }
         Relationships: [
           {
-            foreignKeyName: "production_orders_assigned_to_fkey"
-            columns: ["assigned_to"]
-            isOneToOne: false
-            referencedRelation: "shop_users"
-            referencedColumns: ["id"]
-          },
-          {
             foreignKeyName: "production_orders_bom_id_fkey"
             columns: ["bom_id"]
             isOneToOne: false
             referencedRelation: "bom"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "production_orders_created_by_fkey"
-            columns: ["created_by"]
-            isOneToOne: false
-            referencedRelation: "shop_users"
             referencedColumns: ["id"]
           },
           {
@@ -868,13 +832,6 @@ export type Database = {
         }
         Relationships: [
           {
-            foreignKeyName: "purchases_created_by_fkey"
-            columns: ["created_by"]
-            isOneToOne: false
-            referencedRelation: "shop_users"
-            referencedColumns: ["id"]
-          },
-          {
             foreignKeyName: "purchases_supplier_id_fkey"
             columns: ["supplier_id"]
             isOneToOne: false
@@ -953,15 +910,7 @@ export type Database = {
           ref_id?: string
           ref_table?: string
         }
-        Relationships: [
-          {
-            foreignKeyName: "recycle_bin_deleted_by_fkey"
-            columns: ["deleted_by"]
-            isOneToOne: false
-            referencedRelation: "shop_users"
-            referencedColumns: ["id"]
-          },
-        ]
+        Relationships: []
       }
       sales: {
         Row: {
@@ -1022,13 +971,6 @@ export type Database = {
           updated_at?: string
         }
         Relationships: [
-          {
-            foreignKeyName: "sales_created_by_fkey"
-            columns: ["created_by"]
-            isOneToOne: false
-            referencedRelation: "shop_users"
-            referencedColumns: ["id"]
-          },
           {
             foreignKeyName: "sales_customer_id_fkey"
             columns: ["customer_id"]
