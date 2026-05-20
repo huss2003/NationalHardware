@@ -187,11 +187,11 @@ function Inventory() {
                 <TableHead className="w-10 pl-4">
                   <Checkbox checked={allChecked} onCheckedChange={toggleAll} aria-label="Select all" />
                 </TableHead>
-                <TableHead>Item details</TableHead>
-                <TableHead>SKU</TableHead>
+                <SortableHead label="Item details" active={sortKey === "name"} dir={sortDir} onClick={() => toggleSort("name")} />
+                <SortableHead label="SKU" active={sortKey === "sku"} dir={sortDir} onClick={() => toggleSort("sku")} />
                 <TableHead>Category</TableHead>
-                <TableHead className="w-[260px]">Stock level</TableHead>
-                <TableHead className="text-right">Unit price</TableHead>
+                <SortableHead label="Stock level" active={sortKey === "stock"} dir={sortDir} onClick={() => toggleSort("stock")} className="w-[260px]" />
+                <SortableHead label="Unit price" active={sortKey === "price"} dir={sortDir} onClick={() => toggleSort("price")} className="text-right" align="right" />
                 <TableHead className="text-right pr-6">Actions</TableHead>
               </TableRow>
             </TableHeader>
@@ -203,7 +203,7 @@ function Inventory() {
                   </TableCell>
                 </TableRow>
               )}
-              {!loading && filtered.map((p) => {
+              {!loading && sorted.map((p) => {
                 const count = counts[p.id] ?? 0;
                 const cap = Math.max(count, p.reorder_level * 4, 50);
                 const pct = Math.min(100, Math.round((count / cap) * 100));
@@ -284,21 +284,40 @@ function Inventory() {
                       {inr(p.default_price ?? 0)}
                     </TableCell>
                     <TableCell className="text-right pr-6" onClick={(e) => e.stopPropagation()}>
-                      <Button
-                        asChild
-                        variant="ghost"
-                        size="sm"
-                        className="rounded-md"
-                      >
-                        <Link to="/inventory/$productId" params={{ productId: p.id }}>
-                          View
-                        </Link>
-                      </Button>
+                      <div className="inline-flex items-center gap-0.5">
+                        <Button
+                          asChild
+                          variant="ghost"
+                          size="icon"
+                          className="h-8 w-8 text-success hover:bg-success/10 hover:text-success"
+                          title="Stock in"
+                        >
+                          <Link to="/purchases/new"><ArrowDownToLine className="h-4 w-4" /></Link>
+                        </Button>
+                        <Button
+                          asChild
+                          variant="ghost"
+                          size="icon"
+                          className="h-8 w-8 text-primary hover:bg-primary/10 hover:text-primary"
+                          title="Stock out"
+                        >
+                          <Link to="/sales/new"><ArrowUpFromLine className="h-4 w-4" /></Link>
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="h-8 w-8"
+                          title="View history"
+                          onClick={() => openHistory(p)}
+                        >
+                          <History className="h-4 w-4" />
+                        </Button>
+                      </div>
                     </TableCell>
                   </TableRow>
                 );
               })}
-              {!loading && filtered.length === 0 && (
+              {!loading && sorted.length === 0 && (
                 <TableRow>
                   <TableCell colSpan={7} className="text-center py-12 text-muted-foreground">
                     No products match these filters.
