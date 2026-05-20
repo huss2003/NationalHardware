@@ -27,6 +27,7 @@ import { Route as AppProductionIndexRouteImport } from './routes/_app.production
 import { Route as AppInventoryIndexRouteImport } from './routes/_app.inventory.index'
 import { Route as AppGodownsIndexRouteImport } from './routes/_app.godowns.index'
 import { Route as AppUnitsItemIdRouteImport } from './routes/_app.units.$itemId'
+import { Route as AppSalesReceiptsRouteImport } from './routes/_app.sales.receipts'
 import { Route as AppSalesNewRouteImport } from './routes/_app.sales.new'
 import { Route as AppSalesIdRouteImport } from './routes/_app.sales.$id'
 import { Route as AppPurchasesNewRouteImport } from './routes/_app.purchases.new'
@@ -125,6 +126,11 @@ const AppUnitsItemIdRoute = AppUnitsItemIdRouteImport.update({
   path: '/units/$itemId',
   getParentRoute: () => AppRoute,
 } as any)
+const AppSalesReceiptsRoute = AppSalesReceiptsRouteImport.update({
+  id: '/sales/receipts',
+  path: '/sales/receipts',
+  getParentRoute: () => AppRoute,
+} as any)
 const AppSalesNewRoute = AppSalesNewRouteImport.update({
   id: '/sales/new',
   path: '/sales/new',
@@ -184,6 +190,7 @@ export interface FileRoutesByFullPath {
   '/purchases/new': typeof AppPurchasesNewRoute
   '/sales/$id': typeof AppSalesIdRoute
   '/sales/new': typeof AppSalesNewRoute
+  '/sales/receipts': typeof AppSalesReceiptsRoute
   '/units/$itemId': typeof AppUnitsItemIdRoute
   '/godowns/': typeof AppGodownsIndexRoute
   '/inventory/': typeof AppInventoryIndexRoute
@@ -211,6 +218,7 @@ export interface FileRoutesByTo {
   '/purchases/new': typeof AppPurchasesNewRoute
   '/sales/$id': typeof AppSalesIdRoute
   '/sales/new': typeof AppSalesNewRoute
+  '/sales/receipts': typeof AppSalesReceiptsRoute
   '/units/$itemId': typeof AppUnitsItemIdRoute
   '/godowns': typeof AppGodownsIndexRoute
   '/inventory': typeof AppInventoryIndexRoute
@@ -240,6 +248,7 @@ export interface FileRoutesById {
   '/_app/purchases/new': typeof AppPurchasesNewRoute
   '/_app/sales/$id': typeof AppSalesIdRoute
   '/_app/sales/new': typeof AppSalesNewRoute
+  '/_app/sales/receipts': typeof AppSalesReceiptsRoute
   '/_app/units/$itemId': typeof AppUnitsItemIdRoute
   '/_app/godowns/': typeof AppGodownsIndexRoute
   '/_app/inventory/': typeof AppInventoryIndexRoute
@@ -269,6 +278,7 @@ export interface FileRouteTypes {
     | '/purchases/new'
     | '/sales/$id'
     | '/sales/new'
+    | '/sales/receipts'
     | '/units/$itemId'
     | '/godowns/'
     | '/inventory/'
@@ -296,6 +306,7 @@ export interface FileRouteTypes {
     | '/purchases/new'
     | '/sales/$id'
     | '/sales/new'
+    | '/sales/receipts'
     | '/units/$itemId'
     | '/godowns'
     | '/inventory'
@@ -324,6 +335,7 @@ export interface FileRouteTypes {
     | '/_app/purchases/new'
     | '/_app/sales/$id'
     | '/_app/sales/new'
+    | '/_app/sales/receipts'
     | '/_app/units/$itemId'
     | '/_app/godowns/'
     | '/_app/inventory/'
@@ -468,6 +480,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppUnitsItemIdRouteImport
       parentRoute: typeof AppRoute
     }
+    '/_app/sales/receipts': {
+      id: '/_app/sales/receipts'
+      path: '/sales/receipts'
+      fullPath: '/sales/receipts'
+      preLoaderRoute: typeof AppSalesReceiptsRouteImport
+      parentRoute: typeof AppRoute
+    }
     '/_app/sales/new': {
       id: '/_app/sales/new'
       path: '/sales/new'
@@ -543,6 +562,7 @@ interface AppRouteChildren {
   AppPurchasesNewRoute: typeof AppPurchasesNewRoute
   AppSalesIdRoute: typeof AppSalesIdRoute
   AppSalesNewRoute: typeof AppSalesNewRoute
+  AppSalesReceiptsRoute: typeof AppSalesReceiptsRoute
   AppUnitsItemIdRoute: typeof AppUnitsItemIdRoute
   AppGodownsIndexRoute: typeof AppGodownsIndexRoute
   AppInventoryIndexRoute: typeof AppInventoryIndexRoute
@@ -569,6 +589,7 @@ const AppRouteChildren: AppRouteChildren = {
   AppPurchasesNewRoute: AppPurchasesNewRoute,
   AppSalesIdRoute: AppSalesIdRoute,
   AppSalesNewRoute: AppSalesNewRoute,
+  AppSalesReceiptsRoute: AppSalesReceiptsRoute,
   AppUnitsItemIdRoute: AppUnitsItemIdRoute,
   AppGodownsIndexRoute: AppGodownsIndexRoute,
   AppInventoryIndexRoute: AppInventoryIndexRoute,

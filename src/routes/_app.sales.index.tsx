@@ -7,7 +7,7 @@ import { Input } from "@/components/ui/input";
 import { PageHeader } from "@/components/erp/PageHeader";
 import { inr } from "@/lib/codes";
 import {
-  Plus, TrendingUp, Receipt, ShoppingBag, AlertCircle, MoreVertical, ArrowRight, Minus,
+  Plus, TrendingUp, Receipt, ShoppingBag, AlertCircle, MoreVertical, ArrowRight, Minus, Wallet,
 } from "lucide-react";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { TableSkeleton } from "@/components/erp/Skeletons";
@@ -102,12 +102,17 @@ function Sales() {
         title="Sales Overview"
         subtitle="Manage orders, track revenue, and monitor transactions."
         actions={
-          <Button asChild>
-            <Link to="/sales/new">
-              <Plus className="h-4 w-4" />
-              New Sale
-            </Link>
-          </Button>
+          <>
+            <Button asChild variant="outline" size="sm" className="gap-2">
+              <Link to="/sales/receipts"><Wallet className="h-4 w-4" /> Receipts</Link>
+            </Button>
+            <Button asChild>
+              <Link to="/sales/new">
+                <Plus className="h-4 w-4" />
+                New Sale
+              </Link>
+            </Button>
+          </>
         }
       />
       <div className="px-8 pb-10 max-w-[1400px] mx-auto w-full space-y-5">
