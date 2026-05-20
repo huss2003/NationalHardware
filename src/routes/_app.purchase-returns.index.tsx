@@ -175,7 +175,7 @@ function NewPurchaseReturnDialog({
   const [cart, setCart] = useState<ScannedRow[]>([]);
   const [reason, setReason] = useState("");
   const [status, setStatus] = useState("sent");
-  const [scanError, setScanError] = useState<string | null>(null);
+  const [scanError, setScanError] = useState<{ kind: ScanWarningKind; msg: string; code?: string } | null>(null);
   const [busy, setBusy] = useState(false);
 
   useEffect(() => {
