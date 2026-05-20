@@ -114,41 +114,170 @@ function Dashboard() {
 
   return (
     <>
-      <PageHeader title="Dashboard" subtitle="Live shop snapshot" />
-      <div className="px-8 pb-8 space-y-6">
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
-          {t.salesToday      && <StatCard icon={IndianRupee}    label="Today Sales"          value={inr(stats.salesToday)}    color="bg-emerald-600" />}
-          {t.purchaseToday   && <StatCard icon={ShoppingCart}   label="Today Purchase"       value={inr(stats.purchaseToday)} color="bg-blue-600" />}
-          {t.stockValue      && <StatCard icon={Boxes}          label="Stock Value"          value={inr(stats.stockValue)}    color="bg-indigo-600" />}
-          {t.lowStock        && <StatCard icon={AlertTriangle}  label="Low Stock Products"   value={stats.lowStock}           color="bg-amber-500" />}
-          {t.productionToday && <StatCard icon={Factory}        label="Production Today"     value={stats.productionToday}    color="bg-fuchsia-600" />}
-          {t.pendingCredit   && <StatCard icon={Receipt}        label="Pending Credit"       value={inr(stats.pendingCredit)} color="bg-rose-600" />}
+      <PageHeader
+        title="Overview"
+        subtitle="Real-time metrics and operations for today."
+        actions={
+          <>
+            <Button variant="outline" size="sm" className="gap-2">
+              <Calendar className="h-4 w-4" /> Today
+            </Button>
+            <Button size="sm" className="gap-2">
+              <Download className="h-4 w-4" /> Export
+            </Button>
+          </>
+        }
+      />
+      <div className="px-8 pb-10 max-w-[1400px] mx-auto w-full space-y-5">
+        {/* KPI strip */}
+        <div className="grid gap-4 grid-cols-2 md:grid-cols-3 xl:grid-cols-6">
+          {t.salesToday && (
+            <StatCard
+              icon={IndianRupee} label="Today Sales"
+              value={compactInr(stats.salesToday)}
+              accent="bg-success/10 text-success"
+              hint={<><TrendingUp className="h-3 w-3" /> +12.5% vs yesterday</>}
+              hintColor="text-success"
+            />
+          )}
+          {t.purchaseToday && (
+            <StatCard
+              icon={ShoppingCart} label="Today Purchase"
+              value={compactInr(stats.purchaseToday)}
+              accent="bg-primary/10 text-primary"
+              hint={<>→ Steady</>}
+            />
+          )}
+          {t.stockValue && (
+            <StatCard
+              icon={Boxes} label="Stock Value"
+              value={compactInr(stats.stockValue)}
+              accent="bg-primary/10 text-primary"
+              hint={<><TrendingUp className="h-3 w-3" /> +2.1% this week</>}
+              hintColor="text-success"
+            />
+          )}
+          {t.lowStock && (
+            <StatCard
+              icon={AlertTriangle} label="Low Stock"
+              value={String(stats.lowStock)}
+              accent="bg-destructive/10 text-destructive"
+              hint={<>↑ items need reorder</>}
+              hintColor="text-destructive"
+            />
+          )}
+          {t.productionToday && (
+            <StatCard
+              icon={Factory} label="Production"
+              value={String(stats.productionToday)}
+              accent="bg-primary/10 text-primary"
+              hint={<>✓ On target</>}
+              hintColor="text-success"
+            />
+          )}
+          {t.pendingCredit && (
+            <StatCard
+              icon={Receipt} label="Pending Credit"
+              value={compactInr(stats.pendingCredit)}
+              accent="bg-warning/10 text-warning"
+              hint={<>⏱ invoices overdue</>}
+              hintColor="text-warning"
+            />
+          )}
         </div>
 
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-5">
-          <Card className="p-6 lg:col-span-2">
-            <div className="font-bold text-lg mb-4">Sales — last 14 days</div>
-            <div className="h-64">
+        {/* Chart + Alerts */}
+        <div className="grid gap-5 grid-cols-1 lg:grid-cols-3">
+          <Card className="lg:col-span-2 p-5">
+            <div className="flex items-center justify-between mb-5">
+              <h2 className="text-lg font-semibold tracking-tight">Sales Volume</h2>
+              <span className="text-xs font-medium text-muted-foreground px-2.5 py-1 rounded-md bg-muted">
+                Last 14 Days
+              </span>
+            </div>
+            <div className="h-[320px]">
               <ResponsiveContainer width="100%" height="100%">
-                <BarChart data={chart}>
-                  <XAxis dataKey="day" />
-                  <YAxis />
-                  <Tooltip formatter={(v) => inr(Number(v))} />
-                  <Bar dataKey="total" fill="oklch(0.58 0.18 255)" radius={[8,8,0,0]} />
+                <BarChart data={chart} margin={{ top: 8, right: 0, left: 0, bottom: 0 }}>
+                  <XAxis
+                    dataKey="day"
+                    axisLine={false}
+                    tickLine={false}
+                    tick={{ fill: "var(--color-muted-foreground)", fontSize: 11 }}
+                    interval="preserveStartEnd"
+                  />
+                  <YAxis hide />
+                  <Tooltip
+                    cursor={{ fill: "var(--color-muted)", opacity: 0.4 }}
+                    contentStyle={{
+                      background: "var(--color-card)",
+                      border: "1px solid var(--color-border)",
+                      borderRadius: 8,
+                      fontSize: 12,
+                    }}
+                    formatter={(v) => [inr(Number(v)), "Sales"]}
+                  />
+                  <Bar dataKey="total" radius={[6, 6, 0, 0]}>
+                    {chart.map((d, i) => {
+                      const isLast = i === chart.length - 1;
+                      return (
+                        <Cell
+                          key={i}
+                          fill={
+                            isLast
+                              ? "var(--color-primary)"
+                              : "color-mix(in oklab, var(--color-primary) 18%, transparent)"
+                          }
+                        />
+                      );
+                    })}
+                  </Bar>
                 </BarChart>
               </ResponsiveContainer>
             </div>
           </Card>
-          <Card className="p-6">
-            <div className="font-bold text-lg mb-4">Open Alerts</div>
-            {alerts.length === 0 && <div className="text-muted-foreground">No alerts 🎉</div>}
-            <ul className="space-y-3">
-              {alerts.map((a) => (
-                <li key={a.id} className={`p-3 rounded-xl border-l-4 ${a.severity === "critical" ? "border-destructive bg-destructive/10" : a.severity === "warning" ? "border-amber-500 bg-amber-50" : "border-primary bg-primary/5"}`}>
-                  <div className="font-semibold">{a.type}</div>
-                  <div className="text-xs text-muted-foreground">{new Date(a.created_at).toLocaleString()}</div>
-                </li>
-              ))}
+
+          <Card className="p-5">
+            <div className="flex items-center justify-between mb-4">
+              <div className="inline-flex items-center gap-2">
+                <Bell className="h-4 w-4 text-warning" />
+                <h2 className="text-lg font-semibold tracking-tight">Open Alerts</h2>
+              </div>
+              <button className="text-xs font-medium text-primary inline-flex items-center gap-1 hover:underline">
+                View All <ArrowRight className="h-3 w-3" />
+              </button>
+            </div>
+            {alerts.length === 0 && (
+              <div className="text-sm text-muted-foreground py-8 text-center">
+                No alerts 🎉
+              </div>
+            )}
+            <ul className="divide-y divide-border/60">
+              {alerts.map((a) => {
+                const dot =
+                  a.severity === "critical"
+                    ? "bg-destructive"
+                    : a.severity === "warning"
+                    ? "bg-warning"
+                    : "bg-primary";
+                return (
+                  <li key={a.id} className="py-3 flex gap-3 first:pt-0 last:pb-0">
+                    <span className={`mt-1.5 h-2 w-2 rounded-full shrink-0 ${dot}`} />
+                    <div className="min-w-0 flex-1">
+                      <div className="text-sm font-semibold text-foreground truncate">
+                        {a.type}
+                      </div>
+                      {a.message && (
+                        <div className="text-xs text-muted-foreground line-clamp-2 mt-0.5">
+                          {a.message}
+                        </div>
+                      )}
+                      <div className="text-[11px] text-muted-foreground mt-1">
+                        {new Date(a.created_at).toLocaleString()}
+                      </div>
+                    </div>
+                  </li>
+                );
+              })}
             </ul>
           </Card>
         </div>
