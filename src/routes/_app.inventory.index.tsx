@@ -13,12 +13,14 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Badge } from "@/components/ui/badge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { inr } from "@/lib/codes";
+import { TableSkeleton } from "@/components/erp/Skeletons";
 
 export const Route = createFileRoute("/_app/inventory/")({ component: Inventory });
 
 function Inventory() {
   const [products, setProducts] = useState<any[]>([]);
   const [counts, setCounts] = useState<Record<string, number>>({});
+  const [loading, setLoading] = useState(true);
   const [q, setQ] = useState("");
   const [category, setCategory] = useState<string>("all");
   const [stockStatus, setStockStatus] = useState<string>("all");
@@ -26,12 +28,14 @@ function Inventory() {
   const nav = useNavigate();
 
   const load = async () => {
+    setLoading(true);
     const { data: prods } = await supabase.from("products").select("*").eq("active", true).order("name");
     const { data: items } = await supabase.from("item_instances").select("product_id").eq("status", "available");
     const c: Record<string, number> = {};
     (items ?? []).forEach((i: any) => { c[i.product_id] = (c[i.product_id] ?? 0) + 1; });
     setProducts(prods ?? []);
     setCounts(c);
+    setLoading(false);
   };
   useEffect(() => { load(); }, []);
 
