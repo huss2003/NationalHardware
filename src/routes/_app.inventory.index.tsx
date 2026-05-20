@@ -337,7 +337,80 @@ function Inventory() {
           )}
         </Card>
       </div>
+      {/* History dialog */}
+      <Dialog open={historyOpen} onOpenChange={setHistoryOpen}>
+        <DialogContent className="max-w-xl">
+          <DialogHeader>
+            <DialogTitle>
+              History • {historyProduct?.name ?? ""}
+            </DialogTitle>
+          </DialogHeader>
+          <div className="max-h-[60vh] overflow-y-auto">
+            {historyRows === null && (
+              <div className="space-y-2 py-2">
+                {[0,1,2,3].map((i) => (
+                  <div key={i} className="h-10 rounded-md bg-muted animate-pulse" />
+                ))}
+              </div>
+            )}
+            {historyRows && historyRows.length === 0 && (
+              <div className="text-sm text-muted-foreground py-6 text-center">
+                No history yet for this product.
+              </div>
+            )}
+            {historyRows && historyRows.length > 0 && (
+              <ol className="relative border-l-2 border-primary/30 ml-2 space-y-3 pl-5 py-2">
+                {historyRows.map((h) => (
+                  <li key={h.id} className="relative">
+                    <span className="absolute -left-[27px] top-1.5 h-3 w-3 rounded-full bg-primary" />
+                    <div className="flex items-center gap-2">
+                      <span className="text-xs font-semibold uppercase tracking-wider">
+                        {String(h.event).replace(/_/g, " ")}
+                      </span>
+                      <StatusPill status={String(h.event).toLowerCase()} />
+                    </div>
+                    <div className="text-xs text-muted-foreground mt-0.5">
+                      {new Date(h.created_at).toLocaleString()}
+                      {h.notes ? ` • ${h.notes}` : ""}
+                    </div>
+                    <div className="text-[11px] font-mono text-muted-foreground/80 mt-0.5">
+                      {h.item_id}
+                    </div>
+                  </li>
+                ))}
+              </ol>
+            )}
+          </div>
+        </DialogContent>
+      </Dialog>
     </>
+  );
+}
+
+function SortableHead({
+  label, active, dir, onClick, className, align = "left",
+}: {
+  label: string;
+  active: boolean;
+  dir: "asc" | "desc";
+  onClick: () => void;
+  className?: string;
+  align?: "left" | "right";
+}) {
+  const Arrow = !active ? ChevronsUpDown : dir === "asc" ? ArrowUp : ArrowDown;
+  return (
+    <TableHead className={className}>
+      <button
+        type="button"
+        onClick={onClick}
+        className={`inline-flex items-center gap-1 text-[11px] font-semibold uppercase tracking-wider hover:text-foreground transition-colors ${
+          active ? "text-foreground" : "text-muted-foreground"
+        } ${align === "right" ? "ml-auto" : ""}`}
+      >
+        {label}
+        <Arrow className="h-3 w-3" />
+      </button>
+    </TableHead>
   );
 }
 
