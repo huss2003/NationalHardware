@@ -67,48 +67,87 @@ function SaleDetail() {
         </div>
       } />
       <div className="px-8 pb-8">
-        <Card className="print-area p-8 max-w-3xl mx-auto">
-          <div className="flex justify-between items-start mb-6">
+        <Card className="print-area max-w-3xl mx-auto overflow-hidden shadow-lg">
+          {/* Brand band */}
+          <div className="bg-slate-900 text-white px-8 py-6 flex justify-between items-start">
             <div>
-              <div className="text-2xl font-extrabold">{shop?.shop_name}</div>
-              <div className="text-sm text-muted-foreground">{shop?.address}</div>
-              {shop?.gstin && <div className="text-sm">GSTIN: <b>{shop.gstin}</b></div>}
+              <div className="text-2xl font-extrabold tracking-tight">{shop?.shop_name ?? "National Hardware and Plywood"}</div>
+              {shop?.address && <div className="text-xs opacity-80 mt-1">{shop.address}</div>}
+              {shop?.gstin && <div className="text-xs opacity-80">GSTIN: {shop.gstin}</div>}
             </div>
             <div className="text-right">
-              <div className="text-xs uppercase">Tax Invoice</div>
-              <div className="font-extrabold text-xl">{s.invoice_no}</div>
-              <div className="text-sm">{new Date(s.invoice_date).toLocaleDateString()}</div>
+              <div className="text-[10px] uppercase tracking-widest opacity-70">Tax Invoice</div>
+              <div className="font-extrabold text-xl mt-0.5">{s.invoice_no}</div>
+              <div className="text-xs opacity-80">{new Date(s.invoice_date).toLocaleDateString()}</div>
             </div>
           </div>
-          <div className="mb-4">
-            <div className="text-xs text-muted-foreground">Bill To</div>
-            <div className="font-bold">{s.customers?.name ?? "Walk-in"}</div>
-            {s.customers?.gstin && <div className="text-sm">GSTIN: {s.customers.gstin}</div>}
-            {s.customers?.address && <div className="text-sm">{s.customers.address}</div>}
+
+          {/* Bill to + meta */}
+          <div className="grid grid-cols-2 gap-4 p-8 pb-4">
+            <div className="bg-muted/50 rounded-lg p-4">
+              <div className="text-[10px] uppercase font-bold tracking-wider text-muted-foreground">Bill To</div>
+              <div className="font-bold text-base mt-1">{s.customers?.name ?? "Walk-in customer"}</div>
+              {s.customers?.phone && <div className="text-xs text-muted-foreground">Phone: {s.customers.phone}</div>}
+              {s.customers?.gstin && <div className="text-xs text-muted-foreground">GSTIN: {s.customers.gstin}</div>}
+              {s.customers?.address && <div className="text-xs text-muted-foreground mt-1">{s.customers.address}</div>}
+            </div>
+            <div className="bg-muted/50 rounded-lg p-4 text-xs space-y-1.5">
+              <div className="text-[10px] uppercase font-bold tracking-wider text-muted-foreground mb-1">Invoice Details</div>
+              <div className="flex justify-between"><span className="text-muted-foreground">Date</span><b>{new Date(s.invoice_date).toLocaleDateString()}</b></div>
+              <div className="flex justify-between"><span className="text-muted-foreground">Payment</span><b className="uppercase">{s.payment_mode}</b></div>
+              <div className="flex justify-between"><span className="text-muted-foreground">Invoice #</span><b>{s.invoice_no}</b></div>
+            </div>
           </div>
-          <table className="w-full text-sm border-t">
-            <thead><tr className="text-left bg-muted"><th className="p-2">Item</th><th className="p-2">HSN</th><th className="p-2">Qty</th><th className="p-2">Rate</th><th className="p-2">GST%</th><th className="p-2 text-right">Total</th></tr></thead>
-            <tbody>
-              {items.map((it) => (
-                <tr key={it.id} className="border-t">
-                  <td className="p-2"><b>{it.products?.name}</b>{it.item_instance_id && <div className="font-mono text-xs text-muted-foreground">{it.item_instance_id}</div>}</td>
-                  <td className="p-2">{it.products?.hsn ?? "—"}</td>
-                  <td className="p-2">{it.qty}</td>
-                  <td className="p-2">{inr(it.rate)}</td>
-                  <td className="p-2">{it.gst_rate}%</td>
-                  <td className="p-2 text-right">{inr(it.line_total)}</td>
+
+          {/* Items */}
+          <div className="px-8 pb-4">
+            <table className="w-full text-sm border rounded-md overflow-hidden">
+              <thead>
+                <tr className="bg-slate-900 text-white text-left text-xs uppercase tracking-wider">
+                  <th className="p-3 font-semibold">Item</th>
+                  <th className="p-3 font-semibold">HSN</th>
+                  <th className="p-3 font-semibold text-right">Qty</th>
+                  <th className="p-3 font-semibold text-right">Rate</th>
+                  <th className="p-3 font-semibold text-right">GST%</th>
+                  <th className="p-3 font-semibold text-right">Total</th>
                 </tr>
-              ))}
-            </tbody>
-          </table>
-          <div className="ml-auto mt-4 w-full max-w-xs space-y-1 text-sm">
-            <div className="flex justify-between"><span>Subtotal</span><b>{inr(s.subtotal)}</b></div>
-            <div className="flex justify-between"><span>Discount</span><b>− {inr(s.discount)}</b></div>
-            <div className="flex justify-between"><span>CGST</span><b>{inr(s.cgst)}</b></div>
-            <div className="flex justify-between"><span>SGST</span><b>{inr(s.sgst)}</b></div>
-            <div className="flex justify-between"><span>IGST</span><b>{inr(s.igst)}</b></div>
-            <div className="flex justify-between text-xl border-t pt-2"><span>Grand Total</span><b>{inr(s.grand_total)}</b></div>
-            <div className="text-xs text-muted-foreground">Mode: {s.payment_mode.toUpperCase()}</div>
+              </thead>
+              <tbody>
+                {items.map((it, i) => (
+                  <tr key={it.id} className={i % 2 ? "bg-muted/30" : ""}>
+                    <td className="p-3">
+                      <div className="font-semibold">{it.products?.name}</div>
+                      {it.item_instance_id && <div className="font-mono text-[10px] text-muted-foreground">{it.item_instance_id}</div>}
+                    </td>
+                    <td className="p-3">{it.products?.hsn ?? "—"}</td>
+                    <td className="p-3 text-right tabular-nums">{it.qty}</td>
+                    <td className="p-3 text-right tabular-nums">{inr(it.rate)}</td>
+                    <td className="p-3 text-right">{it.gst_rate}%</td>
+                    <td className="p-3 text-right font-semibold tabular-nums">{inr(it.line_total)}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+
+          {/* Totals */}
+          <div className="px-8 pb-8 flex justify-end">
+            <div className="w-full max-w-sm bg-muted/50 rounded-lg p-5 space-y-2 text-sm">
+              <div className="flex justify-between"><span className="text-muted-foreground">Subtotal</span><b className="tabular-nums">{inr(s.subtotal)}</b></div>
+              {Number(s.discount) > 0 && <div className="flex justify-between"><span className="text-muted-foreground">Discount</span><b className="tabular-nums text-destructive">− {inr(s.discount)}</b></div>}
+              {Number(s.cgst) > 0 && <div className="flex justify-between"><span className="text-muted-foreground">CGST</span><b className="tabular-nums">{inr(s.cgst)}</b></div>}
+              {Number(s.sgst) > 0 && <div className="flex justify-between"><span className="text-muted-foreground">SGST</span><b className="tabular-nums">{inr(s.sgst)}</b></div>}
+              {Number(s.igst) > 0 && <div className="flex justify-between"><span className="text-muted-foreground">IGST</span><b className="tabular-nums">{inr(s.igst)}</b></div>}
+              <div className="flex justify-between text-lg border-t pt-2 mt-2">
+                <span className="font-bold">Grand Total</span>
+                <b className="tabular-nums">{inr(s.grand_total)}</b>
+              </div>
+            </div>
+          </div>
+
+          <div className="border-t px-8 py-4 text-xs text-muted-foreground flex justify-between">
+            <span>Thank you for your business — {shop?.shop_name ?? "National Hardware and Plywood"}.</span>
+            <span>System-generated invoice</span>
           </div>
         </Card>
       </div>

@@ -17,32 +17,53 @@ export type InvoicePdfInput = {
 export function buildInvoicePdf(input: InvoicePdfInput): jsPDF {
   const doc = new jsPDF({ unit: "pt", format: "a4" });
   const W = doc.internal.pageSize.getWidth();
-  let y = 40;
+  const shopName = input.shop?.shop_name ?? "National Hardware and Plywood";
 
-  doc.setFont("helvetica", "bold"); doc.setFontSize(18);
-  doc.text(input.shop?.shop_name ?? "Tax Invoice", 40, y);
+  // Brand band
+  doc.setFillColor(15, 23, 42); // slate-900
+  doc.rect(0, 0, W, 90, "F");
+  doc.setTextColor(255);
+  doc.setFont("helvetica", "bold"); doc.setFontSize(20);
+  doc.text(shopName, 40, 38);
   doc.setFont("helvetica", "normal"); doc.setFontSize(9);
-  if (input.shop?.address) { y += 14; doc.text(input.shop.address, 40, y); }
-  if (input.shop?.gstin) { y += 12; doc.text(`GSTIN: ${input.shop.gstin}`, 40, y); }
+  let hy = 54;
+  if (input.shop?.address) { doc.text(input.shop.address, 40, hy); hy += 12; }
+  if (input.shop?.gstin) { doc.text(`GSTIN: ${input.shop.gstin}`, 40, hy); }
 
-  doc.setFont("helvetica", "bold"); doc.setFontSize(11);
-  doc.text("TAX INVOICE", W - 40, 44, { align: "right" });
-  doc.setFontSize(14);
-  doc.text(input.sale.invoice_no ?? "—", W - 40, 62, { align: "right" });
-  doc.setFont("helvetica", "normal"); doc.setFontSize(9);
-  doc.text(new Date(input.sale.invoice_date).toLocaleDateString(), W - 40, 78, { align: "right" });
-
-  y = Math.max(y, 90) + 18;
-  doc.setDrawColor(220); doc.line(40, y, W - 40, y); y += 16;
   doc.setFont("helvetica", "bold"); doc.setFontSize(10);
-  doc.text("Bill To", 40, y); y += 14;
-  doc.setFont("helvetica", "normal");
-  doc.text(input.customer?.name ?? "Walk-in customer", 40, y); y += 12;
-  if (input.customer?.phone) { doc.text(`Phone: ${input.customer.phone}`, 40, y); y += 12; }
-  if (input.customer?.gstin) { doc.text(`GSTIN: ${input.customer.gstin}`, 40, y); y += 12; }
-  if (input.customer?.address) { doc.text(input.customer.address, 40, y); y += 12; }
+  doc.text("TAX INVOICE", W - 40, 34, { align: "right" });
+  doc.setFontSize(16);
+  doc.text(input.sale.invoice_no ?? "—", W - 40, 54, { align: "right" });
+  doc.setFont("helvetica", "normal"); doc.setFontSize(9);
+  doc.text(new Date(input.sale.invoice_date).toLocaleDateString(), W - 40, 70, { align: "right" });
 
-  y += 8;
+  doc.setTextColor(20);
+  let y = 118;
+  // Bill To panel
+  doc.setFillColor(245, 247, 250);
+  doc.rect(40, y - 12, (W - 80) / 2 - 8, 90, "F");
+  doc.setFont("helvetica", "bold"); doc.setFontSize(9); doc.setTextColor(100);
+  doc.text("BILL TO", 52, y); y += 14;
+  doc.setTextColor(20); doc.setFontSize(11);
+  doc.text(input.customer?.name ?? "Walk-in customer", 52, y); y += 13;
+  doc.setFont("helvetica", "normal"); doc.setFontSize(9);
+  if (input.customer?.phone) { doc.text(`Phone: ${input.customer.phone}`, 52, y); y += 11; }
+  if (input.customer?.gstin) { doc.text(`GSTIN: ${input.customer.gstin}`, 52, y); y += 11; }
+  if (input.customer?.address) { doc.text(input.customer.address, 52, y, { maxWidth: (W - 80) / 2 - 24 }); }
+
+  // Meta panel
+  const mx = W / 2 + 8;
+  let my = 118;
+  doc.setFillColor(245, 247, 250);
+  doc.rect(mx, my - 12, (W - 80) / 2, 90, "F");
+  doc.setFont("helvetica", "bold"); doc.setFontSize(9); doc.setTextColor(100);
+  doc.text("INVOICE DETAILS", mx + 12, my); my += 14;
+  doc.setTextColor(20); doc.setFont("helvetica", "normal"); doc.setFontSize(9);
+  doc.text(`Date: ${new Date(input.sale.invoice_date).toLocaleDateString()}`, mx + 12, my); my += 12;
+  doc.text(`Payment: ${String(input.sale.payment_mode).toUpperCase()}`, mx + 12, my); my += 12;
+  doc.text(`Invoice #: ${input.sale.invoice_no ?? "—"}`, mx + 12, my);
+
+  y = 230;
   autoTable(doc, {
     startY: y,
     head: [["Item", "HSN", "Qty", "Rate", "GST%", "Total"]],
@@ -54,21 +75,28 @@ export function buildInvoicePdf(input: InvoicePdfInput): jsPDF {
       `${it.gst_rate}%`,
       Number(it.line_total).toFixed(2),
     ]),
-    styles: { fontSize: 9, cellPadding: 6 },
-    headStyles: { fillColor: [240, 240, 240], textColor: 20 },
+    styles: { fontSize: 9, cellPadding: 8, lineColor: [230, 230, 230], lineWidth: 0.5 },
+    headStyles: { fillColor: [15, 23, 42], textColor: 255, fontStyle: "bold" },
+    alternateRowStyles: { fillColor: [250, 251, 253] },
     columnStyles: { 2: { halign: "right" }, 3: { halign: "right" }, 4: { halign: "right" }, 5: { halign: "right" } },
     margin: { left: 40, right: 40 },
   });
 
   // @ts-expect-error - autotable adds lastAutoTable
   const afterY = (doc.lastAutoTable?.finalY ?? y) + 16;
-  const tx = W - 220, vx = W - 40;
-  let ty = afterY;
+  // Totals card
+  const tw = 260;
+  const tx = W - 40 - tw + 14, vx = W - 50;
+  doc.setFillColor(248, 250, 252);
+  doc.rect(W - 40 - tw, afterY, tw, 130, "F");
+  let ty = afterY + 20;
   const row = (label: string, v: number, bold = false) => {
     doc.setFont("helvetica", bold ? "bold" : "normal");
+    doc.setTextColor(bold ? 20 : 80);
     doc.text(label, tx, ty);
+    doc.setTextColor(20);
     doc.text(v.toFixed(2), vx, ty, { align: "right" });
-    ty += 14;
+    ty += 16;
   };
   doc.setFontSize(10);
   row("Subtotal", Number(input.sale.subtotal));
@@ -76,13 +104,16 @@ export function buildInvoicePdf(input: InvoicePdfInput): jsPDF {
   if (Number(input.sale.cgst) > 0) row("CGST", Number(input.sale.cgst));
   if (Number(input.sale.sgst) > 0) row("SGST", Number(input.sale.sgst));
   if (Number(input.sale.igst) > 0) row("IGST", Number(input.sale.igst));
-  doc.setDrawColor(180); doc.line(tx, ty - 8, vx, ty - 8); ty += 6;
+  doc.setDrawColor(200); doc.line(tx, ty - 6, vx, ty - 6); ty += 6;
+  doc.setFontSize(12);
   row("Grand Total", Number(input.sale.grand_total), true);
-  doc.setFont("helvetica", "normal"); doc.setFontSize(9);
-  doc.text(`Payment: ${String(input.sale.payment_mode).toUpperCase()}`, tx, ty + 6);
 
+  // Footer
+  const ph = doc.internal.pageSize.getHeight();
+  doc.setDrawColor(220); doc.line(40, ph - 50, W - 40, ph - 50);
   doc.setFontSize(8); doc.setTextColor(120);
-  doc.text("Thank you for your business.", 40, doc.internal.pageSize.getHeight() - 30);
+  doc.text(`Thank you for your business — ${shopName}.`, 40, ph - 32);
+  doc.text("This is a system-generated tax invoice.", W - 40, ph - 32, { align: "right" });
   return doc;
 }
 

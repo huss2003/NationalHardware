@@ -5,6 +5,28 @@ import { supabase } from "@/integrations/supabase/client";
 export async function seedDemoData(actorId: string) {
   const log: string[] = [];
 
+  // Ensure shop branding is set.
+  await supabase.from("app_settings").upsert({
+    id: true,
+    shop_name: "National Hardware and Plywood",
+    address: "Main Road, Bengaluru, Karnataka 560001",
+    gstin: "29ABCDE1234F1Z5",
+    state: "KA",
+    invoice_prefix: "NHP",
+  } as any);
+  log.push("Shop branding → National Hardware and Plywood");
+
+  // Godown
+  const { data: existingGodown } = await supabase.from("godowns").select("id").limit(1);
+  if (!existingGodown?.length) {
+    const { data: g, error: gErr } = await supabase.from("godowns").insert({
+      name: "Main Warehouse", code: "WH-1", address: "Industrial Area, Bengaluru",
+      manager_name: "Ravi Kumar", phone: "9000099000", capacity: 5000,
+    }).select().single();
+    if (gErr) throw gErr;
+    log.push(`Godown ${g.name}`);
+  }
+
   // Supplier
   const { data: supplier, error: supErr } = await supabase
     .from("suppliers")
@@ -17,36 +39,28 @@ export async function seedDemoData(actorId: string) {
   // Customer
   const { data: customer, error: custErr } = await supabase
     .from("customers")
-    .insert({ name: `Demo Customer ${Date.now().toString().slice(-4)}`, phone: "9000000002", state: "KA" })
+    .insert({ name: `Demo Customer ${Date.now().toString().slice(-4)}`, phone: "9000000002", state: "KA", address: "JP Nagar, Bengaluru", gstin: "29AAACX1234B1Z9" })
     .select()
     .single();
   if (custErr) throw custErr;
   log.push(`Customer ${customer.name}`);
 
-  // Product (ensure at least one active product exists)
-  let { data: products } = await supabase.from("products").select("*").eq("active", true).limit(1);
-  let product = products?.[0];
-  if (!product) {
-    const prefix = "DEMO";
-    const { data: created, error: pErr } = await supabase
-      .from("products")
-      .insert({
-        name: "Demo Widget",
-        prefix,
-        category: "other",
-        unit: "pcs",
-        default_cost: 100,
-        default_price: 150,
-        gst_rate: 18,
-        reorder_level: 5,
-        active: true,
-      })
-      .select()
-      .single();
-    if (pErr) throw pErr;
-    product = created;
-    log.push(`Product ${product.name}`);
+  // Products — ensure a small catalogue of plywood/hardware/door items exists.
+  const catalogue = [
+    { name: "Plywood 19mm 8x4", prefix: "PLY", category: "other", unit: "sheet", default_cost: 1800, default_price: 2400, gst_rate: 18, hsn: "4412" },
+    { name: "Hardware Hinge 4in", prefix: "HDR", category: "other", unit: "pcs", default_cost: 45, default_price: 80, gst_rate: 18, hsn: "8302" },
+    { name: "Flush Door 7x3", prefix: "DOR", category: "other", unit: "pcs", default_cost: 2200, default_price: 3200, gst_rate: 18, hsn: "4418" },
+  ];
+  for (const c of catalogue) {
+    const { data: ex } = await supabase.from("products").select("id").eq("prefix", c.prefix).maybeSingle();
+    if (!ex) {
+      const { error: e } = await supabase.from("products").insert({ ...c, reorder_level: 5, active: true } as any);
+      if (e) throw e;
+      log.push(`Product ${c.name}`);
+    }
   }
+  const { data: products } = await supabase.from("products").select("*").eq("active", true).limit(5);
+  const product = products![0];
 
   // Purchase + items + mint units
   const qty = 3;
@@ -92,6 +106,7 @@ export async function seedDemoData(actorId: string) {
 
   // Sale of the first minted unit
   const firstUnit = Array.isArray(minted) ? minted[0] : null;
+  let saleIdForReceipt: string | null = null;
   if (firstUnit) {
     const { data: saleId, error: saleErr } = await supabase.rpc("record_sale", {
       _payload: {
@@ -113,8 +128,32 @@ export async function seedDemoData(actorId: string) {
       _actor_user_id: actorId,
     });
     if (saleErr) throw saleErr;
+    saleIdForReceipt = saleId as any;
     log.push(`Sale ${saleId}`);
   }
+
+  // Receipt for the customer (general entry).
+  const { data: rno } = await supabase.rpc("next_receipt_no", { _customer_id: customer.id });
+  if (rno) {
+    await supabase.from("receipts").insert({
+      receipt_no: rno as any,
+      customer_id: customer.id,
+      sale_id: saleIdForReceipt,
+      receipt_type: saleIdForReceipt ? "credit" : "general",
+      amount: 500,
+      mode: "upi",
+      notes: "Seeded demo receipt",
+      created_by: actorId,
+    } as any);
+    log.push(`Receipt #${rno}`);
+  }
+
+  // Sample alert
+  await supabase.from("alerts").insert({
+    type: "low_stock", severity: "warning",
+    payload: { product: product.name, qty: 2, threshold: 5 } as any,
+  } as any);
+  log.push("Alert: low stock");
 
   // ---- Production: ensure finished product, BOM, then create + complete an order ----
   // Finished product (distinct from raw material so consumption makes sense).
