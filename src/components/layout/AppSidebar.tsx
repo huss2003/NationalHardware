@@ -39,10 +39,17 @@ export function AppSidebar() {
     .sort((a, b) => b.length - a.length)[0];
 
   return (
-    <aside className="w-64 shrink-0 bg-sidebar text-sidebar-foreground flex flex-col min-h-screen">
-      <div className="px-6 py-6 border-b border-sidebar-border">
-        <div className="text-xs uppercase tracking-widest opacity-60">Warehouse OS</div>
-        <div className="text-2xl font-extrabold mt-1">Hardware ERP</div>
+    <aside className="w-64 shrink-0 bg-sidebar text-sidebar-foreground flex flex-col min-h-screen border-r border-sidebar-border/60 sticky top-0 h-screen">
+      <div className="px-6 py-6 border-b border-sidebar-border/60">
+        <div className="flex items-center gap-2.5">
+          <div className="h-9 w-9 rounded-xl bg-[image:var(--gradient-primary)] shadow-[var(--shadow-button)] grid place-content-center text-white font-bold">
+            H
+          </div>
+          <div>
+            <div className="text-[10px] uppercase tracking-[0.18em] opacity-60 font-semibold">Warehouse OS</div>
+            <div className="text-[17px] font-bold tracking-tight leading-tight">Hardware ERP</div>
+          </div>
+        </div>
       </div>
       <nav className="flex-1 p-3 space-y-1 overflow-y-auto">
         {visible.map((it) => {
