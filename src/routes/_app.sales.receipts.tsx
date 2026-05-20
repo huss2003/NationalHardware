@@ -13,6 +13,8 @@ import { useAuth } from "@/lib/auth-store";
 import { toast } from "sonner";
 import { ArrowLeft, Receipt as ReceiptIcon, Wallet, FileText, Check } from "lucide-react";
 import { TableSkeleton } from "@/components/erp/Skeletons";
+import { buildReceiptPdf, receiptFileName } from "@/lib/invoice-pdf";
+import { Printer, Download } from "lucide-react";
 
 export const Route = createFileRoute("/_app/sales/receipts")({ component: ReceiptsPage });
 
@@ -32,18 +34,39 @@ function ReceiptsPage() {
   const [sales, setSales] = useState<any[]>([]);
   const [receipts, setReceipts] = useState<Receipt[]>([]);
   const [openFor, setOpenFor] = useState<Customer | null>(null);
+  const [shop, setShop] = useState<any>(null);
 
   const load = async () => {
     setLoading(true);
-    const [c, s, r] = await Promise.all([
+    const [c, s, r, sh] = await Promise.all([
       supabase.from("customers").select("id, name, phone").order("name"),
       supabase.from("sales").select("id, customer_id, grand_total, paid_amount, payment_mode, invoice_no, invoice_date").is("deleted_at", null),
       supabase.from("receipts").select("*, customers(name)").order("created_at", { ascending: false }).limit(50),
+      supabase.from("app_settings").select("*").eq("id", true).maybeSingle(),
     ]);
     setCustomers((c.data as any) ?? []);
     setSales(s.data ?? []);
     setReceipts((r.data as any) ?? []);
+    setShop(sh.data);
     setLoading(false);
+  };
+
+  const buildPdfFor = (r: Receipt) => {
+    const cust = customers.find((c) => c.id === r.customer_id) ?? { name: r.customers?.name ?? "—" };
+    return buildReceiptPdf({
+      shop, receipt: r,
+      customer: cust as any,
+    });
+  };
+  const printReceipt = (r: Receipt) => {
+    const pdf = buildPdfFor(r);
+    pdf.autoPrint();
+    const url = pdf.output("bloburl");
+    window.open(url, "_blank");
+  };
+  const downloadReceipt = (r: Receipt) => {
+    const pdf = buildPdfFor(r);
+    pdf.save(receiptFileName(r.receipt_no));
   };
   useEffect(() => { load(); }, []);
 
@@ -149,6 +172,7 @@ function ReceiptsPage() {
                 <th className="text-left p-3">Mode</th>
                 <th className="text-left p-3">Date</th>
                 <th className="text-right p-3 pr-5">Amount</th>
+                <th className="text-right p-3 pr-5 w-40">Actions</th>
               </tr>
             </thead>
             <tbody>
@@ -164,10 +188,20 @@ function ReceiptsPage() {
                   <td className="p-3 capitalize">{r.mode}</td>
                   <td className="p-3 text-muted-foreground">{new Date(r.created_at).toLocaleDateString()}</td>
                   <td className="p-3 pr-5 text-right font-semibold tabular-nums">{inr(r.amount)}</td>
+                  <td className="p-3 pr-5 text-right">
+                    <div className="inline-flex gap-1">
+                      <Button size="sm" variant="outline" className="gap-1 h-8" onClick={() => printReceipt(r)}>
+                        <Printer className="h-3.5 w-3.5" /> Print
+                      </Button>
+                      <Button size="sm" variant="outline" className="gap-1 h-8" onClick={() => downloadReceipt(r)}>
+                        <Download className="h-3.5 w-3.5" /> PDF
+                      </Button>
+                    </div>
+                  </td>
                 </tr>
               ))}
               {receipts.length === 0 && (
-                <tr><td colSpan={6} className="text-center py-10 text-muted-foreground">No receipts yet.</td></tr>
+                <tr><td colSpan={7} className="text-center py-10 text-muted-foreground">No receipts yet.</td></tr>
               )}
             </tbody>
           </table>
