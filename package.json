@@ -56,7 +56,7 @@
     "framer-motion": "^12.39.0",
     "input-otp": "^1.4.2",
     "jspdf": "^4.2.1",
-    "jspdf-autotable": "^5.0.7",
+    "jspdf-autotable": "^5.0.8",
     "lucide-react": "^0.575.0",
     "qrcode": "^1.5.4",
     "react": "^19.2.0",
