@@ -12,6 +12,7 @@ import {
   Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle, DialogTrigger,
 } from "@/components/ui/dialog";
 import { ScanInput } from "@/components/erp/ScanInput";
+import { ScanWarning, type ScanWarningKind } from "@/components/erp/ScanWarning";
 import { ReturnTimelineDialog } from "@/components/erp/ReturnTimelineDialog";
 import { inr } from "@/lib/codes";
 import { toast } from "sonner";
@@ -174,7 +175,7 @@ function NewPurchaseReturnDialog({
   const [cart, setCart] = useState<ScannedRow[]>([]);
   const [reason, setReason] = useState("");
   const [status, setStatus] = useState("sent");
-  const [scanError, setScanError] = useState<string | null>(null);
+  const [scanError, setScanError] = useState<{ kind: ScanWarningKind; msg: string; code?: string } | null>(null);
   const [busy, setBusy] = useState(false);
 
   useEffect(() => {
@@ -217,14 +218,30 @@ function NewPurchaseReturnDialog({
 
   const onScan = async (code: string) => {
     setScanError(null);
-    if (!purchaseId) { setScanError("Pick a purchase bill first"); return; }
+    if (!purchaseId) { setScanError({ kind: "generic", msg: "Pick a purchase bill first." }); return; }
+    const prefix = code.split("-")[0]?.toUpperCase();
+    const known = Array.from(new Set(instances.map((i: any) => i.product_prefix).filter(Boolean)));
     if (cart.some((c) => c.item_instance_id === code)) {
-      setScanError(`Already scanned: ${code}`); return;
+      setScanError({ kind: "duplicate", code, msg: "This item is already in the return cart." }); return;
     }
     const inst = instances.find((i) => i.id === code);
-    if (!inst) { setScanError(`${code} was not on this purchase bill`); return; }
+    if (!inst) {
+      if (known.length && prefix && !known.includes(prefix)) {
+        setScanError({ kind: "wrong_prefix", code,
+          msg: `Prefix "${prefix}" doesn't match this bill. Expected: ${known.join(", ")}.` });
+      } else {
+        setScanError({ kind: "unknown", code, msg: "This item was not on the selected purchase bill." });
+      }
+      return;
+    }
     if (inst.status !== "available") {
-      setScanError(`Item ${code} is ${inst.status}, cannot be returned to supplier`); return;
+      const kind: ScanWarningKind =
+        inst.status === "sold" ? "sold"
+        : inst.status === "damaged" ? "damaged"
+        : inst.status === "used_in_production" ? "used"
+        : "generic";
+      setScanError({ kind, code, msg: `Status is ${String(inst.status).toUpperCase()} — cannot return to supplier.` });
+      return;
     }
     setCart((c) => [...c, {
       item_instance_id: code,
@@ -323,8 +340,8 @@ function NewPurchaseReturnDialog({
 
         <div>
           <Label>Scan items being returned to supplier</Label>
-          <ScanInput onScan={onScan} placeholder="Scan / type item ID and press Enter" />
-          {scanError && <div className="mt-2 text-xs text-destructive">{scanError}</div>}
+      <ScanInput onScan={onScan} placeholder="Scan / type item ID and press Enter" invalid={!!scanError} />
+      {scanError && <ScanWarning kind={scanError.kind} message={scanError.msg} code={scanError.code} />}
           {purchaseId && instances.length > 0 && (
             <div className="mt-2 text-xs text-muted-foreground">
               {instances.filter((i) => i.status === "available").length} of {instances.length} units still available to return
