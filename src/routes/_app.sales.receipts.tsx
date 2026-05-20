@@ -1,0 +1,316 @@
+import { createFileRoute, Link } from "@tanstack/react-router";
+import { useEffect, useMemo, useState } from "react";
+import { supabase } from "@/integrations/supabase/client";
+import { Card } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
+import { PageHeader } from "@/components/erp/PageHeader";
+import { inr } from "@/lib/codes";
+import { useAuth } from "@/lib/auth-store";
+import { toast } from "sonner";
+import { ArrowLeft, Receipt as ReceiptIcon, Wallet, FileText, Check } from "lucide-react";
+import { TableSkeleton } from "@/components/erp/Skeletons";
+
+export const Route = createFileRoute("/_app/sales/receipts")({ component: ReceiptsPage });
+
+type Customer = { id: string; name: string; phone?: string | null };
+type Receipt = {
+  id: string; receipt_no: string; customer_id: string;
+  receipt_type: string; amount: number; mode: string;
+  created_at: string; notes?: string | null;
+  customers?: { name: string } | null;
+};
+
+function ReceiptsPage() {
+  const user = useAuth((s) => s.user);
+  const [tab, setTab] = useState<"credit" | "general">("credit");
+  const [loading, setLoading] = useState(true);
+  const [customers, setCustomers] = useState<Customer[]>([]);
+  const [sales, setSales] = useState<any[]>([]);
+  const [receipts, setReceipts] = useState<Receipt[]>([]);
+  const [openFor, setOpenFor] = useState<Customer | null>(null);
+
+  const load = async () => {
+    setLoading(true);
+    const [c, s, r] = await Promise.all([
+      supabase.from("customers").select("id, name, phone").order("name"),
+      supabase.from("sales").select("id, customer_id, grand_total, paid_amount, payment_mode, invoice_no, invoice_date").is("deleted_at", null),
+      supabase.from("receipts").select("*, customers(name)").order("created_at", { ascending: false }).limit(50),
+    ]);
+    setCustomers((c.data as any) ?? []);
+    setSales(s.data ?? []);
+    setReceipts((r.data as any) ?? []);
+    setLoading(false);
+  };
+  useEffect(() => { load(); }, []);
+
+  // Pending per customer = sum(grand_total - paid_amount of credit sales) - sum(credit receipts)
+  const pending = useMemo(() => {
+    const map = new Map<string, { customer: Customer; due: number }>();
+    for (const s of sales) {
+      if (!s.customer_id) continue;
+      const d = Number(s.grand_total) - Number(s.paid_amount);
+      if (d <= 0.01) continue;
+      const cust = customers.find((c) => c.id === s.customer_id);
+      if (!cust) continue;
+      const cur = map.get(cust.id) ?? { customer: cust, due: 0 };
+      cur.due += d;
+      map.set(cust.id, cur);
+    }
+    for (const r of receipts) {
+      if (r.receipt_type !== "credit") continue;
+      const cur = map.get(r.customer_id);
+      if (cur) { cur.due -= Number(r.amount); if (cur.due <= 0.01) map.delete(r.customer_id); }
+    }
+    return Array.from(map.values()).sort((a, b) => b.due - a.due);
+  }, [sales, receipts, customers]);
+
+  return (
+    <>
+      <PageHeader
+        title="Receipts"
+        subtitle="Record customer payments against pending credits or as general entries."
+        actions={
+          <Button asChild variant="outline" size="sm" className="gap-2">
+            <Link to="/sales"><ArrowLeft className="h-4 w-4" /> Back to Sales</Link>
+          </Button>
+        }
+      />
+      <div className="px-8 pb-10 max-w-[1400px] mx-auto w-full space-y-5">
+        <div className="inline-flex rounded-lg border border-input bg-card p-1">
+          {[
+            { v: "credit" as const, label: "Pending Credits", icon: Wallet },
+            { v: "general" as const, label: "General Entry", icon: FileText },
+          ].map((t) => {
+            const Icon = t.icon;
+            const active = tab === t.v;
+            return (
+              <button
+                key={t.v}
+                onClick={() => setTab(t.v)}
+                className={`flex items-center gap-2 h-9 px-4 rounded-md text-sm font-medium transition-colors ${
+                  active ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:text-foreground"
+                }`}
+              >
+                <Icon className="h-4 w-4" /> {t.label}
+              </button>
+            );
+          })}
+        </div>
+
+        {tab === "credit" ? (
+          <Card className="overflow-hidden">
+            <div className="px-5 pt-5 pb-3 flex items-center justify-between">
+              <h2 className="text-lg font-semibold">Customers with Pending Credit</h2>
+              <span className="text-sm text-muted-foreground">
+                {pending.length} customer{pending.length === 1 ? "" : "s"}
+              </span>
+            </div>
+            {loading ? <TableSkeleton rows={4} columns={3} /> : (
+              <table className="w-full text-sm">
+                <thead className="bg-muted/50 text-xs uppercase tracking-wider text-muted-foreground">
+                  <tr><th className="text-left p-3 pl-5">Customer</th><th className="text-right p-3">Pending Amount</th><th className="text-right p-3 pr-5">Action</th></tr>
+                </thead>
+                <tbody>
+                  {pending.map((p) => (
+                    <tr key={p.customer.id} className="border-t hover:bg-muted/30">
+                      <td className="p-3 pl-5 font-medium">{p.customer.name}</td>
+                      <td className="p-3 text-right font-bold tabular-nums text-destructive">{inr(p.due)}</td>
+                      <td className="p-3 pr-5 text-right">
+                        <Button size="sm" className="gap-2" onClick={() => setOpenFor(p.customer)}>
+                          <ReceiptIcon className="h-4 w-4" /> Create Receipt
+                        </Button>
+                      </td>
+                    </tr>
+                  ))}
+                  {pending.length === 0 && (
+                    <tr><td colSpan={3} className="text-center py-12 text-muted-foreground">No pending credits. 🎉</td></tr>
+                  )}
+                </tbody>
+              </table>
+            )}
+          </Card>
+        ) : (
+          <GeneralEntryCard customers={customers} onSaved={load} userId={user?.id ?? ""} />
+        )}
+
+        {/* Recent receipts */}
+        <Card className="overflow-hidden">
+          <div className="px-5 pt-5 pb-3"><h2 className="text-lg font-semibold">Recent Receipts</h2></div>
+          <table className="w-full text-sm">
+            <thead className="bg-muted/50 text-xs uppercase tracking-wider text-muted-foreground">
+              <tr>
+                <th className="text-left p-3 pl-5">Receipt #</th>
+                <th className="text-left p-3">Customer</th>
+                <th className="text-left p-3">Type</th>
+                <th className="text-left p-3">Mode</th>
+                <th className="text-left p-3">Date</th>
+                <th className="text-right p-3 pr-5">Amount</th>
+              </tr>
+            </thead>
+            <tbody>
+              {receipts.map((r) => (
+                <tr key={r.id} className="border-t">
+                  <td className="p-3 pl-5 font-mono font-bold">{r.receipt_no}</td>
+                  <td className="p-3">{r.customers?.name ?? "—"}</td>
+                  <td className="p-3">
+                    <span className={`px-2 py-0.5 rounded-md text-xs font-semibold ${r.receipt_type === "credit" ? "bg-primary/10 text-primary" : "bg-muted text-foreground"}`}>
+                      {r.receipt_type === "credit" ? "Credit" : "General"}
+                    </span>
+                  </td>
+                  <td className="p-3 capitalize">{r.mode}</td>
+                  <td className="p-3 text-muted-foreground">{new Date(r.created_at).toLocaleDateString()}</td>
+                  <td className="p-3 pr-5 text-right font-semibold tabular-nums">{inr(r.amount)}</td>
+                </tr>
+              ))}
+              {receipts.length === 0 && (
+                <tr><td colSpan={6} className="text-center py-10 text-muted-foreground">No receipts yet.</td></tr>
+              )}
+            </tbody>
+          </table>
+        </Card>
+      </div>
+
+      {openFor && (
+        <CreditReceiptDialog
+          customer={openFor}
+          maxAmount={pending.find((p) => p.customer.id === openFor.id)?.due ?? 0}
+          onClose={() => setOpenFor(null)}
+          onSaved={() => { setOpenFor(null); load(); }}
+          userId={user?.id ?? ""}
+        />
+      )}
+    </>
+  );
+}
+
+function CreditReceiptDialog({
+  customer, maxAmount, onClose, onSaved, userId,
+}: { customer: Customer; maxAmount: number; onClose: () => void; onSaved: () => void; userId: string }) {
+  const [amount, setAmount] = useState<number>(maxAmount);
+  const [mode, setMode] = useState("cash");
+  const [notes, setNotes] = useState("");
+  const [busy, setBusy] = useState(false);
+
+  const generate = async () => {
+    if (amount <= 0) { toast.error("Amount must be > 0"); return; }
+    setBusy(true);
+    const { data: noData, error: noErr } = await supabase.rpc("next_receipt_no", { _customer_id: customer.id });
+    if (noErr) { setBusy(false); toast.error(noErr.message); return; }
+    const { error } = await supabase.from("receipts").insert({
+      receipt_no: noData as string,
+      customer_id: customer.id,
+      receipt_type: "credit",
+      amount, mode, notes,
+      created_by: userId || null,
+    });
+    setBusy(false);
+    if (error) { toast.error(error.message); return; }
+    toast.success(`Receipt ${noData} generated`);
+    onSaved();
+  };
+
+  return (
+    <Dialog open onOpenChange={(o) => !o && onClose()}>
+      <DialogContent>
+        <DialogHeader><DialogTitle>Credit Receipt — {customer.name}</DialogTitle></DialogHeader>
+        <div className="space-y-3">
+          <div className="rounded-lg bg-muted p-3 flex items-center justify-between">
+            <span className="text-sm text-muted-foreground">Pending</span>
+            <span className="font-bold tabular-nums">{inr(maxAmount)}</span>
+          </div>
+          <div>
+            <Label>Amount Received</Label>
+            <Input type="number" value={amount} onChange={(e) => setAmount(Number(e.target.value))} className="h-11 text-lg font-semibold tabular-nums" />
+          </div>
+          <div>
+            <Label>Payment Mode</Label>
+            <div className="grid grid-cols-4 gap-2 mt-1">
+              {["cash", "upi", "card", "bank"].map((m) => (
+                <button key={m} onClick={() => setMode(m)}
+                  className={`h-10 rounded-md text-sm font-medium border capitalize ${mode === m ? "border-primary bg-primary/5" : "border-input text-muted-foreground"}`}>{m}</button>
+              ))}
+            </div>
+          </div>
+          <div>
+            <Label>Notes</Label>
+            <Textarea value={notes} onChange={(e) => setNotes(e.target.value)} rows={2} />
+          </div>
+        </div>
+        <DialogFooter>
+          <Button variant="outline" onClick={onClose}>Cancel</Button>
+          <Button onClick={generate} disabled={busy} className="gap-2">
+            <Check className="h-4 w-4" /> {busy ? "Generating…" : "Generate Receipt"}
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+function GeneralEntryCard({ customers, onSaved, userId }: { customers: Customer[]; onSaved: () => void; userId: string }) {
+  const [customerId, setCustomerId] = useState("");
+  const [amount, setAmount] = useState<number>(0);
+  const [mode, setMode] = useState("cash");
+  const [notes, setNotes] = useState("");
+  const [busy, setBusy] = useState(false);
+
+  const generate = async () => {
+    if (!customerId) { toast.error("Select a customer"); return; }
+    if (amount <= 0) { toast.error("Amount must be > 0"); return; }
+    setBusy(true);
+    const { data: noData, error: noErr } = await supabase.rpc("next_receipt_no", { _customer_id: customerId });
+    if (noErr) { setBusy(false); toast.error(noErr.message); return; }
+    const { error } = await supabase.from("receipts").insert({
+      receipt_no: noData as string,
+      customer_id: customerId,
+      receipt_type: "general",
+      amount, mode, notes,
+      created_by: userId || null,
+    });
+    setBusy(false);
+    if (error) { toast.error(error.message); return; }
+    toast.success(`Receipt ${noData} generated`);
+    setCustomerId(""); setAmount(0); setNotes("");
+    onSaved();
+  };
+
+  return (
+    <Card className="p-6 max-w-2xl">
+      <h2 className="text-lg font-semibold mb-1">General Receipt</h2>
+      <p className="text-sm text-muted-foreground mb-5">No items — just customer and total amount.</p>
+      <div className="space-y-4">
+        <div>
+          <Label>Customer</Label>
+          <select value={customerId} onChange={(e) => setCustomerId(e.target.value)} className="h-10 w-full rounded-md border border-input bg-background px-3 text-sm">
+            <option value="">Select customer</option>
+            {customers.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
+          </select>
+        </div>
+        <div>
+          <Label>Amount</Label>
+          <Input type="number" value={amount} onChange={(e) => setAmount(Number(e.target.value))} className="h-11 text-lg font-semibold tabular-nums" />
+        </div>
+        <div>
+          <Label>Payment Mode</Label>
+          <div className="grid grid-cols-4 gap-2 mt-1">
+            {["cash", "upi", "card", "bank"].map((m) => (
+              <button key={m} onClick={() => setMode(m)}
+                className={`h-10 rounded-md text-sm font-medium border capitalize ${mode === m ? "border-primary bg-primary/5" : "border-input text-muted-foreground"}`}>{m}</button>
+            ))}
+          </div>
+        </div>
+        <div>
+          <Label>Notes</Label>
+          <Textarea value={notes} onChange={(e) => setNotes(e.target.value)} rows={2} />
+        </div>
+        <Button onClick={generate} disabled={busy} className="gap-2" size="lg">
+          <Check className="h-4 w-4" /> {busy ? "Generating…" : "Generate Receipt"}
+        </Button>
+      </div>
+    </Card>
+  );
+}
