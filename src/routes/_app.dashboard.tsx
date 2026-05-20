@@ -2,25 +2,46 @@ import { createFileRoute } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Card } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
 import { PageHeader } from "@/components/erp/PageHeader";
 import { inr } from "@/lib/codes";
-import { Boxes, Factory, IndianRupee, ShoppingCart, AlertTriangle, Receipt } from "lucide-react";
-import { BarChart, Bar, XAxis, YAxis, ResponsiveContainer, Tooltip } from "recharts";
+import {
+  Boxes, Factory, IndianRupee, ShoppingCart, AlertTriangle, Receipt,
+  TrendingUp, ArrowRight, Calendar, Download, Bell,
+} from "lucide-react";
+import { BarChart, Bar, XAxis, YAxis, ResponsiveContainer, Tooltip, Cell } from "recharts";
 import { useUiConfig } from "@/lib/ui-config";
 
 export const Route = createFileRoute("/_app/dashboard")({ component: Dashboard });
 
-function StatCard({ icon: Icon, label, value, color }: any) {
+function compactInr(n: number) {
+  if (n >= 1_00_00_000) return `₹${(n / 1_00_00_000).toFixed(1)}Cr`;
+  if (n >= 1_00_000) return `₹${Math.round(n / 1000)}K`;
+  if (n >= 1000) return `₹${(n / 1000).toFixed(1)}K`;
+  return `₹${Math.round(n)}`;
+}
+
+function StatCard({
+  icon: Icon, label, value, hint, accent, hintColor,
+}: {
+  icon: any; label: string; value: string; hint: React.ReactNode;
+  accent: string; hintColor?: string;
+}) {
   return (
-    <Card className="p-6">
-      <div className="flex items-center gap-4">
-        <div className={`h-14 w-14 rounded-2xl grid place-items-center ${color}`}>
-          <Icon className="h-7 w-7 text-white" />
+    <Card className="p-5 min-w-0">
+      <div className="flex items-start justify-between mb-3">
+        <div className="text-[11px] font-semibold tracking-[0.08em] uppercase text-muted-foreground leading-tight">
+          {label}
         </div>
-        <div>
-          <div className="text-sm text-muted-foreground font-medium">{label}</div>
-          <div className="text-3xl font-extrabold tracking-tight">{value}</div>
+        <div className={`h-8 w-8 rounded-lg grid place-items-center shrink-0 ${accent}`}>
+          <Icon className="h-4 w-4" />
         </div>
+      </div>
+      <div className="text-[28px] leading-none font-semibold tracking-tight tabular-nums">
+        {value}
+      </div>
+      <div className={`text-xs mt-3 inline-flex items-center gap-1 ${hintColor ?? "text-muted-foreground"}`}>
+        {hint}
       </div>
     </Card>
   );
