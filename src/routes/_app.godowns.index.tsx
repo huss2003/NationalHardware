@@ -15,7 +15,7 @@ import {
 import { inr } from "@/lib/codes";
 import { toast } from "sonner";
 import {
-  Plus, Warehouse, Boxes, MapPin, Building2, Package, ArrowRightLeft,
+  Plus, Warehouse, Boxes, MapPin, Building2, Package,
 } from "lucide-react";
 
 export const Route = createFileRoute("/_app/godowns/")({ component: Godowns });
