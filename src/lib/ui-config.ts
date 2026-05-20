@@ -23,6 +23,7 @@ export const DEFAULT_UI_CONFIG: UiConfig = {
     dashboard: true, inventory: true, scan: true, purchases: true, sales: true,
     production: true, bom: true, reports: true, employees: true, alerts: true,
     settings: true, dev: true,
+    purchase_returns: true, sales_returns: true, godowns: true,
   },
   dashboard: {
     tiles: {

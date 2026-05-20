@@ -2,6 +2,7 @@ import { Link, useRouterState } from "@tanstack/react-router";
 import {
   LayoutDashboard, Boxes, ShoppingCart, Receipt, Factory,
   BarChart3, Users, Bell, Settings, Layers, ScanLine, Wrench,
+  Undo2, RotateCcw, Warehouse,
 } from "lucide-react";
 import { useAuth } from "@/lib/auth-store";
 import { Button } from "@/components/ui/button";
@@ -12,7 +13,10 @@ const items = [
   { key: "inventory",  to: "/inventory",       label: "Inventory",  icon: Boxes },
   { key: "scan",       to: "/inventory/scan",  label: "Scan",       icon: ScanLine },
   { key: "purchases",  to: "/purchases",       label: "Purchases",  icon: ShoppingCart },
+  { key: "purchase_returns", to: "/purchase-returns", label: "Purchase Returns", icon: RotateCcw },
   { key: "sales",      to: "/sales",           label: "Sales",      icon: Receipt },
+  { key: "sales_returns",    to: "/sales-returns",    label: "Sales Returns",    icon: Undo2 },
+  { key: "godowns",          to: "/godowns",          label: "Godowns",          icon: Warehouse },
   { key: "production", to: "/production",      label: "Production", icon: Factory },
   { key: "bom",        to: "/bom",             label: "BOM",        icon: Layers },
   { key: "reports",    to: "/reports",         label: "Reports",    icon: BarChart3 },

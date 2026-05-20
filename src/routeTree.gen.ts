@@ -20,9 +20,12 @@ import { Route as AppDashboardRouteImport } from './routes/_app.dashboard'
 import { Route as AppBomRouteImport } from './routes/_app.bom'
 import { Route as AppAlertsRouteImport } from './routes/_app.alerts'
 import { Route as AppSalesIndexRouteImport } from './routes/_app.sales.index'
+import { Route as AppSalesReturnsIndexRouteImport } from './routes/_app.sales-returns.index'
 import { Route as AppPurchasesIndexRouteImport } from './routes/_app.purchases.index'
+import { Route as AppPurchaseReturnsIndexRouteImport } from './routes/_app.purchase-returns.index'
 import { Route as AppProductionIndexRouteImport } from './routes/_app.production.index'
 import { Route as AppInventoryIndexRouteImport } from './routes/_app.inventory.index'
+import { Route as AppGodownsIndexRouteImport } from './routes/_app.godowns.index'
 import { Route as AppUnitsItemIdRouteImport } from './routes/_app.units.$itemId'
 import { Route as AppSalesNewRouteImport } from './routes/_app.sales.new'
 import { Route as AppSalesIdRouteImport } from './routes/_app.sales.$id'
@@ -87,9 +90,19 @@ const AppSalesIndexRoute = AppSalesIndexRouteImport.update({
   path: '/sales/',
   getParentRoute: () => AppRoute,
 } as any)
+const AppSalesReturnsIndexRoute = AppSalesReturnsIndexRouteImport.update({
+  id: '/sales-returns/',
+  path: '/sales-returns/',
+  getParentRoute: () => AppRoute,
+} as any)
 const AppPurchasesIndexRoute = AppPurchasesIndexRouteImport.update({
   id: '/purchases/',
   path: '/purchases/',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppPurchaseReturnsIndexRoute = AppPurchaseReturnsIndexRouteImport.update({
+  id: '/purchase-returns/',
+  path: '/purchase-returns/',
   getParentRoute: () => AppRoute,
 } as any)
 const AppProductionIndexRoute = AppProductionIndexRouteImport.update({
@@ -100,6 +113,11 @@ const AppProductionIndexRoute = AppProductionIndexRouteImport.update({
 const AppInventoryIndexRoute = AppInventoryIndexRouteImport.update({
   id: '/inventory/',
   path: '/inventory/',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppGodownsIndexRoute = AppGodownsIndexRouteImport.update({
+  id: '/godowns/',
+  path: '/godowns/',
   getParentRoute: () => AppRoute,
 } as any)
 const AppUnitsItemIdRoute = AppUnitsItemIdRouteImport.update({
@@ -167,9 +185,12 @@ export interface FileRoutesByFullPath {
   '/sales/$id': typeof AppSalesIdRoute
   '/sales/new': typeof AppSalesNewRoute
   '/units/$itemId': typeof AppUnitsItemIdRoute
+  '/godowns/': typeof AppGodownsIndexRoute
   '/inventory/': typeof AppInventoryIndexRoute
   '/production/': typeof AppProductionIndexRoute
+  '/purchase-returns/': typeof AppPurchaseReturnsIndexRoute
   '/purchases/': typeof AppPurchasesIndexRoute
+  '/sales-returns/': typeof AppSalesReturnsIndexRoute
   '/sales/': typeof AppSalesIndexRoute
 }
 export interface FileRoutesByTo {
@@ -191,9 +212,12 @@ export interface FileRoutesByTo {
   '/sales/$id': typeof AppSalesIdRoute
   '/sales/new': typeof AppSalesNewRoute
   '/units/$itemId': typeof AppUnitsItemIdRoute
+  '/godowns': typeof AppGodownsIndexRoute
   '/inventory': typeof AppInventoryIndexRoute
   '/production': typeof AppProductionIndexRoute
+  '/purchase-returns': typeof AppPurchaseReturnsIndexRoute
   '/purchases': typeof AppPurchasesIndexRoute
+  '/sales-returns': typeof AppSalesReturnsIndexRoute
   '/sales': typeof AppSalesIndexRoute
 }
 export interface FileRoutesById {
@@ -217,9 +241,12 @@ export interface FileRoutesById {
   '/_app/sales/$id': typeof AppSalesIdRoute
   '/_app/sales/new': typeof AppSalesNewRoute
   '/_app/units/$itemId': typeof AppUnitsItemIdRoute
+  '/_app/godowns/': typeof AppGodownsIndexRoute
   '/_app/inventory/': typeof AppInventoryIndexRoute
   '/_app/production/': typeof AppProductionIndexRoute
+  '/_app/purchase-returns/': typeof AppPurchaseReturnsIndexRoute
   '/_app/purchases/': typeof AppPurchasesIndexRoute
+  '/_app/sales-returns/': typeof AppSalesReturnsIndexRoute
   '/_app/sales/': typeof AppSalesIndexRoute
 }
 export interface FileRouteTypes {
@@ -243,9 +270,12 @@ export interface FileRouteTypes {
     | '/sales/$id'
     | '/sales/new'
     | '/units/$itemId'
+    | '/godowns/'
     | '/inventory/'
     | '/production/'
+    | '/purchase-returns/'
     | '/purchases/'
+    | '/sales-returns/'
     | '/sales/'
   fileRoutesByTo: FileRoutesByTo
   to:
@@ -267,9 +297,12 @@ export interface FileRouteTypes {
     | '/sales/$id'
     | '/sales/new'
     | '/units/$itemId'
+    | '/godowns'
     | '/inventory'
     | '/production'
+    | '/purchase-returns'
     | '/purchases'
+    | '/sales-returns'
     | '/sales'
   id:
     | '__root__'
@@ -292,9 +325,12 @@ export interface FileRouteTypes {
     | '/_app/sales/$id'
     | '/_app/sales/new'
     | '/_app/units/$itemId'
+    | '/_app/godowns/'
     | '/_app/inventory/'
     | '/_app/production/'
+    | '/_app/purchase-returns/'
     | '/_app/purchases/'
+    | '/_app/sales-returns/'
     | '/_app/sales/'
   fileRoutesById: FileRoutesById
 }
@@ -383,11 +419,25 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppSalesIndexRouteImport
       parentRoute: typeof AppRoute
     }
+    '/_app/sales-returns/': {
+      id: '/_app/sales-returns/'
+      path: '/sales-returns'
+      fullPath: '/sales-returns/'
+      preLoaderRoute: typeof AppSalesReturnsIndexRouteImport
+      parentRoute: typeof AppRoute
+    }
     '/_app/purchases/': {
       id: '/_app/purchases/'
       path: '/purchases'
       fullPath: '/purchases/'
       preLoaderRoute: typeof AppPurchasesIndexRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/_app/purchase-returns/': {
+      id: '/_app/purchase-returns/'
+      path: '/purchase-returns'
+      fullPath: '/purchase-returns/'
+      preLoaderRoute: typeof AppPurchaseReturnsIndexRouteImport
       parentRoute: typeof AppRoute
     }
     '/_app/production/': {
@@ -402,6 +452,13 @@ declare module '@tanstack/react-router' {
       path: '/inventory'
       fullPath: '/inventory/'
       preLoaderRoute: typeof AppInventoryIndexRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/_app/godowns/': {
+      id: '/_app/godowns/'
+      path: '/godowns'
+      fullPath: '/godowns/'
+      preLoaderRoute: typeof AppGodownsIndexRouteImport
       parentRoute: typeof AppRoute
     }
     '/_app/units/$itemId': {
@@ -487,9 +544,12 @@ interface AppRouteChildren {
   AppSalesIdRoute: typeof AppSalesIdRoute
   AppSalesNewRoute: typeof AppSalesNewRoute
   AppUnitsItemIdRoute: typeof AppUnitsItemIdRoute
+  AppGodownsIndexRoute: typeof AppGodownsIndexRoute
   AppInventoryIndexRoute: typeof AppInventoryIndexRoute
   AppProductionIndexRoute: typeof AppProductionIndexRoute
+  AppPurchaseReturnsIndexRoute: typeof AppPurchaseReturnsIndexRoute
   AppPurchasesIndexRoute: typeof AppPurchasesIndexRoute
+  AppSalesReturnsIndexRoute: typeof AppSalesReturnsIndexRoute
   AppSalesIndexRoute: typeof AppSalesIndexRoute
 }
 
@@ -510,9 +570,12 @@ const AppRouteChildren: AppRouteChildren = {
   AppSalesIdRoute: AppSalesIdRoute,
   AppSalesNewRoute: AppSalesNewRoute,
   AppUnitsItemIdRoute: AppUnitsItemIdRoute,
+  AppGodownsIndexRoute: AppGodownsIndexRoute,
   AppInventoryIndexRoute: AppInventoryIndexRoute,
   AppProductionIndexRoute: AppProductionIndexRoute,
+  AppPurchaseReturnsIndexRoute: AppPurchaseReturnsIndexRoute,
   AppPurchasesIndexRoute: AppPurchasesIndexRoute,
+  AppSalesReturnsIndexRoute: AppSalesReturnsIndexRoute,
   AppSalesIndexRoute: AppSalesIndexRoute,
 }
 
