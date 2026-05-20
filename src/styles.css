@@ -42,57 +42,58 @@
 }
 
 :root {
-  --radius: 0.75rem;
-  /* Background #F8FAFC */
-  --background: oklch(0.984 0.003 247);
-  /* Text #0F172A */
-  --foreground: oklch(0.21 0.04 265);
+  --radius: 1rem;
+  /* Apple soft off-white #F5F5F7 */
+  --background: oklch(0.967 0.001 286);
+  /* Apple near-black #1D1D1F */
+  --foreground: oklch(0.21 0.005 286);
   --card: oklch(1 0 0);
-  --card-foreground: oklch(0.21 0.04 265);
+  --card-foreground: oklch(0.21 0.005 286);
   --popover: oklch(1 0 0);
-  --popover-foreground: oklch(0.21 0.04 265);
-  /* Indigo #4F46E5 */
-  --primary: oklch(0.54 0.22 277);
-  --primary-foreground: oklch(0.99 0 0);
-  --secondary: oklch(0.968 0.007 247);
-  --secondary-foreground: oklch(0.25 0.04 265);
-  --muted: oklch(0.97 0.005 247);
-  /* Secondary text #475569 */
-  --muted-foreground: oklch(0.5 0.03 257);
-  --accent: oklch(0.955 0.025 270);
-  --accent-foreground: oklch(0.32 0.13 270);
-  --destructive: oklch(0.6 0.22 25);
-  --destructive-foreground: oklch(0.99 0 0);
-  --success: oklch(0.68 0.16 160);
-  --success-foreground: oklch(0.99 0 0);
-  --warning: oklch(0.78 0.16 75);
-  --warning-foreground: oklch(0.2 0.05 70);
-  --border: oklch(0.93 0.008 257);
-  --input: oklch(0.93 0.008 257);
-  --ring: oklch(0.54 0.22 277);
+  --popover-foreground: oklch(0.21 0.005 286);
+  /* Apple blue #007AFF */
+  --primary: oklch(0.61 0.19 256);
+  --primary-foreground: oklch(1 0 0);
+  --secondary: oklch(0.955 0.002 286);
+  --secondary-foreground: oklch(0.25 0.005 286);
+  --muted: oklch(0.96 0.002 286);
+  /* Apple secondary text #6E6E73 */
+  --muted-foreground: oklch(0.55 0.005 286);
+  --accent: oklch(0.955 0.012 256);
+  --accent-foreground: oklch(0.4 0.16 256);
+  /* Apple system red #FF3B30 — softened */
+  --destructive: oklch(0.64 0.21 27);
+  --destructive-foreground: oklch(1 0 0);
+  /* Apple system green #34C759 — softened */
+  --success: oklch(0.72 0.17 150);
+  --success-foreground: oklch(1 0 0);
+  --warning: oklch(0.78 0.15 70);
+  --warning-foreground: oklch(0.25 0.04 70);
+  /* Hairline borders */
+  --border: oklch(0.92 0.002 286);
+  --input: oklch(0.92 0.002 286);
+  --ring: oklch(0.61 0.19 256);
 
-  /* Premium gradients */
-  --primary-glow: oklch(0.62 0.2 245);
-  --gradient-primary: linear-gradient(135deg, oklch(0.54 0.22 277), oklch(0.62 0.2 245));
-  --gradient-accent: linear-gradient(135deg, oklch(0.62 0.2 245), oklch(0.72 0.16 200));
-  --gradient-hero: radial-gradient(1200px 600px at 10% -10%, oklch(0.62 0.2 245 / 0.18), transparent 60%),
-                   radial-gradient(900px 500px at 90% 0%, oklch(0.54 0.22 277 / 0.16), transparent 60%);
-  --gradient-surface: linear-gradient(180deg, oklch(0.99 0.003 247), oklch(0.97 0.006 247));
+  /* Apple-like flat surfaces — no gradients */
+  --primary-glow: oklch(0.61 0.19 256);
+  --gradient-primary: linear-gradient(180deg, oklch(0.63 0.19 256), oklch(0.58 0.2 256));
+  --gradient-hero: none;
+  --gradient-surface: linear-gradient(180deg, oklch(1 0 0), oklch(0.985 0.001 286));
 
-  /* Shadow system */
-  --shadow-card: 0 1px 2px oklch(0.21 0.04 265 / 0.04), 0 4px 12px oklch(0.21 0.04 265 / 0.04);
-  --shadow-elevated: 0 8px 30px -8px oklch(0.21 0.04 265 / 0.12), 0 2px 6px oklch(0.21 0.04 265 / 0.05);
-  --shadow-button: 0 1px 2px oklch(0.21 0.04 265 / 0.08), 0 6px 18px -6px oklch(0.54 0.22 277 / 0.45);
-  --shadow-button-hover: 0 2px 4px oklch(0.21 0.04 265 / 0.1), 0 12px 28px -8px oklch(0.54 0.22 277 / 0.55);
-  --shadow-glow: 0 0 0 1px oklch(0.54 0.22 277 / 0.1), 0 10px 40px -10px oklch(0.54 0.22 277 / 0.35);
+  /* Soft shadow system */
+  --shadow-card: 0 1px 2px oklch(0 0 0 / 0.04), 0 1px 1px oklch(0 0 0 / 0.03);
+  --shadow-elevated: 0 10px 30px -12px oklch(0 0 0 / 0.12), 0 2px 6px oklch(0 0 0 / 0.04);
+  --shadow-button: 0 1px 2px oklch(0 0 0 / 0.06);
+  --shadow-button-hover: 0 4px 14px -4px oklch(0.61 0.19 256 / 0.35);
+  --shadow-glow: 0 0 0 4px oklch(0.61 0.19 256 / 0.12);
 
-  /* Premium dark sidebar — Slate 950 with subtle violet */
-  --sidebar: oklch(0.18 0.03 265);
-  --sidebar-foreground: oklch(0.93 0.012 250);
-  --sidebar-accent: oklch(0.26 0.04 268);
-  --sidebar-accent-foreground: oklch(0.99 0 0);
-  --sidebar-border: oklch(0.28 0.04 268);
-  --sidebar-ring: oklch(0.54 0.22 277);
+  /* Light sidebar — Apple-style sidebar with subtle tint */
+  --sidebar: oklch(0.975 0.001 286);
+  --sidebar-foreground: oklch(0.3 0.005 286);
+  --sidebar-accent: oklch(0.93 0.002 286);
+  --sidebar-accent-foreground: oklch(0.21 0.005 286);
+  --sidebar-border: oklch(0.91 0.002 286);
+  --sidebar-ring: oklch(0.61 0.19 256);
 }
 
 @layer base {
@@ -101,15 +102,16 @@
   body {
     background-color: var(--color-background);
     color: var(--color-foreground);
-    font-family: "Inter", ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
-    font-feature-settings: "ss01", "cv11", "cv02", "cv03", "cv04";
+    font-family: -apple-system, BlinkMacSystemFont, "SF Pro Display", "SF Pro Text", "Inter", "Segoe UI", Roboto, system-ui, sans-serif;
+    font-feature-settings: "ss01", "cv11";
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
-    letter-spacing: -0.005em;
+    letter-spacing: -0.011em;
   }
   h1, h2, h3, h4, h5 {
-    font-family: "Plus Jakarta Sans", "Inter", ui-sans-serif, system-ui, sans-serif;
-    letter-spacing: -0.02em;
+    font-family: -apple-system, BlinkMacSystemFont, "SF Pro Display", "Inter", system-ui, sans-serif;
+    letter-spacing: -0.022em;
+    font-weight: 600;
   }
   /* Big-touch defaults */
   button, [role="button"] { -webkit-tap-highlight-color: transparent; }
@@ -118,37 +120,40 @@
 /* Page header surface */
 .page-header {
   position: relative;
-  background: var(--gradient-hero);
-  border-bottom: 1px solid color-mix(in oklab, var(--color-border) 70%, transparent);
+  background: transparent;
+  border-bottom: 1px solid color-mix(in oklab, var(--color-border) 80%, transparent);
 }
 
 /* Status pills */
-.status-available { background: oklch(0.95 0.06 150); color: oklch(0.35 0.15 150); }
-.status-sold      { background: oklch(0.94 0.04 255); color: oklch(0.35 0.15 255); }
-.status-damaged   { background: oklch(0.95 0.06 25);  color: oklch(0.4 0.18 25); }
-.status-used_in_production { background: oklch(0.95 0.06 75); color: oklch(0.4 0.18 75); }
-.status-returned  { background: oklch(0.95 0.02 280); color: oklch(0.4 0.1 280); }
-.status-reserved  { background: oklch(0.94 0.04 200); color: oklch(0.35 0.15 200); }
+.status-available { background: oklch(0.95 0.04 150); color: oklch(0.38 0.13 150); }
+.status-sold      { background: oklch(0.95 0.025 256); color: oklch(0.42 0.16 256); }
+.status-damaged   { background: oklch(0.95 0.04 27);  color: oklch(0.45 0.18 27); }
+.status-used_in_production { background: oklch(0.96 0.035 75); color: oklch(0.42 0.16 75); }
+.status-returned  { background: oklch(0.95 0.01 286); color: oklch(0.4 0.01 286); }
+.status-reserved  { background: oklch(0.95 0.03 200); color: oklch(0.4 0.14 200); }
 
 /* Sidebar active glow */
 .sidebar-link {
   display: flex; align-items: center; gap: 0.75rem;
-  padding: 0.7rem 0.9rem;
-  border-radius: 0.7rem;
+  padding: 0.55rem 0.75rem;
+  border-radius: 0.6rem;
   color: var(--color-sidebar-foreground);
-  font-weight: 500; font-size: 0.92rem;
-  letter-spacing: -0.005em;
-  transition: background 160ms ease, box-shadow 200ms ease, transform 160ms ease, color 160ms ease;
+  font-weight: 500; font-size: 0.89rem;
+  letter-spacing: -0.011em;
+  transition: background 140ms ease, color 140ms ease;
 }
 .sidebar-link:hover {
-  background: color-mix(in oklab, var(--color-sidebar-accent) 70%, transparent);
-  color: white;
+  background: color-mix(in oklab, var(--color-sidebar-accent) 80%, transparent);
+  color: var(--color-foreground);
 }
 .sidebar-link[data-active="true"] {
-  background: var(--gradient-primary);
-  color: white;
+  background: var(--color-sidebar-accent);
+  color: var(--color-foreground);
   font-weight: 600;
-  box-shadow: 0 6px 20px -8px oklch(0.54 0.22 277 / 0.6);
+  box-shadow: inset 0 0 0 1px color-mix(in oklab, var(--color-sidebar-border) 80%, transparent);
+}
+.sidebar-link[data-active="true"] svg {
+  color: var(--color-primary);
 }
 
 /* Print styles for labels */
