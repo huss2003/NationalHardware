@@ -3,6 +3,7 @@ import { useEffect, useState, useMemo, memo } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Card } from "@/components/ui/card";
 import { PageHeader } from "@/components/erp/PageHeader";
+import { DetailSkeleton, TableSkeleton } from "@/components/erp/Skeletons";
 import { StatusPill } from "@/components/erp/StatusPill";
 import { inr } from "@/lib/codes";
 
@@ -50,7 +51,7 @@ function ProductDetail() {
     [filtered]
   );
 
-  if (!product) return <div className="p-8">Loading…</div>;
+  if (!product) return (<div className="p-8 max-w-[1400px] mx-auto space-y-4"><DetailSkeleton rows={3} /><TableSkeleton rows={5} columns={5} /></div>);
   const prefix = (product.prefix ?? "").toUpperCase();
   const isPly = prefix === "PLY" || product.category === "plywood";
   const isDoor = prefix === "DOR" || product.category === "door";

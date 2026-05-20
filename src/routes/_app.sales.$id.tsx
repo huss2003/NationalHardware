@@ -4,6 +4,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { PageHeader } from "@/components/erp/PageHeader";
+import { DetailSkeleton, TableSkeleton } from "@/components/erp/Skeletons";
 import { inr } from "@/lib/codes";
 import { Printer } from "lucide-react";
 
@@ -24,7 +25,7 @@ function SaleDetail() {
       setS(a.data); setItems(b.data ?? []); setShop(c.data);
     })();
   }, [id]);
-  if (!s) return <div className="p-8">Loading…</div>;
+  if (!s) return (<div className="p-8 max-w-[1400px] mx-auto space-y-4"><DetailSkeleton rows={3} /><TableSkeleton rows={5} columns={5} /></div>);
   return (
     <>
       <PageHeader title={`Invoice ${s.invoice_no}`} subtitle={new Date(s.invoice_date).toLocaleString()} actions={
