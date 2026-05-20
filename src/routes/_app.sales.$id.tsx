@@ -6,7 +6,9 @@ import { Button } from "@/components/ui/button";
 import { PageHeader } from "@/components/erp/PageHeader";
 import { DetailSkeleton, TableSkeleton } from "@/components/erp/Skeletons";
 import { inr } from "@/lib/codes";
-import { Printer } from "lucide-react";
+import { Printer, MessageCircle } from "lucide-react";
+import { buildInvoicePdf, shareInvoiceOnWhatsApp } from "@/lib/invoice-pdf";
+import { toast } from "sonner";
 
 export const Route = createFileRoute("/_app/sales/$id")({ component: SaleDetail });
 
@@ -15,6 +17,7 @@ function SaleDetail() {
   const [s, setS] = useState<any>(null);
   const [items, setItems] = useState<any[]>([]);
   const [shop, setShop] = useState<any>(null);
+  const [sending, setSending] = useState(false);
   useEffect(() => {
     (async () => {
       const [a, b, c] = await Promise.all([
@@ -26,10 +29,42 @@ function SaleDetail() {
     })();
   }, [id]);
   if (!s) return (<div className="p-8 max-w-[1400px] mx-auto space-y-4"><DetailSkeleton rows={3} /><TableSkeleton rows={5} columns={5} /></div>);
+  const sendWhatsApp = async () => {
+    if (!s.customers?.phone) { toast.error("Customer has no phone"); return; }
+    setSending(true);
+    try {
+      const pdf = buildInvoicePdf({
+        shop, sale: s, customer: s.customers,
+        items: items.map((it) => ({
+          name: it.products?.name ?? "Item", hsn: it.products?.hsn,
+          qty: it.qty, rate: it.rate, gst_rate: it.gst_rate,
+          line_total: it.line_total, item_instance_id: it.item_instance_id,
+        })),
+      });
+      const blob = pdf.output("blob");
+      const path = `${new Date(s.invoice_date).getFullYear()}/${s.invoice_no}.pdf`;
+      const up = await supabase.storage.from("invoices").upload(path, blob, { upsert: true, contentType: "application/pdf" });
+      let publicUrl: string | undefined;
+      if (!up.error) {
+        const signed = await supabase.storage.from("invoices").createSignedUrl(path, 60 * 60 * 24 * 30);
+        publicUrl = signed.data?.signedUrl;
+      }
+      await shareInvoiceOnWhatsApp({
+        pdf, invoiceNo: s.invoice_no, phone: s.customers.phone,
+        shopName: shop?.shop_name, total: Number(s.grand_total), publicUrl,
+      });
+    } catch (e: any) { toast.error(e.message); }
+    setSending(false);
+  };
   return (
     <>
       <PageHeader title={`Invoice ${s.invoice_no}`} subtitle={new Date(s.invoice_date).toLocaleString()} actions={
-        <Button className="h-12 no-print" onClick={() => window.print()}><Printer className="mr-1 h-5 w-5" />Print</Button>
+        <div className="flex gap-2 no-print">
+          <Button variant="outline" className="h-11 gap-2" disabled={sending} onClick={sendWhatsApp}>
+            <MessageCircle className="h-4 w-4" /> {sending ? "Sending…" : "Send WhatsApp Again"}
+          </Button>
+          <Button className="h-11 gap-2" onClick={() => window.print()}><Printer className="h-4 w-4" />Print</Button>
+        </div>
       } />
       <div className="px-8 pb-8">
         <Card className="print-area p-8 max-w-3xl mx-auto">

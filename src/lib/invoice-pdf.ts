@@ -90,6 +90,76 @@ export function invoiceFileName(invoiceNo?: string | null) {
   return `Invoice-${invoiceNo ?? "draft"}.pdf`;
 }
 
+export type ReceiptPdfInput = {
+  shop: { shop_name?: string; address?: string | null; gstin?: string | null } | null;
+  receipt: {
+    receipt_no: string; receipt_type: string; amount: number;
+    mode: string; notes?: string | null; created_at: string;
+  };
+  customer: { name?: string | null; phone?: string | null; address?: string | null } | null;
+};
+
+export function buildReceiptPdf(input: ReceiptPdfInput): jsPDF {
+  const doc = new jsPDF({ unit: "pt", format: "a5" });
+  const W = doc.internal.pageSize.getWidth();
+  let y = 36;
+  doc.setFont("helvetica", "bold"); doc.setFontSize(16);
+  doc.text(input.shop?.shop_name ?? "Receipt", 32, y);
+  doc.setFont("helvetica", "normal"); doc.setFontSize(9);
+  if (input.shop?.address) { y += 13; doc.text(input.shop.address, 32, y); }
+  if (input.shop?.gstin) { y += 11; doc.text(`GSTIN: ${input.shop.gstin}`, 32, y); }
+
+  doc.setFont("helvetica", "bold"); doc.setFontSize(11);
+  doc.text("PAYMENT RECEIPT", W - 32, 40, { align: "right" });
+  doc.setFontSize(14);
+  doc.text(`#${input.receipt.receipt_no}`, W - 32, 58, { align: "right" });
+  doc.setFont("helvetica", "normal"); doc.setFontSize(9);
+  doc.text(new Date(input.receipt.created_at).toLocaleDateString(), W - 32, 72, { align: "right" });
+
+  y = Math.max(y, 84) + 18;
+  doc.setDrawColor(220); doc.line(32, y, W - 32, y); y += 18;
+
+  doc.setFont("helvetica", "bold"); doc.setFontSize(10);
+  doc.text("Received From", 32, y); y += 14;
+  doc.setFont("helvetica", "normal");
+  doc.text(input.customer?.name ?? "—", 32, y); y += 12;
+  if (input.customer?.phone) { doc.text(`Phone: ${input.customer.phone}`, 32, y); y += 12; }
+  if (input.customer?.address) { doc.text(input.customer.address, 32, y); y += 12; }
+
+  y += 12;
+  autoTable(doc, {
+    startY: y,
+    head: [["Type", "Mode", "Amount"]],
+    body: [[
+      input.receipt.receipt_type === "credit" ? "Credit Payment" : "General Entry",
+      String(input.receipt.mode).toUpperCase(),
+      Number(input.receipt.amount).toFixed(2),
+    ]],
+    styles: { fontSize: 10, cellPadding: 7 },
+    headStyles: { fillColor: [240, 240, 240], textColor: 20 },
+    columnStyles: { 2: { halign: "right" } },
+    margin: { left: 32, right: 32 },
+  });
+  // @ts-expect-error - autotable adds lastAutoTable
+  let ay = (doc.lastAutoTable?.finalY ?? y) + 18;
+
+  doc.setFont("helvetica", "bold"); doc.setFontSize(12);
+  doc.text("Total Received", 32, ay);
+  doc.text(`INR ${Number(input.receipt.amount).toFixed(2)}`, W - 32, ay, { align: "right" });
+
+  if (input.receipt.notes) {
+    ay += 22;
+    doc.setFont("helvetica", "normal"); doc.setFontSize(9);
+    doc.text(`Notes: ${input.receipt.notes}`, 32, ay, { maxWidth: W - 64 });
+  }
+
+  doc.setFontSize(8); doc.setTextColor(120);
+  doc.text("Thank you.", 32, doc.internal.pageSize.getHeight() - 24);
+  return doc;
+}
+
+export function receiptFileName(no: string) { return `Receipt-${no}.pdf`; }
+
 /**
  * Uploads the PDF to the `invoices` bucket and opens WhatsApp with a deep
  * link. The user taps Send inside WhatsApp.
