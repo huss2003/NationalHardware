@@ -186,6 +186,21 @@ export type Database = {
           },
         ]
       }
+      customer_receipt_seq: {
+        Row: {
+          customer_id: string
+          next_value: number
+        }
+        Insert: {
+          customer_id: string
+          next_value?: number
+        }
+        Update: {
+          customer_id?: string
+          next_value?: number
+        }
+        Relationships: []
+      }
       customers: {
         Row: {
           address: string | null
@@ -566,6 +581,8 @@ export type Database = {
       products: {
         Row: {
           active: boolean
+          alt_conversion: number | null
+          alt_unit: string | null
           category: Database["public"]["Enums"]["product_category"]
           created_at: string
           default_cost: number
@@ -583,6 +600,8 @@ export type Database = {
         }
         Insert: {
           active?: boolean
+          alt_conversion?: number | null
+          alt_unit?: string | null
           category?: Database["public"]["Enums"]["product_category"]
           created_at?: string
           default_cost?: number
@@ -600,6 +619,8 @@ export type Database = {
         }
         Update: {
           active?: boolean
+          alt_conversion?: number | null
+          alt_unit?: string | null
           category?: Database["public"]["Enums"]["product_category"]
           created_at?: string
           default_cost?: number
@@ -861,6 +882,48 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      receipts: {
+        Row: {
+          amount: number
+          created_at: string
+          created_by: string | null
+          customer_id: string
+          id: string
+          mode: string
+          notes: string | null
+          receipt_no: string
+          receipt_type: string
+          sale_id: string | null
+          updated_at: string
+        }
+        Insert: {
+          amount?: number
+          created_at?: string
+          created_by?: string | null
+          customer_id: string
+          id?: string
+          mode?: string
+          notes?: string | null
+          receipt_no: string
+          receipt_type?: string
+          sale_id?: string | null
+          updated_at?: string
+        }
+        Update: {
+          amount?: number
+          created_at?: string
+          created_by?: string | null
+          customer_id?: string
+          id?: string
+          mode?: string
+          notes?: string | null
+          receipt_no?: string
+          receipt_type?: string
+          sale_id?: string | null
+          updated_at?: string
+        }
+        Relationships: []
       }
       recycle_bin: {
         Row: {
@@ -1313,6 +1376,7 @@ export type Database = {
         }
       }
       next_item_id: { Args: { _prefix: string }; Returns: string }
+      next_receipt_no: { Args: { _customer_id: string }; Returns: string }
       record_sale: {
         Args: { _actor_user_id: string; _payload: Json }
         Returns: string
