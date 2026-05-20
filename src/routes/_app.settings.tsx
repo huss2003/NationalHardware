@@ -35,7 +35,11 @@ function Settings() {
     if (error) toast.error(error.message); else toast.success("Settings saved");
   };
 
-  if (!s) return <div className="p-8">Loading…</div>;
+  if (!s) return (
+    <div className="p-8 max-w-[1400px] mx-auto">
+      <DetailSkeleton rows={6} />
+    </div>
+  );
   return (
     <>
       <PageHeader title="Settings" />
