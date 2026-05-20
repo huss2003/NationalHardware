@@ -1,14 +1,18 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { PageHeader } from "@/components/erp/PageHeader";
-import { Plus, Package } from "lucide-react";
+import { Plus, Package, Search, SlidersHorizontal } from "lucide-react";
 import { useNavigate } from "@tanstack/react-router";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { toast } from "sonner";
+import { Checkbox } from "@/components/ui/checkbox";
+import { Badge } from "@/components/ui/badge";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { inr } from "@/lib/codes";
 
 export const Route = createFileRoute("/_app/inventory/")({ component: Inventory });
 
@@ -16,6 +20,9 @@ function Inventory() {
   const [products, setProducts] = useState<any[]>([]);
   const [counts, setCounts] = useState<Record<string, number>>({});
   const [q, setQ] = useState("");
+  const [category, setCategory] = useState<string>("all");
+  const [stockStatus, setStockStatus] = useState<string>("all");
+  const [selected, setSelected] = useState<Set<string>>(new Set());
   const nav = useNavigate();
 
   const load = async () => {
@@ -28,46 +35,223 @@ function Inventory() {
   };
   useEffect(() => { load(); }, []);
 
-  const filtered = products.filter((p) => p.name.toLowerCase().includes(q.toLowerCase()) || (p.sku ?? "").toLowerCase().includes(q.toLowerCase()));
+  const categories = useMemo(
+    () => Array.from(new Set(products.map((p) => p.category).filter(Boolean))),
+    [products],
+  );
+
+  const stockLabel = (count: number, reorder: number) => {
+    if (count === 0) return "empty" as const;
+    if (count <= reorder) return "low" as const;
+    return "ok" as const;
+  };
+
+  const filtered = products.filter((p) => {
+    const query = q.toLowerCase();
+    const matchesQ =
+      !q ||
+      p.name.toLowerCase().includes(query) ||
+      (p.sku ?? "").toLowerCase().includes(query) ||
+      (p.prefix ?? "").toLowerCase().includes(query);
+    const matchesCat = category === "all" || p.category === category;
+    const status = stockLabel(counts[p.id] ?? 0, p.reorder_level);
+    const matchesStatus = stockStatus === "all" || stockStatus === status;
+    return matchesQ && matchesCat && matchesStatus;
+  });
+
+  const allChecked = filtered.length > 0 && filtered.every((p) => selected.has(p.id));
+  const toggleAll = () => {
+    const s = new Set(selected);
+    if (allChecked) filtered.forEach((p) => s.delete(p.id));
+    else filtered.forEach((p) => s.add(p.id));
+    setSelected(s);
+  };
+  const toggleOne = (id: string) => {
+    const s = new Set(selected);
+    s.has(id) ? s.delete(id) : s.add(id);
+    setSelected(s);
+  };
 
   return (
     <>
       <PageHeader
         title="Inventory"
-        subtitle={`${products.length} products • tap a card to view units`}
+        subtitle="Manage your warehouse stock, pricing, and locations."
         actions={
           <>
-            <Button asChild variant="outline" className="h-12"><Link to="/inventory/scan">Scan unit</Link></Button>
+            <Button asChild variant="outline"><Link to="/inventory/scan">Scan unit</Link></Button>
             <NewProductDialog onCreated={load} />
           </>
         }
       />
-      <div className="px-8 pb-8 space-y-4">
-        <Input placeholder="Search products…" value={q} onChange={(e) => setQ(e.target.value)} className="h-12 max-w-md" />
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-5">
-          {filtered.map((p) => {
-            const count = counts[p.id] ?? 0;
-            const low = count <= p.reorder_level;
-            return (
-              <Card key={p.id} className="p-5 hover:shadow-lg transition-shadow cursor-pointer" onClick={() => nav({ to: "/inventory/$productId", params: { productId: p.id } })}>
-                <div className="aspect-square rounded-xl bg-muted grid place-items-center overflow-hidden mb-4">
-                  {p.image_url ? <img src={p.image_url} alt="" className="object-cover w-full h-full" /> : <Package className="h-16 w-16 text-muted-foreground" />}
-                </div>
-                <div className="flex items-start justify-between gap-2">
-                  <div>
-                    <div className="font-bold text-lg leading-tight">{p.name}</div>
-                    <div className="text-xs text-muted-foreground uppercase">{p.category} • {p.prefix}</div>
-                  </div>
-                  <span className={`text-2xl font-extrabold ${low ? "text-destructive" : ""}`}>{count}</span>
-                </div>
-                {low && <div className="mt-2 text-xs font-bold text-destructive uppercase">Low stock</div>}
-              </Card>
-            );
-          })}
-          {filtered.length === 0 && (
-            <Card className="p-10 col-span-full text-center text-muted-foreground">No products yet. Tap “New product”.</Card>
+      <div className="px-8 pb-10 max-w-[1400px] mx-auto w-full space-y-5">
+        {/* Filter bar */}
+        <Card className="p-3 flex flex-wrap items-center gap-3 hover:translate-y-0">
+          <div className="relative flex-1 min-w-[260px]">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+            <Input
+              placeholder="Search by SKU, name, or barcode…"
+              value={q}
+              onChange={(e) => setQ(e.target.value)}
+              className="h-11 pl-9 bg-background border-border/60"
+            />
+          </div>
+          <select
+            value={category}
+            onChange={(e) => setCategory(e.target.value)}
+            className="h-11 rounded-md border border-border/60 bg-background px-3 text-sm min-w-[150px] capitalize"
+          >
+            <option value="all">Category</option>
+            {categories.map((c) => (
+              <option key={c} value={c} className="capitalize">{c}</option>
+            ))}
+          </select>
+          <select
+            value={stockStatus}
+            onChange={(e) => setStockStatus(e.target.value)}
+            className="h-11 rounded-md border border-border/60 bg-background px-3 text-sm min-w-[150px]"
+          >
+            <option value="all">Stock Status</option>
+            <option value="ok">In stock</option>
+            <option value="low">Low</option>
+            <option value="empty">Empty</option>
+          </select>
+          <Button variant="outline" size="icon" className="h-11 w-11 rounded-md" aria-label="More filters">
+            <SlidersHorizontal className="h-4 w-4" />
+          </Button>
+        </Card>
+
+        {/* Inventory table */}
+        <Card className="overflow-hidden hover:translate-y-0">
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead className="w-10 pl-4">
+                  <Checkbox checked={allChecked} onCheckedChange={toggleAll} aria-label="Select all" />
+                </TableHead>
+                <TableHead>Item details</TableHead>
+                <TableHead>SKU</TableHead>
+                <TableHead>Category</TableHead>
+                <TableHead className="w-[260px]">Stock level</TableHead>
+                <TableHead className="text-right">Unit price</TableHead>
+                <TableHead className="text-right pr-6">Actions</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {filtered.map((p) => {
+                const count = counts[p.id] ?? 0;
+                const cap = Math.max(count, p.reorder_level * 4, 50);
+                const pct = Math.min(100, Math.round((count / cap) * 100));
+                const status = stockLabel(count, p.reorder_level);
+                const barColor =
+                  status === "empty" ? "bg-destructive"
+                  : status === "low" ? "bg-warning"
+                  : "bg-success";
+                const countColor =
+                  status === "empty" ? "text-destructive"
+                  : status === "low" ? "text-warning"
+                  : "text-foreground";
+                return (
+                  <TableRow
+                    key={p.id}
+                    className="cursor-pointer"
+                    onClick={() => nav({ to: "/inventory/$productId", params: { productId: p.id } })}
+                  >
+                    <TableCell className="pl-4" onClick={(e) => e.stopPropagation()}>
+                      <Checkbox
+                        checked={selected.has(p.id)}
+                        onCheckedChange={() => toggleOne(p.id)}
+                        aria-label={`Select ${p.name}`}
+                      />
+                    </TableCell>
+                    <TableCell>
+                      <div className="flex items-center gap-3">
+                        <div className="h-10 w-10 rounded-lg bg-muted grid place-items-center shrink-0 overflow-hidden">
+                          {p.image_url ? (
+                            <img src={p.image_url} alt="" className="object-cover w-full h-full" />
+                          ) : (
+                            <Package className="h-5 w-5 text-muted-foreground" />
+                          )}
+                        </div>
+                        <div className="min-w-0">
+                          <div className="font-semibold text-foreground truncate">{p.name}</div>
+                          <div className="text-xs text-muted-foreground truncate">
+                            {p.location ? `Loc: ${p.location}` : `Prefix: ${p.prefix}`}
+                          </div>
+                        </div>
+                      </div>
+                    </TableCell>
+                    <TableCell className="font-mono text-xs text-muted-foreground">
+                      {p.sku ?? `${p.prefix}-${String(p.id).slice(0, 6).toUpperCase()}`}
+                    </TableCell>
+                    <TableCell>
+                      <Badge variant="secondary" className="capitalize font-medium rounded-md">
+                        {p.category}
+                      </Badge>
+                    </TableCell>
+                    <TableCell>
+                      <div className="space-y-1.5">
+                        <div className="flex items-center justify-between gap-2">
+                          <div className="text-sm">
+                            <span className={`font-semibold ${countColor}`}>{count}</span>
+                            <span className="text-muted-foreground"> / {cap}</span>
+                          </div>
+                          {status === "low" && (
+                            <span className="text-[10px] font-semibold uppercase tracking-wider px-2 py-0.5 rounded-md bg-warning/15 text-warning">
+                              Low
+                            </span>
+                          )}
+                          {status === "empty" && (
+                            <span className="text-[10px] font-semibold uppercase tracking-wider px-2 py-0.5 rounded-md bg-destructive/15 text-destructive">
+                              Empty
+                            </span>
+                          )}
+                        </div>
+                        <div className="h-1.5 rounded-full bg-muted overflow-hidden">
+                          <div
+                            className={`h-full rounded-full ${barColor} transition-all`}
+                            style={{ width: `${pct}%` }}
+                          />
+                        </div>
+                      </div>
+                    </TableCell>
+                    <TableCell className="text-right font-semibold tabular-nums">
+                      {inr(p.default_price ?? 0)}
+                    </TableCell>
+                    <TableCell className="text-right pr-6" onClick={(e) => e.stopPropagation()}>
+                      <Button
+                        asChild
+                        variant="ghost"
+                        size="sm"
+                        className="rounded-md"
+                      >
+                        <Link to="/inventory/$productId" params={{ productId: p.id }}>
+                          View
+                        </Link>
+                      </Button>
+                    </TableCell>
+                  </TableRow>
+                );
+              })}
+              {filtered.length === 0 && (
+                <TableRow>
+                  <TableCell colSpan={7} className="text-center py-12 text-muted-foreground">
+                    No products match these filters.
+                  </TableCell>
+                </TableRow>
+              )}
+            </TableBody>
+          </Table>
+          {filtered.length > 0 && (
+            <div className="flex items-center justify-between px-5 py-3 border-t border-border/60 text-xs text-muted-foreground">
+              <span>
+                Showing <span className="font-semibold text-foreground">1</span>–
+                <span className="font-semibold text-foreground">{filtered.length}</span> of{" "}
+                <span className="font-semibold text-foreground">{products.length}</span> entries
+              </span>
+            </div>
           )}
-        </div>
+        </Card>
       </div>
     </>
   );
