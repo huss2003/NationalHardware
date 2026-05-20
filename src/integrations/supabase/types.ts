@@ -219,6 +219,45 @@ export type Database = {
         }
         Relationships: []
       }
+      godowns: {
+        Row: {
+          active: boolean
+          address: string | null
+          capacity: number | null
+          code: string | null
+          created_at: string
+          id: string
+          manager_name: string | null
+          name: string
+          phone: string | null
+          updated_at: string
+        }
+        Insert: {
+          active?: boolean
+          address?: string | null
+          capacity?: number | null
+          code?: string | null
+          created_at?: string
+          id?: string
+          manager_name?: string | null
+          name: string
+          phone?: string | null
+          updated_at?: string
+        }
+        Update: {
+          active?: boolean
+          address?: string | null
+          capacity?: number | null
+          code?: string | null
+          created_at?: string
+          id?: string
+          manager_name?: string | null
+          name?: string
+          phone?: string | null
+          updated_at?: string
+        }
+        Relationships: []
+      }
       id_sequences: {
         Row: {
           next_value: number
@@ -289,6 +328,7 @@ export type Database = {
           cost_price: number
           created_at: string
           dimension_unit: string | null
+          godown_id: string | null
           id: string
           length_value: number | null
           location: string | null
@@ -306,6 +346,7 @@ export type Database = {
           cost_price?: number
           created_at?: string
           dimension_unit?: string | null
+          godown_id?: string | null
           id: string
           length_value?: number | null
           location?: string | null
@@ -323,6 +364,7 @@ export type Database = {
           cost_price?: number
           created_at?: string
           dimension_unit?: string | null
+          godown_id?: string | null
           id?: string
           length_value?: number | null
           location?: string | null
@@ -335,6 +377,13 @@ export type Database = {
           width_value?: number | null
         }
         Relationships: [
+          {
+            foreignKeyName: "item_instances_godown_id_fkey"
+            columns: ["godown_id"]
+            isOneToOne: false
+            referencedRelation: "godowns"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "item_instances_product_id_fkey"
             columns: ["product_id"]
@@ -637,6 +686,119 @@ export type Database = {
           },
         ]
       }
+      purchase_return_items: {
+        Row: {
+          created_at: string
+          gst_rate: number
+          id: string
+          item_instance_id: string | null
+          line_total: number
+          product_id: string
+          qty: number
+          rate: number
+          return_id: string
+        }
+        Insert: {
+          created_at?: string
+          gst_rate?: number
+          id?: string
+          item_instance_id?: string | null
+          line_total?: number
+          product_id: string
+          qty?: number
+          rate?: number
+          return_id: string
+        }
+        Update: {
+          created_at?: string
+          gst_rate?: number
+          id?: string
+          item_instance_id?: string | null
+          line_total?: number
+          product_id?: string
+          qty?: number
+          rate?: number
+          return_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "purchase_return_items_return_id_fkey"
+            columns: ["return_id"]
+            isOneToOne: false
+            referencedRelation: "purchase_returns"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      purchase_returns: {
+        Row: {
+          created_at: string
+          created_by: string | null
+          deleted_at: string | null
+          grand_total: number
+          id: string
+          notes: string | null
+          purchase_id: string | null
+          reason: string | null
+          return_date: string
+          return_no: string | null
+          status: string
+          subtotal: number
+          supplier_id: string | null
+          tax_total: number
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          created_by?: string | null
+          deleted_at?: string | null
+          grand_total?: number
+          id?: string
+          notes?: string | null
+          purchase_id?: string | null
+          reason?: string | null
+          return_date?: string
+          return_no?: string | null
+          status?: string
+          subtotal?: number
+          supplier_id?: string | null
+          tax_total?: number
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          created_by?: string | null
+          deleted_at?: string | null
+          grand_total?: number
+          id?: string
+          notes?: string | null
+          purchase_id?: string | null
+          reason?: string | null
+          return_date?: string
+          return_no?: string | null
+          status?: string
+          subtotal?: number
+          supplier_id?: string | null
+          tax_total?: number
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "purchase_returns_purchase_id_fkey"
+            columns: ["purchase_id"]
+            isOneToOne: false
+            referencedRelation: "purchases"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "purchase_returns_supplier_id_fkey"
+            columns: ["supplier_id"]
+            isOneToOne: false
+            referencedRelation: "suppliers"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       purchases: {
         Row: {
           bill_date: string
@@ -868,6 +1030,125 @@ export type Database = {
           },
         ]
       }
+      sales_return_items: {
+        Row: {
+          created_at: string
+          gst_rate: number
+          id: string
+          item_instance_id: string | null
+          line_total: number
+          product_id: string
+          qty: number
+          rate: number
+          return_id: string
+        }
+        Insert: {
+          created_at?: string
+          gst_rate?: number
+          id?: string
+          item_instance_id?: string | null
+          line_total?: number
+          product_id: string
+          qty?: number
+          rate?: number
+          return_id: string
+        }
+        Update: {
+          created_at?: string
+          gst_rate?: number
+          id?: string
+          item_instance_id?: string | null
+          line_total?: number
+          product_id?: string
+          qty?: number
+          rate?: number
+          return_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "sales_return_items_return_id_fkey"
+            columns: ["return_id"]
+            isOneToOne: false
+            referencedRelation: "sales_returns"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      sales_returns: {
+        Row: {
+          created_at: string
+          created_by: string | null
+          customer_id: string | null
+          deleted_at: string | null
+          grand_total: number
+          id: string
+          notes: string | null
+          reason: string | null
+          refund_amount: number
+          refund_mode: string
+          return_date: string
+          return_no: string | null
+          sale_id: string | null
+          status: string
+          subtotal: number
+          tax_total: number
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          created_by?: string | null
+          customer_id?: string | null
+          deleted_at?: string | null
+          grand_total?: number
+          id?: string
+          notes?: string | null
+          reason?: string | null
+          refund_amount?: number
+          refund_mode?: string
+          return_date?: string
+          return_no?: string | null
+          sale_id?: string | null
+          status?: string
+          subtotal?: number
+          tax_total?: number
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          created_by?: string | null
+          customer_id?: string | null
+          deleted_at?: string | null
+          grand_total?: number
+          id?: string
+          notes?: string | null
+          reason?: string | null
+          refund_amount?: number
+          refund_mode?: string
+          return_date?: string
+          return_no?: string | null
+          sale_id?: string | null
+          status?: string
+          subtotal?: number
+          tax_total?: number
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "sales_returns_customer_id_fkey"
+            columns: ["customer_id"]
+            isOneToOne: false
+            referencedRelation: "customers"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "sales_returns_sale_id_fkey"
+            columns: ["sale_id"]
+            isOneToOne: false
+            referencedRelation: "sales"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       shop_users: {
         Row: {
           active: boolean
@@ -968,6 +1249,7 @@ export type Database = {
           cost_price: number
           created_at: string
           dimension_unit: string | null
+          godown_id: string | null
           id: string
           length_value: number | null
           location: string | null
@@ -1011,6 +1293,7 @@ export type Database = {
           cost_price: number
           created_at: string
           dimension_unit: string | null
+          godown_id: string | null
           id: string
           length_value: number | null
           location: string | null
