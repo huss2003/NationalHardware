@@ -13,6 +13,7 @@ import {
   Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle, DialogTrigger,
 } from "@/components/ui/dialog";
 import { ScanInput } from "@/components/erp/ScanInput";
+import { ScanWarning, type ScanWarningKind } from "@/components/erp/ScanWarning";
 import { ReturnTimelineDialog } from "@/components/erp/ReturnTimelineDialog";
 import { inr } from "@/lib/codes";
 import { toast } from "sonner";
@@ -180,7 +181,7 @@ function NewSalesReturnDialog({
   const [cart, setCart] = useState<ScannedRow[]>([]);
   const [reason, setReason] = useState("");
   const [refundMode, setRefundMode] = useState("cash");
-  const [scanError, setScanError] = useState<string | null>(null);
+  const [scanError, setScanError] = useState<{ kind: ScanWarningKind; msg: string; code?: string } | null>(null);
   const [busy, setBusy] = useState(false);
 
   useEffect(() => {
@@ -214,20 +215,33 @@ function NewSalesReturnDialog({
 
   const onScan = async (code: string) => {
     setScanError(null);
-    if (!saleId) { setScanError("Pick an invoice first"); return; }
+    if (!saleId) { setScanError({ kind: "generic", msg: "Pick an invoice first." }); return; }
+    const prefix = code.split("-")[0]?.toUpperCase();
+    const known = Array.from(new Set(saleLines.map((l: any) => l.item_instance_id?.split("-")[0]).filter(Boolean)));
     if (cart.some((c) => c.item_instance_id === code)) {
-      setScanError(`Already scanned: ${code}`); return;
+      setScanError({ kind: "duplicate", code, msg: "This item is already in the return cart." }); return;
     }
     const line = saleLines.find((l) => l.item_instance_id === code);
-    if (!line) { setScanError(`${code} was not sold on this invoice`); return; }
+    if (!line) {
+      if (known.length && prefix && !known.includes(prefix)) {
+        setScanError({ kind: "wrong_prefix", code,
+          msg: `Prefix "${prefix}" doesn't match this invoice. Expected: ${known.join(", ")}.` });
+      } else {
+        setScanError({ kind: "unknown", code, msg: "This item was not sold on the selected invoice." });
+      }
+      return;
+    }
     const { data: inst } = await supabase
-      .from("item_instances")
-      .select("id, status")
-      .eq("id", code)
-      .maybeSingle();
-    if (!inst) { setScanError(`Item ${code} not found`); return; }
+      .from("item_instances").select("id, status").eq("id", code).maybeSingle();
+    if (!inst) { setScanError({ kind: "unknown", code, msg: "Item not found in inventory." }); return; }
     if (inst.status !== "sold") {
-      setScanError(`Item ${code} is ${inst.status}, cannot be returned`); return;
+      const kind: ScanWarningKind =
+        inst.status === "damaged" ? "damaged"
+        : inst.status === "used_in_production" ? "used"
+        : inst.status === "available" ? "generic"
+        : "generic";
+      setScanError({ kind, code, msg: `Status is ${String(inst.status).toUpperCase()} — only SOLD items can be returned.` });
+      return;
     }
     setCart((c) => [...c, {
       item_instance_id: code,
@@ -344,10 +358,8 @@ function NewSalesReturnDialog({
 
         <div>
           <Label>Scan items being returned</Label>
-          <ScanInput onScan={onScan} placeholder="Scan / type item ID and press Enter" />
-          {scanError && (
-            <div className="mt-2 text-xs text-destructive">{scanError}</div>
-          )}
+          <ScanInput onScan={onScan} placeholder="Scan / type item ID and press Enter" invalid={!!scanError} />
+          {scanError && <ScanWarning kind={scanError.kind} message={scanError.msg} code={scanError.code} />}
           {saleId && saleLines.length > 0 && cart.length < saleLines.length && (
             <div className="mt-2 text-xs text-muted-foreground">
               {saleLines.length - cart.length} of {saleLines.length} items remaining on invoice
