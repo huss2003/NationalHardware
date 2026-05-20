@@ -16,6 +16,7 @@ import {
 import { useUiConfig } from "@/lib/ui-config";
 import { buildInvoicePdf, invoiceFileName, shareInvoiceOnWhatsApp } from "@/lib/invoice-pdf";
 import { MessageCircle } from "lucide-react";
+import { ScanWarning, type ScanWarningKind } from "@/components/erp/ScanWarning";
 
 export const Route = createFileRoute("/_app/sales/new")({ component: NewSale });
 
@@ -36,11 +37,15 @@ function NewSale() {
   const [paymentMode, setPaymentMode] = useState("cash");
   const [discount, setDiscount] = useState(0);
   const [lines, setLines] = useState<Line[]>([]);
-  const [warn, setWarn] = useState<string | null>(null);
+  const [warn, setWarn] = useState<{ kind: ScanWarningKind; msg: string; code?: string } | null>(null);
+  const [knownPrefixes, setKnownPrefixes] = useState<string[]>([]);
   const [busy, setBusy] = useState(false);
 
   useEffect(() => {
     supabase.from("customers").select("*").order("name").then(({ data }) => setCustomers(data ?? []));
+    supabase.from("products").select("prefix").then(({ data }) =>
+      setKnownPrefixes(Array.from(new Set((data ?? []).map((p: any) => p.prefix).filter(Boolean))))
+    );
   }, []);
   useEffect(() => {
     const c = customers.find((x) => x.id === customerId);
@@ -49,10 +54,29 @@ function NewSale() {
 
   const onScan = async (code: string) => {
     setWarn(null);
+    const prefix = code.split("-")[0]?.toUpperCase();
+    if (knownPrefixes.length && (!prefix || !knownPrefixes.includes(prefix))) {
+      setWarn({ kind: "wrong_prefix", code,
+        msg: `Prefix "${prefix || "?"}" is not a known category. Expected one of: ${knownPrefixes.join(", ")}.` });
+      return;
+    }
+    if (lines.find(l => l.item_instance_id === code)) {
+      setWarn({ kind: "duplicate", code, msg: "This item is already in the cart." }); return;
+    }
     const { data: item } = await supabase.from("item_instances").select("*, products(*)").eq("id", code).maybeSingle();
-    if (!item) { setWarn(`No item with ID ${code}`); return; }
-    if (item.status !== "available") { setWarn(`Item ${code} is ${item.status.toUpperCase()} — cannot sell!`); return; }
-    if (lines.find(l => l.item_instance_id === code)) { setWarn(`Already in cart`); return; }
+    if (!item) {
+      setWarn({ kind: "unknown", code, msg: "No item exists with this ID in inventory." });
+      return;
+    }
+    if (item.status !== "available") {
+      const kind: ScanWarningKind =
+        item.status === "sold" ? "sold"
+        : item.status === "damaged" ? "damaged"
+        : item.status === "used_in_production" ? "used"
+        : "generic";
+      setWarn({ kind, code, msg: `Status is ${String(item.status).toUpperCase()} — cannot be sold.` });
+      return;
+    }
     setLines([...lines, {
       product_id: item.product_id, item_instance_id: item.id, name: item.products.name,
       qty: 1, rate: Number(item.products.default_price), gst_rate: Number(item.products.gst_rate),
@@ -152,14 +176,9 @@ function NewSale() {
                 description="Use a barcode or QR scanner to add available stock."
               />
               <div className="mt-5">
-                <ScanInput onScan={onScan} />
+                <ScanInput onScan={onScan} invalid={!!warn} />
               </div>
-              {warn && (
-                <div className="mt-3 px-3 py-2.5 rounded-md bg-destructive/10 text-destructive flex items-center gap-2 text-sm font-medium">
-                  <AlertOctagon className="h-4 w-4 shrink-0" />
-                  <span>{warn}</span>
-                </div>
-              )}
+              {warn && <ScanWarning kind={warn.kind} message={warn.msg} code={warn.code} />}
             </Card>
 
             {/* Cart */}
