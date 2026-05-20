@@ -13,12 +13,14 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Badge } from "@/components/ui/badge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { inr } from "@/lib/codes";
+import { TableSkeleton } from "@/components/erp/Skeletons";
 
 export const Route = createFileRoute("/_app/inventory/")({ component: Inventory });
 
 function Inventory() {
   const [products, setProducts] = useState<any[]>([]);
   const [counts, setCounts] = useState<Record<string, number>>({});
+  const [loading, setLoading] = useState(true);
   const [q, setQ] = useState("");
   const [category, setCategory] = useState<string>("all");
   const [stockStatus, setStockStatus] = useState<string>("all");
@@ -26,12 +28,14 @@ function Inventory() {
   const nav = useNavigate();
 
   const load = async () => {
+    setLoading(true);
     const { data: prods } = await supabase.from("products").select("*").eq("active", true).order("name");
     const { data: items } = await supabase.from("item_instances").select("product_id").eq("status", "available");
     const c: Record<string, number> = {};
     (items ?? []).forEach((i: any) => { c[i.product_id] = (c[i.product_id] ?? 0) + 1; });
     setProducts(prods ?? []);
     setCounts(c);
+    setLoading(false);
   };
   useEffect(() => { load(); }, []);
 
@@ -86,7 +90,7 @@ function Inventory() {
       />
       <div className="px-8 pb-10 max-w-[1400px] mx-auto w-full space-y-5">
         {/* Filter bar */}
-        <Card className="p-3 flex flex-wrap items-center gap-3 hover:translate-y-0">
+        <Card className="p-3 flex flex-wrap items-center gap-3">
           <div className="relative flex-1 min-w-[260px]">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
             <Input
@@ -122,7 +126,7 @@ function Inventory() {
         </Card>
 
         {/* Inventory table */}
-        <Card className="overflow-hidden hover:translate-y-0">
+        <Card className="overflow-hidden">
           <Table>
             <TableHeader>
               <TableRow>
@@ -138,7 +142,14 @@ function Inventory() {
               </TableRow>
             </TableHeader>
             <TableBody>
-              {filtered.map((p) => {
+              {loading && (
+                <TableRow>
+                  <TableCell colSpan={7} className="p-0">
+                    <TableSkeleton rows={6} columns={7} showHeader={false} />
+                  </TableCell>
+                </TableRow>
+              )}
+              {!loading && filtered.map((p) => {
                 const count = counts[p.id] ?? 0;
                 const cap = Math.max(count, p.reorder_level * 4, 50);
                 const pct = Math.min(100, Math.round((count / cap) * 100));
@@ -233,7 +244,7 @@ function Inventory() {
                   </TableRow>
                 );
               })}
-              {filtered.length === 0 && (
+              {!loading && filtered.length === 0 && (
                 <TableRow>
                   <TableCell colSpan={7} className="text-center py-12 text-muted-foreground">
                     No products match these filters.
