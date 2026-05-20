@@ -14,10 +14,16 @@ import {
   ShoppingCart, Banknote, CreditCard, Smartphone, Clock, Minus, Plus,
 } from "lucide-react";
 import { useUiConfig } from "@/lib/ui-config";
+import { buildInvoicePdf, invoiceFileName, shareInvoiceOnWhatsApp } from "@/lib/invoice-pdf";
+import { MessageCircle } from "lucide-react";
 
 export const Route = createFileRoute("/_app/sales/new")({ component: NewSale });
 
-type Line = { product_id: string; item_instance_id: string | null; name: string; qty: number; rate: number; gst_rate: number };
+type Line = {
+  product_id: string; item_instance_id: string | null; name: string;
+  qty: number; rate: number; gst_rate: number; hsn?: string | null;
+  alt_unit?: string | null; alt_conversion?: number | null;
+};
 
 function NewSale() {
   const nav = useNavigate();
@@ -50,6 +56,9 @@ function NewSale() {
     setLines([...lines, {
       product_id: item.product_id, item_instance_id: item.id, name: item.products.name,
       qty: 1, rate: Number(item.products.default_price), gst_rate: Number(item.products.gst_rate),
+      hsn: item.products.hsn,
+      alt_unit: (item.products as any).alt_unit ?? null,
+      alt_conversion: (item.products as any).alt_conversion ?? null,
     }]);
     toast.success(`Added ${item.id}`);
   };
@@ -61,7 +70,7 @@ function NewSale() {
   const tax = lines.reduce((a, l) => a + (l.qty * l.rate * l.gst_rate / 100), 0);
   const total = subtotal + tax - discount;
 
-  const save = async () => {
+  const finalize = async (alsoWhatsApp: boolean) => {
     if (lines.length === 0) { toast.error("Scan or add items"); return; }
     if (f.customer.visible && f.customer.required && !customerId) { toast.error("Customer is required"); return; }
     if (f.payment_mode.visible && f.payment_mode.required && !paymentMode) { toast.error("Payment mode is required"); return; }
@@ -77,11 +86,43 @@ function NewSale() {
       } as any,
       _actor_user_id: user?.id ?? "",
     });
-    setBusy(false);
-    if (error) { toast.error(error.message); return; }
+    if (error) { setBusy(false); toast.error(error.message); return; }
+    const saleId = data as string;
     toast.success("Sale recorded");
-    nav({ to: "/sales/$id", params: { id: data as string } });
+    if (alsoWhatsApp) {
+      try {
+        const customer = customers.find((c) => c.id === customerId);
+        if (!customer?.phone) { toast.error("Customer has no phone — cannot send WhatsApp"); }
+        else {
+          const [{ data: sale }, { data: shop }] = await Promise.all([
+            supabase.from("sales").select("*").eq("id", saleId).single(),
+            supabase.from("app_settings").select("*").eq("id", true).maybeSingle(),
+          ]);
+          const pdf = buildInvoicePdf({
+            shop, sale: sale as any, customer,
+            items: lines.map((l) => ({ ...l, line_total: l.qty * l.rate })),
+          });
+          const blob = pdf.output("blob");
+          const path = `${new Date().getFullYear()}/${sale!.invoice_no}.pdf`;
+          const up = await supabase.storage.from("invoices").upload(path, blob, { upsert: true, contentType: "application/pdf" });
+          let publicUrl: string | undefined;
+          if (!up.error) {
+            const signed = await supabase.storage.from("invoices").createSignedUrl(path, 60 * 60 * 24 * 30);
+            publicUrl = signed.data?.signedUrl;
+          }
+          await shareInvoiceOnWhatsApp({
+            pdf, invoiceNo: sale!.invoice_no ?? saleId,
+            phone: customer.phone, shopName: shop?.shop_name,
+            total: Number(sale!.grand_total), publicUrl,
+          });
+        }
+      } catch (e: any) { toast.error(`WhatsApp share failed: ${e.message}`); }
+    }
+    setBusy(false);
+    nav({ to: "/sales/$id", params: { id: saleId } });
   };
+  const save = () => finalize(false);
+  const saveAndWhatsApp = () => finalize(true);
 
   return (
     <>
@@ -152,6 +193,7 @@ function NewSale() {
                         <tr className="text-[11px] uppercase tracking-wider text-muted-foreground border-b border-border/60">
                           <th className="text-left font-medium py-2 pr-3">Item</th>
                           <th className="text-left font-medium py-2 px-3 w-36">Qty</th>
+                        <th className="text-left font-medium py-2 px-3 w-32">Alt. Unit</th>
                           <th className="text-left font-medium py-2 px-3 w-28">Rate</th>
                           {f.gst_rate.visible && (
                             <th className="text-left font-medium py-2 px-3 w-20">GST</th>
@@ -194,6 +236,11 @@ function NewSale() {
                                   <Plus className="h-3 w-3" />
                                 </button>
                               </div>
+                            </td>
+                            <td className="py-3 px-3 text-xs tabular-nums">
+                              {l.alt_unit && l.alt_conversion
+                                ? <span className="text-foreground font-medium">{(l.qty * Number(l.alt_conversion)).toLocaleString("en-IN", { maximumFractionDigits: 3 })} <span className="text-muted-foreground font-normal">{l.alt_unit}</span></span>
+                                : <span className="text-muted-foreground">—</span>}
                             </td>
                             <td className="py-3 px-3">
                               <Input
@@ -330,6 +377,16 @@ function NewSale() {
               >
                 <Check className="h-4 w-4" />
                 {busy ? "Saving…" : "Save Invoice"}
+              </Button>
+              <Button
+                variant="outline"
+                className="w-full gap-2"
+                size="lg"
+                disabled={busy}
+                onClick={saveAndWhatsApp}
+              >
+                <MessageCircle className="h-4 w-4" />
+                Save & Send WhatsApp
               </Button>
               <Button
                 variant="ghost"
