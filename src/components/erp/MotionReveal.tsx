@@ -7,7 +7,7 @@ type Props = HTMLMotionProps<"div"> & { delay?: number };
 export const MotionReveal = forwardRef<HTMLDivElement, Props>(
   ({ delay = 0, children, ...rest }, ref) => {
     const reduce = useReducedMotion();
-    if (reduce) return <div ref={ref as never} {...(rest as never)}>{children}</div>;
+    if (reduce) return <div ref={ref}>{children}</div>;
     return (
       <motion.div
         ref={ref}
