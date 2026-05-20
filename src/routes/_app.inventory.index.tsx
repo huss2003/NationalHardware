@@ -5,7 +5,11 @@ import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { PageHeader } from "@/components/erp/PageHeader";
-import { Plus, Package, Search, SlidersHorizontal } from "lucide-react";
+import {
+  Plus, Package, Search, SlidersHorizontal,
+  ArrowDownToLine, ArrowUpFromLine, History,
+  ArrowUp, ArrowDown, ChevronsUpDown,
+} from "lucide-react";
 import { useNavigate } from "@tanstack/react-router";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { toast } from "sonner";
@@ -14,6 +18,7 @@ import { Badge } from "@/components/ui/badge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { inr } from "@/lib/codes";
 import { TableSkeleton } from "@/components/erp/Skeletons";
+import { StatusPill } from "@/components/erp/StatusPill";
 
 export const Route = createFileRoute("/_app/inventory/")({ component: Inventory });
 
@@ -25,6 +30,12 @@ function Inventory() {
   const [category, setCategory] = useState<string>("all");
   const [stockStatus, setStockStatus] = useState<string>("all");
   const [selected, setSelected] = useState<Set<string>>(new Set());
+  type SortKey = "name" | "sku" | "stock" | "price";
+  const [sortKey, setSortKey] = useState<SortKey>("name");
+  const [sortDir, setSortDir] = useState<"asc" | "desc">("asc");
+  const [historyOpen, setHistoryOpen] = useState(false);
+  const [historyProduct, setHistoryProduct] = useState<any>(null);
+  const [historyRows, setHistoryRows] = useState<any[] | null>(null);
   const nav = useNavigate();
 
   const load = async () => {
@@ -63,11 +74,54 @@ function Inventory() {
     return matchesQ && matchesCat && matchesStatus;
   });
 
-  const allChecked = filtered.length > 0 && filtered.every((p) => selected.has(p.id));
+  const sorted = useMemo(() => {
+    const dir = sortDir === "asc" ? 1 : -1;
+    const get = (p: any): string | number => {
+      switch (sortKey) {
+        case "sku": return (p.sku ?? p.prefix ?? "").toLowerCase();
+        case "stock": return counts[p.id] ?? 0;
+        case "price": return Number(p.default_price ?? 0);
+        default: return (p.name ?? "").toLowerCase();
+      }
+    };
+    return [...filtered].sort((a, b) => {
+      const va = get(a); const vb = get(b);
+      if (va < vb) return -1 * dir;
+      if (va > vb) return 1 * dir;
+      return 0;
+    });
+  }, [filtered, sortKey, sortDir, counts]);
+
+  const toggleSort = (key: SortKey) => {
+    if (sortKey === key) setSortDir(sortDir === "asc" ? "desc" : "asc");
+    else { setSortKey(key); setSortDir("asc"); }
+  };
+
+  const openHistory = async (p: any) => {
+    setHistoryProduct(p);
+    setHistoryOpen(true);
+    setHistoryRows(null);
+    const { data: items } = await supabase
+      .from("item_instances")
+      .select("id")
+      .eq("product_id", p.id)
+      .limit(200);
+    const ids = (items ?? []).map((i: any) => i.id);
+    if (ids.length === 0) { setHistoryRows([]); return; }
+    const { data: h } = await supabase
+      .from("item_history")
+      .select("id,event,created_at,notes,item_id")
+      .in("item_id", ids)
+      .order("created_at", { ascending: false })
+      .limit(50);
+    setHistoryRows(h ?? []);
+  };
+
+  const allChecked = sorted.length > 0 && sorted.every((p) => selected.has(p.id));
   const toggleAll = () => {
     const s = new Set(selected);
-    if (allChecked) filtered.forEach((p) => s.delete(p.id));
-    else filtered.forEach((p) => s.add(p.id));
+    if (allChecked) sorted.forEach((p) => s.delete(p.id));
+    else sorted.forEach((p) => s.add(p.id));
     setSelected(s);
   };
   const toggleOne = (id: string) => {
