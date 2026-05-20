@@ -18,7 +18,6 @@ import { Badge } from "@/components/ui/badge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { inr } from "@/lib/codes";
 import { TableSkeleton } from "@/components/erp/Skeletons";
-import { StatusPill } from "@/components/erp/StatusPill";
 
 export const Route = createFileRoute("/_app/inventory/")({ component: Inventory });
 
