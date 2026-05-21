@@ -210,16 +210,9 @@ export async function shareInvoiceOnWhatsApp(opts: {
     opts.publicUrl ? `View / download: ${opts.publicUrl}` : "",
   ].filter(Boolean).join("\n");
   const text = encodeURIComponent(msg);
-  // wa.me redirects desktop browsers to api.whatsapp.com, which is often
-  // blocked (ERR_BLOCKED_BY_RESPONSE in the preview / many networks).
-  // Use web.whatsapp.com on desktop and wa.me on mobile devices.
-  const isMobile = typeof navigator !== "undefined" && /Android|iPhone|iPad|iPod|Mobile/i.test(navigator.userAgent);
-  const url = isMobile
-    ? `https://wa.me/${phone}?text=${text}`
-    : `https://web.whatsapp.com/send?phone=${phone}&text=${text}`;
+  const url = `https://wa.me/${phone}?text=${text}`;
   const win = window.open(url, "_blank", "noopener");
   if (!win) {
-    // Popup blocked — fall back to navigating the top window.
-    window.location.href = url;
+    await navigator.clipboard?.writeText(msg).catch(() => undefined);
   }
 }
