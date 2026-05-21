@@ -570,6 +570,16 @@ function NewPurchase() {
           </div>
         </div>
       </div>
+      <QuickCreatePartyDialog
+        open={createSupplierOpen}
+        onOpenChange={setCreateSupplierOpen}
+        kind="supplier"
+        initialName={supplierName}
+        onCreated={(s) => {
+          setSuppliers((prev) => [...prev, s].sort((a, b) => a.name.localeCompare(b.name)));
+          pickSupplier(s);
+        }}
+      />
     </>
   );
 }
