@@ -425,6 +425,15 @@ function NewSale() {
           </div>
         </div>
       </div>
+      <QuickCreatePartyDialog
+        open={createCustomerOpen}
+        onOpenChange={setCreateCustomerOpen}
+        kind="customer"
+        onCreated={(c) => {
+          setCustomers((prev) => [...prev, c].sort((a, b) => a.name.localeCompare(b.name)));
+          setCustomerId(c.id);
+        }}
+      />
     </>
   );
 }
