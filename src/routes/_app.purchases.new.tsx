@@ -12,6 +12,7 @@ import {
 } from "lucide-react";
 import { toast } from "sonner";
 import { inr } from "@/lib/codes";
+import { QuickCreatePartyDialog } from "@/components/erp/QuickCreatePartyDialog";
 
 export const Route = createFileRoute("/_app/purchases/new")({ component: NewPurchase });
 
@@ -43,6 +44,7 @@ function NewPurchase() {
   const [notes, setNotes] = useState("");
   const [billFile, setBillFile] = useState<File | null>(null);
   const supplierBoxRef = useRef<HTMLDivElement>(null);
+  const [createSupplierOpen, setCreateSupplierOpen] = useState(false);
   const billFileRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
@@ -266,10 +268,10 @@ function NewPurchase() {
                             type="button"
                             disabled={creatingSupplier}
                             onMouseDown={(e) => e.preventDefault()}
-                            onClick={createSupplier}
+                            onClick={() => { setSupplierFocus(false); setCreateSupplierOpen(true); }}
                             className="w-full text-left px-3 py-2 hover:bg-muted text-sm font-semibold text-primary border-t border-border/60 flex items-center gap-1"
                           >
-                            <Plus className="h-4 w-4" /> Create supplier "{supplierName.trim()}"
+                            <Plus className="h-4 w-4" /> Create supplier "{supplierName.trim()}"…
                           </button>
                         )}
                       </div>
