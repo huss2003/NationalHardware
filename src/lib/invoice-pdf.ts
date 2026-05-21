@@ -204,18 +204,33 @@ export async function shareInvoiceOnWhatsApp(opts: {
   publicUrl?: string;
 }) {
   const phone = opts.phone.replace(/\D/g, "");
-  const msg = [
-    `Hi! Your invoice ${opts.invoiceNo}${opts.shopName ? ` from ${opts.shopName}` : ""}.`,
-    opts.total != null ? `Total: ₹${opts.total.toFixed(2)}.` : "",
-    opts.publicUrl ? `View / download: ${opts.publicUrl}` : "",
-  ].filter(Boolean).join("\n");
-  const text = encodeURIComponent(msg);
-  // Use the whatsapp:// protocol so the OS launches the installed WhatsApp
-  // app (desktop or mobile) instead of the web client, which is blocked in
-  // some embedded browsers.
-  const appUrl = `whatsapp://send?phone=${phone}&text=${text}`;
-  // Copy the message to clipboard as a safety net in case the protocol
-  // handler is not registered.
+  const shop = opts.shopName ?? "National Hardware and Plywood";
+  const msg = `${shop} ${opts.invoiceNo}`;
+  const fileName = `${opts.invoiceNo}.pdf`;
+  const blob = opts.pdf.output("blob");
+  const file = new File([blob], fileName, { type: "application/pdf" });
+
+  // Prefer native Web Share with the PDF file attached (mobile / supported
+  // desktop browsers). The user picks WhatsApp from the share sheet and the
+  // PDF is attached with the message prefilled.
+  const navAny = navigator as any;
+  if (navAny.canShare && navAny.canShare({ files: [file] })) {
+    try {
+      await navAny.share({ files: [file], text: msg, title: msg });
+      return;
+    } catch (e: any) {
+      if (e?.name === "AbortError") return;
+    }
+  }
+
+  // Fallback: download the PDF locally with the correct name, then open
+  // WhatsApp with just the text. User attaches the downloaded file manually.
+  try {
+    opts.pdf.save(fileName);
+  } catch {
+    /* ignore */
+  }
   await navigator.clipboard?.writeText(msg).catch(() => undefined);
-  window.location.href = appUrl;
+  const text = encodeURIComponent(msg);
+  window.location.href = `whatsapp://send?phone=${phone}&text=${text}`;
 }
