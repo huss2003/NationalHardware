@@ -238,17 +238,22 @@ function NewPurchase() {
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-5">
                 <div className="relative md:col-span-2" ref={supplierBoxRef}>
                   <FieldLabel>Supplier</FieldLabel>
-                  <Input
-                    className="h-10"
-                    placeholder="Start typing supplier name…"
-                    value={supplierName}
-                    onFocus={() => setSupplierFocus(true)}
-                    onChange={(e) => {
-                      setSupplierName(e.target.value);
-                      setSupplierId("");
-                      setSupplierFocus(true);
-                    }}
-                  />
+                  <div className="flex gap-2">
+                    <Input
+                      className="h-10 flex-1"
+                      placeholder="Start typing supplier name…"
+                      value={supplierName}
+                      onFocus={() => setSupplierFocus(true)}
+                      onChange={(e) => {
+                        setSupplierName(e.target.value);
+                        setSupplierId("");
+                        setSupplierFocus(true);
+                      }}
+                    />
+                    <Button type="button" variant="outline" size="sm" className="h-10 gap-1" onClick={() => setCreateSupplierOpen(true)}>
+                      <Plus className="h-4 w-4" /> New
+                    </Button>
+                  </div>
                   {supplierFocus &&
                     (supplierMatches.length > 0 || (supplierName.trim() && !exactMatch)) && (
                       <div className="absolute z-20 mt-1 w-full bg-popover border border-border/60 rounded-lg shadow-lg max-h-60 overflow-auto">
