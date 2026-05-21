@@ -17,6 +17,7 @@ import { useUiConfig } from "@/lib/ui-config";
 import { buildInvoicePdf, invoiceFileName, shareInvoiceOnWhatsApp } from "@/lib/invoice-pdf";
 import { MessageCircle } from "lucide-react";
 import { ScanWarning, type ScanWarningKind } from "@/components/erp/ScanWarning";
+import { QuickCreatePartyDialog } from "@/components/erp/QuickCreatePartyDialog";
 
 export const Route = createFileRoute("/_app/sales/new")({ component: NewSale });
 
@@ -40,6 +41,7 @@ function NewSale() {
   const [warn, setWarn] = useState<{ kind: ScanWarningKind; msg: string; code?: string } | null>(null);
   const [knownPrefixes, setKnownPrefixes] = useState<string[]>([]);
   const [busy, setBusy] = useState(false);
+  const [createCustomerOpen, setCreateCustomerOpen] = useState(false);
 
   useEffect(() => {
     supabase.from("customers").select("*").order("name").then(({ data }) => setCustomers(data ?? []));
@@ -312,18 +314,23 @@ function NewSale() {
                   <FieldLabel icon={User}>
                     Customer {f.customer.required && <span className="text-destructive">*</span>}
                   </FieldLabel>
-                  <select
-                    className="h-10 w-full rounded-md border border-input bg-background px-3 text-sm"
-                    value={customerId}
-                    onChange={(e) => setCustomerId(e.target.value)}
-                  >
-                    <option value="">
-                      {f.customer.required ? "Select customer" : "Walk-in customer"}
-                    </option>
-                    {customers.map((c) => (
-                      <option key={c.id} value={c.id}>{c.name}</option>
-                    ))}
-                  </select>
+                  <div className="flex gap-2">
+                    <select
+                      className="h-10 flex-1 rounded-md border border-input bg-background px-3 text-sm"
+                      value={customerId}
+                      onChange={(e) => setCustomerId(e.target.value)}
+                    >
+                      <option value="">
+                        {f.customer.required ? "Select customer" : "Walk-in customer"}
+                      </option>
+                      {customers.map((c) => (
+                        <option key={c.id} value={c.id}>{c.name}</option>
+                      ))}
+                    </select>
+                    <Button type="button" variant="outline" size="sm" className="h-10 gap-1" onClick={() => setCreateCustomerOpen(true)}>
+                      <Plus className="h-4 w-4" /> New
+                    </Button>
+                  </div>
                 </div>
               )}
 
