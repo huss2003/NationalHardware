@@ -203,37 +203,28 @@ export async function shareInvoiceOnWhatsApp(opts: {
   total?: number;
   publicUrl?: string;
 }) {
-  const phone = opts.phone.replace(/\D/g, "");
   const shop = opts.shopName ?? "National Hardware and Plywood";
-  const msg = `${shop} ${opts.invoiceNo}`;
   const fileName = `${opts.invoiceNo}.pdf`;
   const blob = opts.pdf.output("blob");
   const file = new File([blob], fileName, { type: "application/pdf" });
 
-  // Prefer native Web Share with the PDF file attached (mobile / supported
-  // desktop browsers). The user picks WhatsApp from the share sheet and the
-  // PDF is attached with the message prefilled.
-  const navAny = navigator as any;
-  if (navAny.canShare && navAny.canShare({ files: [file] })) {
-    try {
-      await navAny.share({ files: [file], title: msg });
-      return;
-    } catch (e: any) {
-      if (e?.name === "AbortError") return;
-    }
+  // WhatsApp deep links can only open a chat with text; they cannot attach a
+  // local PDF. Native Web Share is the browser-supported way to pass the PDF
+  // file into the installed WhatsApp app, so we must not fall back to opening
+  // a plain chat because that loses the attachment.
+  const navAny = navigator as Navigator & {
+    canShare?: (data: ShareData & { files?: File[] }) => boolean;
+    share?: (data: ShareData & { files?: File[] }) => Promise<void>;
+  };
+  const shareData: ShareData & { files: File[] } = {
+    files: [file],
+    title: `${shop} ${opts.invoiceNo}`,
+  };
+
+  if (typeof navAny.share === "function" && (!navAny.canShare || navAny.canShare({ files: [file] }))) {
+    await navAny.share(shareData);
+    return;
   }
 
-  // Fallback (desktop browsers without file-share support): download the
-  // PDF locally with the correct name and open the WhatsApp chat with NO
-  // prefilled text. The user then attaches the just-downloaded PDF
-  // manually — no extra message is sent.
-  try {
-    opts.pdf.save(fileName);
-  } catch {
-    /* ignore */
-  }
-  // Clear any stale clipboard text from earlier versions so the user does
-  // not accidentally paste the long message + link.
-  await navigator.clipboard?.writeText("").catch(() => undefined);
-  window.location.href = `whatsapp://send?phone=${phone}`;
+  throw new Error("This browser cannot attach PDFs directly to WhatsApp. Use the native share option on a supported browser/device.");
 }
