@@ -216,21 +216,24 @@ export async function shareInvoiceOnWhatsApp(opts: {
   const navAny = navigator as any;
   if (navAny.canShare && navAny.canShare({ files: [file] })) {
     try {
-      await navAny.share({ files: [file], text: msg, title: msg });
+      await navAny.share({ files: [file], title: msg });
       return;
     } catch (e: any) {
       if (e?.name === "AbortError") return;
     }
   }
 
-  // Fallback: download the PDF locally with the correct name, then open
-  // WhatsApp with just the text. User attaches the downloaded file manually.
+  // Fallback (desktop browsers without file-share support): download the
+  // PDF locally with the correct name and open the WhatsApp chat with NO
+  // prefilled text. The user then attaches the just-downloaded PDF
+  // manually — no extra message is sent.
   try {
     opts.pdf.save(fileName);
   } catch {
     /* ignore */
   }
-  await navigator.clipboard?.writeText(msg).catch(() => undefined);
-  const text = encodeURIComponent(msg);
-  window.location.href = `whatsapp://send?phone=${phone}&text=${text}`;
+  // Clear any stale clipboard text from earlier versions so the user does
+  // not accidentally paste the long message + link.
+  await navigator.clipboard?.writeText("").catch(() => undefined);
+  window.location.href = `whatsapp://send?phone=${phone}`;
 }
