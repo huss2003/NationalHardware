@@ -210,9 +210,12 @@ export async function shareInvoiceOnWhatsApp(opts: {
     opts.publicUrl ? `View / download: ${opts.publicUrl}` : "",
   ].filter(Boolean).join("\n");
   const text = encodeURIComponent(msg);
-  const url = `https://wa.me/${phone}?text=${text}`;
-  const win = window.open(url, "_blank", "noopener");
-  if (!win) {
-    await navigator.clipboard?.writeText(msg).catch(() => undefined);
-  }
+  // Use the whatsapp:// protocol so the OS launches the installed WhatsApp
+  // app (desktop or mobile) instead of the web client, which is blocked in
+  // some embedded browsers.
+  const appUrl = `whatsapp://send?phone=${phone}&text=${text}`;
+  // Copy the message to clipboard as a safety net in case the protocol
+  // handler is not registered.
+  await navigator.clipboard?.writeText(msg).catch(() => undefined);
+  window.location.href = appUrl;
 }
