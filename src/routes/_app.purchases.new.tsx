@@ -12,6 +12,7 @@ import {
 } from "lucide-react";
 import { toast } from "sonner";
 import { inr } from "@/lib/codes";
+import { QuickCreatePartyDialog } from "@/components/erp/QuickCreatePartyDialog";
 
 export const Route = createFileRoute("/_app/purchases/new")({ component: NewPurchase });
 
@@ -43,6 +44,7 @@ function NewPurchase() {
   const [notes, setNotes] = useState("");
   const [billFile, setBillFile] = useState<File | null>(null);
   const supplierBoxRef = useRef<HTMLDivElement>(null);
+  const [createSupplierOpen, setCreateSupplierOpen] = useState(false);
   const billFileRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
@@ -236,17 +238,22 @@ function NewPurchase() {
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-5">
                 <div className="relative md:col-span-2" ref={supplierBoxRef}>
                   <FieldLabel>Supplier</FieldLabel>
-                  <Input
-                    className="h-10"
-                    placeholder="Start typing supplier name…"
-                    value={supplierName}
-                    onFocus={() => setSupplierFocus(true)}
-                    onChange={(e) => {
-                      setSupplierName(e.target.value);
-                      setSupplierId("");
-                      setSupplierFocus(true);
-                    }}
-                  />
+                  <div className="flex gap-2">
+                    <Input
+                      className="h-10 flex-1"
+                      placeholder="Start typing supplier name…"
+                      value={supplierName}
+                      onFocus={() => setSupplierFocus(true)}
+                      onChange={(e) => {
+                        setSupplierName(e.target.value);
+                        setSupplierId("");
+                        setSupplierFocus(true);
+                      }}
+                    />
+                    <Button type="button" variant="outline" size="sm" className="h-10 gap-1" onClick={() => setCreateSupplierOpen(true)}>
+                      <Plus className="h-4 w-4" /> New
+                    </Button>
+                  </div>
                   {supplierFocus &&
                     (supplierMatches.length > 0 || (supplierName.trim() && !exactMatch)) && (
                       <div className="absolute z-20 mt-1 w-full bg-popover border border-border/60 rounded-lg shadow-lg max-h-60 overflow-auto">
@@ -266,10 +273,10 @@ function NewPurchase() {
                             type="button"
                             disabled={creatingSupplier}
                             onMouseDown={(e) => e.preventDefault()}
-                            onClick={createSupplier}
+                            onClick={() => { setSupplierFocus(false); setCreateSupplierOpen(true); }}
                             className="w-full text-left px-3 py-2 hover:bg-muted text-sm font-semibold text-primary border-t border-border/60 flex items-center gap-1"
                           >
-                            <Plus className="h-4 w-4" /> Create supplier "{supplierName.trim()}"
+                            <Plus className="h-4 w-4" /> Create supplier "{supplierName.trim()}"…
                           </button>
                         )}
                       </div>
@@ -563,6 +570,16 @@ function NewPurchase() {
           </div>
         </div>
       </div>
+      <QuickCreatePartyDialog
+        open={createSupplierOpen}
+        onOpenChange={setCreateSupplierOpen}
+        kind="supplier"
+        initialName={supplierName}
+        onCreated={(s) => {
+          setSuppliers((prev) => [...prev, s].sort((a, b) => a.name.localeCompare(b.name)));
+          pickSupplier(s);
+        }}
+      />
     </>
   );
 }
