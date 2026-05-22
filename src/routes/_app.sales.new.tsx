@@ -14,7 +14,7 @@ import {
   ShoppingCart, Banknote, CreditCard, Smartphone, Clock, Minus, Plus,
 } from "lucide-react";
 import { useUiConfig } from "@/lib/ui-config";
-import { buildInvoicePdf, invoiceFileName, shareInvoiceOnWhatsApp } from "@/lib/invoice-pdf";
+// jspdf + jspdf-autotable (~250KB) loaded only when finalize() actually runs.
 import { MessageCircle } from "lucide-react";
 import { ScanWarning, type ScanWarningKind } from "@/components/erp/ScanWarning";
 import { QuickCreatePartyDialog } from "@/components/erp/QuickCreatePartyDialog";
