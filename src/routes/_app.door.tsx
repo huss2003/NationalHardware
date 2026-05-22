@@ -1,5 +1,5 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -16,11 +16,13 @@ import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { inr } from "@/lib/codes";
 import { toast } from "sonner";
 import { Plus, DoorOpen, Trash2 } from "lucide-react";
+import { QuickCreatePartyDialog } from "@/components/erp/QuickCreatePartyDialog";
 
 export const Route = createFileRoute("/_app/door")({ component: DoorPage });
 
 type Category = "general" | "vypaari";
 type DoorType = { id: string; name: string; rate: number; active: boolean };
+type Customer = { id: string; name: string; phone?: string | null };
 type DoorOrder = {
   id: string; order_no: string; order_date: string; category: Category;
   customer_name: string; party_door_size: string | null; front_mica: string | null;
@@ -59,16 +61,19 @@ function DoorPage() {
   const [doorTypes, setDoorTypes] = useState<DoorType[]>([]);
   const [orders, setOrders] = useState<DoorOrder[]>([]);
   const [loading, setLoading] = useState(true);
+  const [customers, setCustomers] = useState<Customer[]>([]);
 
   const reload = async () => {
     setLoading(true);
     await ensureDefaultDoorTypes();
-    const [dt, oo] = await Promise.all([
+    const [dt, oo, cu] = await Promise.all([
       supabase.from("door_types").select("*").eq("active", true).order("name"),
       supabase.from("door_orders").select("*").order("created_at", { ascending: false }).limit(200),
+      supabase.from("customers").select("id,name,phone").order("name"),
     ]);
     setDoorTypes((dt.data as any) ?? []);
     setOrders((oo.data as any) ?? []);
+    setCustomers((cu.data as any) ?? []);
     setLoading(false);
   };
   useEffect(() => { reload(); }, []);
@@ -97,6 +102,8 @@ function DoorPage() {
             <GeneralOrderForm
               doorTypes={selectableDoorTypes}
               nextOrderNoHint={nextOrderNo(orders, "general")}
+              customers={customers}
+              onCustomerCreated={(c) => setCustomers((p) => [...p, c].sort((a, b) => a.name.localeCompare(b.name)))}
               onSaved={reload}
             />
             <OrdersTable rows={filtered} loading={loading} />
@@ -106,6 +113,8 @@ function DoorPage() {
             <VypaariForm
               doorTypes={selectableDoorTypes}
               nextOrderNoHint={nextOrderNo(orders, "vypaari")}
+              customers={customers}
+              onCustomerCreated={(c) => setCustomers((p) => [...p, c].sort((a, b) => a.name.localeCompare(b.name)))}
               onSaved={reload}
             />
             <OrdersTable rows={filtered} loading={loading} />
