@@ -22,7 +22,9 @@ export const getRouter = () => {
     scrollRestoration: true,
     // Preload route data on link hover/intent so navigation feels instant.
     defaultPreload: "intent",
-    defaultPreloadStaleTime: 30 * 1000,
+    // Let TanStack Query own freshness (its own staleTime is 5 min above).
+    // Router's preload cache at >0 would mask Query and serve stale data.
+    defaultPreloadStaleTime: 0,
   });
 
   return router;
