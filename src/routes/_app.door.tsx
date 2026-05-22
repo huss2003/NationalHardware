@@ -1,5 +1,5 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -16,11 +16,13 @@ import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { inr } from "@/lib/codes";
 import { toast } from "sonner";
 import { Plus, DoorOpen, Trash2 } from "lucide-react";
+import { QuickCreatePartyDialog } from "@/components/erp/QuickCreatePartyDialog";
 
 export const Route = createFileRoute("/_app/door")({ component: DoorPage });
 
 type Category = "general" | "vypaari";
 type DoorType = { id: string; name: string; rate: number; active: boolean };
+type Customer = { id: string; name: string; phone?: string | null };
 type DoorOrder = {
   id: string; order_no: string; order_date: string; category: Category;
   customer_name: string; party_door_size: string | null; front_mica: string | null;
@@ -59,16 +61,19 @@ function DoorPage() {
   const [doorTypes, setDoorTypes] = useState<DoorType[]>([]);
   const [orders, setOrders] = useState<DoorOrder[]>([]);
   const [loading, setLoading] = useState(true);
+  const [customers, setCustomers] = useState<Customer[]>([]);
 
   const reload = async () => {
     setLoading(true);
     await ensureDefaultDoorTypes();
-    const [dt, oo] = await Promise.all([
+    const [dt, oo, cu] = await Promise.all([
       supabase.from("door_types").select("*").eq("active", true).order("name"),
       supabase.from("door_orders").select("*").order("created_at", { ascending: false }).limit(200),
+      supabase.from("customers").select("id,name,phone").order("name"),
     ]);
     setDoorTypes((dt.data as any) ?? []);
     setOrders((oo.data as any) ?? []);
+    setCustomers((cu.data as any) ?? []);
     setLoading(false);
   };
   useEffect(() => { reload(); }, []);
@@ -97,6 +102,8 @@ function DoorPage() {
             <GeneralOrderForm
               doorTypes={selectableDoorTypes}
               nextOrderNoHint={nextOrderNo(orders, "general")}
+              customers={customers}
+              onCustomerCreated={(c) => setCustomers((p) => [...p, c].sort((a, b) => a.name.localeCompare(b.name)))}
               onSaved={reload}
             />
             <OrdersTable rows={filtered} loading={loading} />
@@ -106,6 +113,8 @@ function DoorPage() {
             <VypaariForm
               doorTypes={selectableDoorTypes}
               nextOrderNoHint={nextOrderNo(orders, "vypaari")}
+              customers={customers}
+              onCustomerCreated={(c) => setCustomers((p) => [...p, c].sort((a, b) => a.name.localeCompare(b.name)))}
               onSaved={reload}
             />
             <OrdersTable rows={filtered} loading={loading} />
@@ -168,15 +177,50 @@ function emptyLine(): Omit<DoorLine, "key"> {
   };
 }
 
+/* ---------- Enter-key navigation: focus next focusable field ---------- */
+function focusNextOnEnter(
+  e: React.KeyboardEvent<HTMLElement>,
+  container: HTMLElement | null,
+) {
+  if (e.key !== "Enter") return;
+  const tgt = e.target as HTMLElement;
+  const tag = tgt.tagName;
+  if (tag === "TEXTAREA") return; // allow newlines
+  if (tag === "BUTTON") return;   // let buttons activate
+  if (!container) return;
+  e.preventDefault();
+  const focusables = Array.from(
+    container.querySelectorAll<HTMLElement>(
+      'input:not([disabled]):not([type="hidden"]), select:not([disabled]), textarea:not([disabled]), [role="combobox"]:not([disabled]), button[data-enter-stop="true"]',
+    ),
+  ).filter((el) => el.offsetParent !== null || el === tgt);
+  const idx = focusables.indexOf(tgt);
+  const next = focusables[idx + 1];
+  if (next) {
+    next.focus();
+    if (next instanceof HTMLInputElement && (next.type === "text" || next.type === "number" || next.type === "")) {
+      try { next.select(); } catch {}
+    }
+  }
+}
+
 function GeneralOrderForm({
-  doorTypes, nextOrderNoHint, onSaved,
-}: { doorTypes: DoorType[]; nextOrderNoHint: string; onSaved: () => void; }) {
+  doorTypes, nextOrderNoHint, customers, onCustomerCreated, onSaved,
+}: {
+  doorTypes: DoorType[]; nextOrderNoHint: string;
+  customers: Customer[];
+  onCustomerCreated: (c: Customer) => void;
+  onSaved: () => void;
+}) {
   const [orderNo, setOrderNo] = useState(nextOrderNoHint);
-  const [customer, setCustomer] = useState("");
+  const [customerId, setCustomerId] = useState("");
+  const [customerName, setCustomerName] = useState("");
+  const [createCustomerOpen, setCreateCustomerOpen] = useState(false);
   const [notes, setNotes] = useState("");
   const [lines, setLines] = useState<DoorLine[]>([]);
   const [draft, setDraft] = useState(emptyLine());
   const [busy, setBusy] = useState(false);
+  const formRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => { setOrderNo(nextOrderNoHint); }, [nextOrderNoHint]);
 
@@ -221,17 +265,18 @@ function GeneralOrderForm({
   const removeLine = (key: string) => setLines((p) => p.filter((l) => l.key !== key));
 
   const resetAll = () => {
-    setCustomer(""); setNotes(""); setLines([]); setDraft(emptyLine());
+    setCustomerId(""); setCustomerName(""); setNotes(""); setLines([]); setDraft(emptyLine());
   };
 
   const save = async () => {
-    if (!customer.trim()) return toast.error("Customer name is required");
+    const finalCustomer = (customers.find((c) => c.id === customerId)?.name ?? customerName).trim();
+    if (!finalCustomer) return toast.error("Customer is required");
     if (lines.length === 0) return toast.error("Add at least one door");
     setBusy(true);
     const { data: orderRow, error } = await supabase.from("door_orders").insert({
       order_no: orderNo,
       category: "general",
-      customer_name: customer.trim(),
+      customer_name: finalCustomer,
       rate: 0,
       total: grandTotal,
       notes: notes || null,
@@ -274,7 +319,7 @@ function GeneralOrderForm({
   };
 
   return (
-    <div className="space-y-5">
+    <div className="space-y-5" ref={formRef} onKeyDown={(e) => focusNextOnEnter(e, formRef.current)}>
       {/* Header card */}
       <Card className="p-5 space-y-4">
         <div className="flex items-center gap-2">
@@ -296,7 +341,21 @@ function GeneralOrderForm({
             <Input value={new Date().toLocaleDateString()} disabled />
           </Field>
           <Field label="Customer / Name">
-            <Input value={customer} onChange={(e) => setCustomer(e.target.value)} placeholder="Customer name" />
+            <div className="flex gap-2">
+              <select
+                className="h-9 flex-1 rounded-md border border-input bg-background px-3 text-sm"
+                value={customerId}
+                onChange={(e) => { setCustomerId(e.target.value); setCustomerName(""); }}
+              >
+                <option value="">Select customer…</option>
+                {customers.map((c) => (
+                  <option key={c.id} value={c.id}>{c.name}</option>
+                ))}
+              </select>
+              <Button type="button" variant="outline" size="sm" className="h-9 gap-1" onClick={() => setCreateCustomerOpen(true)}>
+                <Plus className="h-4 w-4" /> New
+              </Button>
+            </div>
           </Field>
         </div>
       </Card>
@@ -460,16 +519,32 @@ function GeneralOrderForm({
           </div>
         </div>
       </Card>
+      <QuickCreatePartyDialog
+        open={createCustomerOpen}
+        onOpenChange={setCreateCustomerOpen}
+        kind="customer"
+        onCreated={(c) => {
+          onCustomerCreated(c as Customer);
+          setCustomerId((c as Customer).id);
+          setCustomerName("");
+        }}
+      />
     </div>
   );
 }
 
 /* ---------- Vypaari form (unchanged behavior) ---------- */
 function VypaariForm({
-  doorTypes, nextOrderNoHint, onSaved,
-}: { doorTypes: DoorType[]; nextOrderNoHint: string; onSaved: () => void; }) {
+  doorTypes, nextOrderNoHint, customers, onCustomerCreated, onSaved,
+}: {
+  doorTypes: DoorType[]; nextOrderNoHint: string;
+  customers: Customer[];
+  onCustomerCreated: (c: Customer) => void;
+  onSaved: () => void;
+}) {
   const [orderNo, setOrderNo] = useState(nextOrderNoHint);
-  const [customer, setCustomer] = useState("");
+  const [customerId, setCustomerId] = useState("");
+  const [createCustomerOpen, setCreateCustomerOpen] = useState(false);
   const [partySize, setPartySize] = useState("");
   const [frontMica, setFrontMica] = useState("");
   const [backMica, setBackMica] = useState("");
@@ -478,6 +553,7 @@ function VypaariForm({
   const [qty, setQty] = useState<number>(1);
   const [notes, setNotes] = useState("");
   const [busy, setBusy] = useState(false);
+  const formRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => { setOrderNo(nextOrderNoHint); }, [nextOrderNoHint]);
 
@@ -486,19 +562,20 @@ function VypaariForm({
   const total = rate * (qty || 0);
 
   const reset = () => {
-    setCustomer(""); setPartySize(""); setFrontMica(""); setBackMica("");
+    setCustomerId(""); setPartySize(""); setFrontMica(""); setBackMica("");
     setTakenSize(""); setDoorTypeId(""); setQty(1); setNotes("");
   };
 
   const save = async () => {
-    if (!customer.trim()) { toast.error("Customer name is required"); return; }
+    const customerName = (customers.find((c) => c.id === customerId)?.name ?? "").trim();
+    if (!customerName) { toast.error("Select a customer"); return; }
     if (!doorTypeId) { toast.error("Select a door type"); return; }
     if (!selectedType) { toast.error("Door type rate missing"); return; }
     setBusy(true);
     const { error } = await supabase.from("door_orders").insert({
       order_no: orderNo,
       category: "vypaari",
-      customer_name: customer.trim(),
+      customer_name: customerName,
       party_door_size: partySize || null,
       front_mica: frontMica || null,
       back_mica: backMica || null,
@@ -517,7 +594,7 @@ function VypaariForm({
   };
 
   return (
-    <Card className="p-5 space-y-4">
+    <Card className="p-5 space-y-4" ref={formRef as any} onKeyDown={(e) => focusNextOnEnter(e, formRef.current)}>
       <div className="flex items-center gap-2">
         <div className="h-9 w-9 rounded-lg bg-primary/10 text-primary grid place-items-center">
           <DoorOpen className="h-4 w-4" />
@@ -532,7 +609,21 @@ function VypaariForm({
         <Field label="Order No."><Input value={orderNo} onChange={(e) => setOrderNo(e.target.value)} /></Field>
         <Field label="Date"><Input value={new Date().toLocaleDateString()} disabled /></Field>
         <Field label="Customer / Name">
-          <Input value={customer} onChange={(e) => setCustomer(e.target.value)} placeholder="Customer name" />
+          <div className="flex gap-2">
+            <select
+              className="h-9 flex-1 rounded-md border border-input bg-background px-3 text-sm"
+              value={customerId}
+              onChange={(e) => setCustomerId(e.target.value)}
+            >
+              <option value="">Select customer…</option>
+              {customers.map((c) => (
+                <option key={c.id} value={c.id}>{c.name}</option>
+              ))}
+            </select>
+            <Button type="button" variant="outline" size="sm" className="h-9 gap-1" onClick={() => setCreateCustomerOpen(true)}>
+              <Plus className="h-4 w-4" /> New
+            </Button>
+          </div>
         </Field>
 
         <Field label="Party Door Size">
@@ -574,6 +665,15 @@ function VypaariForm({
           <Plus className="h-4 w-4" /> {busy ? "Saving…" : "Save order"}
         </Button>
       </div>
+      <QuickCreatePartyDialog
+        open={createCustomerOpen}
+        onOpenChange={setCreateCustomerOpen}
+        kind="customer"
+        onCreated={(c) => {
+          onCustomerCreated(c as Customer);
+          setCustomerId((c as Customer).id);
+        }}
+      />
     </Card>
   );
 }
