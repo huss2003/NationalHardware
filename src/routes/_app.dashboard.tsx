@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button";
 import { PageHeader } from "@/components/erp/PageHeader";
 import { inr } from "@/lib/codes";
 import {
-  Boxes, Factory, IndianRupee, ShoppingCart, AlertTriangle, Receipt,
+  Boxes, IndianRupee, ShoppingCart, AlertTriangle, Receipt,
   TrendingUp, ArrowRight, Calendar, Download, Bell,
 } from "lucide-react";
 import { BarChart, Bar, XAxis, YAxis, ResponsiveContainer, Tooltip, Cell } from "recharts";
@@ -51,7 +51,7 @@ function Dashboard() {
   const cfg = useUiConfig();
   const t = cfg.dashboard.tiles;
   const [stats, setStats] = useState({
-    salesToday: 0, purchaseToday: 0, stockValue: 0, lowStock: 0, productionToday: 0, pendingCredit: 0,
+    salesToday: 0, purchaseToday: 0, stockValue: 0, lowStock: 0, pendingCredit: 0,
   });
   const [chart, setChart] = useState<{ day: string; total: number }[]>([]);
   const [alerts, setAlerts] = useState<any[]>([]);
@@ -60,11 +60,10 @@ function Dashboard() {
     (async () => {
       const today = new Date(); today.setHours(0,0,0,0);
       const since = today.toISOString();
-      const [sales, purchases, items, prods, alertsRes] = await Promise.all([
+      const [sales, purchases, items, alertsRes] = await Promise.all([
         supabase.from("sales").select("grand_total, paid_amount, invoice_date").gte("invoice_date", since).is("deleted_at", null),
         supabase.from("purchases").select("grand_total, created_at").gte("created_at", since).is("deleted_at", null),
         supabase.from("item_instances").select("cost_price, status, product_id"),
-        supabase.from("production_orders").select("id, created_at").gte("created_at", since),
         supabase.from("alerts").select("*").is("read_at", null).order("created_at", { ascending: false }).limit(5),
       ]);
       const salesToday = (sales.data ?? []).reduce((a: number, r: any) => a + Number(r.grand_total), 0);
@@ -88,7 +87,7 @@ function Dashboard() {
 
       setStats({
         salesToday, purchaseToday, stockValue, lowStock,
-        productionToday: (prods.data ?? []).length, pendingCredit,
+        pendingCredit,
       });
       setAlerts(alertsRes.data ?? []);
 
@@ -164,15 +163,6 @@ function Dashboard() {
               accent="bg-destructive/10 text-destructive"
               hint={<>↑ items need reorder</>}
               hintColor="text-destructive"
-            />
-          )}
-          {t.productionToday && (
-            <StatCard
-              icon={Factory} label="Production"
-              value={String(stats.productionToday)}
-              accent="bg-primary/10 text-primary"
-              hint={<>✓ On target</>}
-              hintColor="text-success"
             />
           )}
           {t.pendingCredit && (

@@ -9,32 +9,28 @@ export type UiConfig = {
   lists: {
     purchases: { columns: Record<string, boolean> };
     sales: { columns: Record<string, boolean> };
-    production: { columns: Record<string, boolean> };
   };
   forms: {
     new_purchase: { fields: Record<string, FieldCfg> };
     new_sale: { fields: Record<string, FieldCfg> };
-    new_production: { fields: Record<string, FieldCfg> };
   };
 };
 
 export const DEFAULT_UI_CONFIG: UiConfig = {
   nav: {
     dashboard: true, inventory: true, scan: true, purchases: true, sales: true,
-    production: true, bom: true, reports: true, employees: true, alerts: true,
-    settings: true, dev: true,
+    reports: true, alerts: true, settings: true,
     purchase_returns: true, sales_returns: true, godowns: true, door: true, ledger: true,
   },
   dashboard: {
     tiles: {
       salesToday: true, purchaseToday: true, stockValue: true,
-      lowStock: true, productionToday: true, pendingCredit: true,
+      lowStock: true, pendingCredit: true,
     },
   },
   lists: {
     purchases: { columns: { date: true, bill_no: true, supplier: true, total: true } },
     sales: { columns: { invoice: true, date: true, customer: true, mode: true, total: true } },
-    production: { columns: { date: true, product: true, qty: true, status: true } },
   },
   forms: {
     new_purchase: {
@@ -53,13 +49,6 @@ export const DEFAULT_UI_CONFIG: UiConfig = {
         payment_mode: { visible: true, required: true },
         discount: { visible: true, required: false },
         gst_rate: { visible: true, required: false },
-      },
-    },
-    new_production: {
-      fields: {
-        bom: { visible: true, required: true },
-        qty: { visible: true, required: true },
-        assigned: { visible: true, required: false },
       },
     },
   },
