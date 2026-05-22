@@ -239,10 +239,12 @@ function LedgerPage() {
                     <tbody>
                       {rows.map((e, i) => {
                         const Icon = e.kind === "sale" ? FileText : e.kind === "purchase" ? ShoppingCart : ReceiptIcon;
-                        const linkTo =
-                          e.refId && e.kind === "sale" ? `/sales/${e.refId}` :
-                          e.refId && e.kind === "purchase" ? `/purchases/${e.refId}` :
-                          null;
+                        const linkProps =
+                          e.refId && e.kind === "sale"
+                            ? { to: "/sales/$id", params: { id: e.refId } }
+                            : e.refId && e.kind === "purchase"
+                              ? { to: "/purchases/$id", params: { id: e.refId } }
+                              : null;
                         return (
                           <tr key={i} className="border-t hover:bg-muted/30">
                             <td className="p-3 pl-5 text-muted-foreground whitespace-nowrap">
@@ -258,8 +260,8 @@ function LedgerPage() {
                               </span>
                             </td>
                             <td className="p-3 font-medium">
-                              {linkTo ? (
-                                <Link to={linkTo as string} className="text-primary hover:underline">
+                              {linkProps ? (
+                                <Link {...(linkProps as any)} className="text-primary hover:underline">
                                   {e.ref}
                                 </Link>
                               ) : (
