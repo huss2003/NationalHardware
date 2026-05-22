@@ -39,11 +39,15 @@ function Inventory() {
 
   const load = async () => {
     setLoading(true);
-    const { data: prods } = await supabase.from("products").select("*").eq("active", true).order("name");
-    const { data: items } = await supabase.from("item_instances").select("product_id").eq("status", "available");
+    const [prodsRes, stockRes] = await Promise.all([
+      supabase.from("products").select("*").eq("active", true).order("name"),
+      supabase.rpc("stock_by_product"),
+    ]);
     const c: Record<string, number> = {};
-    (items ?? []).forEach((i: any) => { c[i.product_id] = (c[i.product_id] ?? 0) + 1; });
-    setProducts(prods ?? []);
+    (stockRes.data ?? []).forEach((r: any) => {
+      c[r.product_id] = Number(r.available_qty) || 0;
+    });
+    setProducts(prodsRes.data ?? []);
     setCounts(c);
     setLoading(false);
   };
