@@ -5,7 +5,7 @@ import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { PageHeader } from "@/components/erp/PageHeader";
 import { inr } from "@/lib/codes";
-import * as XLSX from "xlsx";
+// XLSX is ~400KB. Loaded on demand only when the user clicks "Export Excel".
 
 export const Route = createFileRoute("/_app/reports")({ component: Reports });
 
@@ -40,7 +40,8 @@ function Reports() {
     })();
   }, [tab]);
 
-  const exportXlsx = () => {
+  const exportXlsx = async () => {
+    const XLSX = await import("xlsx");
     const ws = XLSX.utils.json_to_sheet(rows.map(flat));
     const wb = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(wb, ws, tab);

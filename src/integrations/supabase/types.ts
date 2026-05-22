@@ -1449,6 +1449,7 @@ export type Database = {
         Returns: undefined
       }
       current_user_is_admin: { Args: never; Returns: boolean }
+      dashboard_summary: { Args: { _since: string }; Returns: Json }
       has_role: {
         Args: {
           _role: Database["public"]["Enums"]["app_role"]
@@ -1503,9 +1504,18 @@ export type Database = {
         }
         Returns: boolean
       }
+      show_limit: { Args: never; Returns: number }
+      show_trgm: { Args: { "": string }; Returns: string[] }
       soft_delete_invoice: {
         Args: { _actor_user_id: string; _reason: string; _sale_id: string }
         Returns: undefined
+      }
+      stock_by_product: {
+        Args: never
+        Returns: {
+          available_qty: number
+          product_id: string
+        }[]
       }
     }
     Enums: {

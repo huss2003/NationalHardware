@@ -7,7 +7,7 @@ import { PageHeader } from "@/components/erp/PageHeader";
 import { DetailSkeleton, TableSkeleton } from "@/components/erp/Skeletons";
 import { inr } from "@/lib/codes";
 import { Printer, MessageCircle } from "lucide-react";
-import { buildInvoicePdf, shareInvoiceOnWhatsApp } from "@/lib/invoice-pdf";
+// jspdf + jspdf-autotable (~250KB) loaded only when the user clicks Send.
 import { toast } from "sonner";
 
 export const Route = createFileRoute("/_app/sales/$id")({ component: SaleDetail });
@@ -33,6 +33,7 @@ function SaleDetail() {
     if (!s.customers?.phone) { toast.error("Customer has no phone"); return; }
     setSending(true);
     try {
+      const { buildInvoicePdf, shareInvoiceOnWhatsApp } = await import("@/lib/invoice-pdf");
       const pdf = buildInvoicePdf({
         shop, sale: s, customer: s.customers,
         items: items.map((it) => ({

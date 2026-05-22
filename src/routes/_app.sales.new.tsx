@@ -14,7 +14,7 @@ import {
   ShoppingCart, Banknote, CreditCard, Smartphone, Clock, Minus, Plus,
 } from "lucide-react";
 import { useUiConfig } from "@/lib/ui-config";
-import { buildInvoicePdf, invoiceFileName, shareInvoiceOnWhatsApp } from "@/lib/invoice-pdf";
+// jspdf + jspdf-autotable (~250KB) loaded only when finalize() actually runs.
 import { MessageCircle } from "lucide-react";
 import { ScanWarning, type ScanWarningKind } from "@/components/erp/ScanWarning";
 import { QuickCreatePartyDialog } from "@/components/erp/QuickCreatePartyDialog";
@@ -144,6 +144,7 @@ function NewSale() {
             supabase.from("sales").select("*").eq("id", saleId).single(),
             supabase.from("app_settings").select("*").eq("id", true).maybeSingle(),
           ]);
+          const { buildInvoicePdf, shareInvoiceOnWhatsApp } = await import("@/lib/invoice-pdf");
           const pdf = buildInvoicePdf({
             shop, sale: sale as any, customer,
             items: lines.map((l) => ({ ...l, line_total: l.qty * l.rate })),

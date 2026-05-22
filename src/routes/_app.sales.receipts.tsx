@@ -13,7 +13,7 @@ import { useAuth } from "@/lib/auth-store";
 import { toast } from "sonner";
 import { ArrowLeft, Receipt as ReceiptIcon, Wallet, FileText, Check } from "lucide-react";
 import { TableSkeleton } from "@/components/erp/Skeletons";
-import { buildReceiptPdf, receiptFileName } from "@/lib/invoice-pdf";
+// jspdf + jspdf-autotable (~250KB) loaded only when the user prints/downloads a receipt.
 import { Printer, Download } from "lucide-react";
 
 export const Route = createFileRoute("/_app/sales/receipts")({ component: ReceiptsPage });
@@ -51,21 +51,23 @@ function ReceiptsPage() {
     setLoading(false);
   };
 
-  const buildPdfFor = (r: Receipt) => {
+  const buildPdfFor = async (r: Receipt) => {
+    const { buildReceiptPdf } = await import("@/lib/invoice-pdf");
     const cust = customers.find((c) => c.id === r.customer_id) ?? { name: r.customers?.name ?? "—" };
     return buildReceiptPdf({
       shop, receipt: r,
       customer: cust as any,
     });
   };
-  const printReceipt = (r: Receipt) => {
-    const pdf = buildPdfFor(r);
+  const printReceipt = async (r: Receipt) => {
+    const pdf = await buildPdfFor(r);
     pdf.autoPrint();
     const url = pdf.output("bloburl");
     window.open(url, "_blank");
   };
-  const downloadReceipt = (r: Receipt) => {
-    const pdf = buildPdfFor(r);
+  const downloadReceipt = async (r: Receipt) => {
+    const pdf = await buildPdfFor(r);
+    const { receiptFileName } = await import("@/lib/invoice-pdf");
     pdf.save(receiptFileName(r.receipt_no));
   };
   useEffect(() => { load(); }, []);
