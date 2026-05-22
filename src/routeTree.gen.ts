@@ -15,6 +15,7 @@ import { Route as IndexRouteImport } from './routes/index'
 import { Route as AppSettingsRouteImport } from './routes/_app.settings'
 import { Route as AppReportsRouteImport } from './routes/_app.reports'
 import { Route as AppEmployeesRouteImport } from './routes/_app.employees'
+import { Route as AppDoorRouteImport } from './routes/_app.door'
 import { Route as AppDevRouteImport } from './routes/_app.dev'
 import { Route as AppDashboardRouteImport } from './routes/_app.dashboard'
 import { Route as AppBomRouteImport } from './routes/_app.bom'
@@ -64,6 +65,11 @@ const AppReportsRoute = AppReportsRouteImport.update({
 const AppEmployeesRoute = AppEmployeesRouteImport.update({
   id: '/employees',
   path: '/employees',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppDoorRoute = AppDoorRouteImport.update({
+  id: '/door',
+  path: '/door',
   getParentRoute: () => AppRoute,
 } as any)
 const AppDevRoute = AppDevRouteImport.update({
@@ -179,6 +185,7 @@ export interface FileRoutesByFullPath {
   '/bom': typeof AppBomRoute
   '/dashboard': typeof AppDashboardRoute
   '/dev': typeof AppDevRoute
+  '/door': typeof AppDoorRoute
   '/employees': typeof AppEmployeesRoute
   '/reports': typeof AppReportsRoute
   '/settings': typeof AppSettingsRoute
@@ -207,6 +214,7 @@ export interface FileRoutesByTo {
   '/bom': typeof AppBomRoute
   '/dashboard': typeof AppDashboardRoute
   '/dev': typeof AppDevRoute
+  '/door': typeof AppDoorRoute
   '/employees': typeof AppEmployeesRoute
   '/reports': typeof AppReportsRoute
   '/settings': typeof AppSettingsRoute
@@ -237,6 +245,7 @@ export interface FileRoutesById {
   '/_app/bom': typeof AppBomRoute
   '/_app/dashboard': typeof AppDashboardRoute
   '/_app/dev': typeof AppDevRoute
+  '/_app/door': typeof AppDoorRoute
   '/_app/employees': typeof AppEmployeesRoute
   '/_app/reports': typeof AppReportsRoute
   '/_app/settings': typeof AppSettingsRoute
@@ -267,6 +276,7 @@ export interface FileRouteTypes {
     | '/bom'
     | '/dashboard'
     | '/dev'
+    | '/door'
     | '/employees'
     | '/reports'
     | '/settings'
@@ -295,6 +305,7 @@ export interface FileRouteTypes {
     | '/bom'
     | '/dashboard'
     | '/dev'
+    | '/door'
     | '/employees'
     | '/reports'
     | '/settings'
@@ -324,6 +335,7 @@ export interface FileRouteTypes {
     | '/_app/bom'
     | '/_app/dashboard'
     | '/_app/dev'
+    | '/_app/door'
     | '/_app/employees'
     | '/_app/reports'
     | '/_app/settings'
@@ -394,6 +406,13 @@ declare module '@tanstack/react-router' {
       path: '/employees'
       fullPath: '/employees'
       preLoaderRoute: typeof AppEmployeesRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/_app/door': {
+      id: '/_app/door'
+      path: '/door'
+      fullPath: '/door'
+      preLoaderRoute: typeof AppDoorRouteImport
       parentRoute: typeof AppRoute
     }
     '/_app/dev': {
@@ -551,6 +570,7 @@ interface AppRouteChildren {
   AppBomRoute: typeof AppBomRoute
   AppDashboardRoute: typeof AppDashboardRoute
   AppDevRoute: typeof AppDevRoute
+  AppDoorRoute: typeof AppDoorRoute
   AppEmployeesRoute: typeof AppEmployeesRoute
   AppReportsRoute: typeof AppReportsRoute
   AppSettingsRoute: typeof AppSettingsRoute
@@ -578,6 +598,7 @@ const AppRouteChildren: AppRouteChildren = {
   AppBomRoute: AppBomRoute,
   AppDashboardRoute: AppDashboardRoute,
   AppDevRoute: AppDevRoute,
+  AppDoorRoute: AppDoorRoute,
   AppEmployeesRoute: AppEmployeesRoute,
   AppReportsRoute: AppReportsRoute,
   AppSettingsRoute: AppSettingsRoute,
