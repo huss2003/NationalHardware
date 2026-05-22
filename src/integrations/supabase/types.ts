@@ -226,6 +226,101 @@ export type Database = {
         }
         Relationships: []
       }
+      door_orders: {
+        Row: {
+          back_mica: string | null
+          category: string
+          created_at: string
+          created_by: string | null
+          customer_name: string
+          door_taken_size: string | null
+          door_type_id: string | null
+          door_type_name: string | null
+          front_mica: string | null
+          id: string
+          notes: string | null
+          order_date: string
+          order_no: string
+          party_door_size: string | null
+          rate: number
+          total: number
+          updated_at: string
+        }
+        Insert: {
+          back_mica?: string | null
+          category: string
+          created_at?: string
+          created_by?: string | null
+          customer_name: string
+          door_taken_size?: string | null
+          door_type_id?: string | null
+          door_type_name?: string | null
+          front_mica?: string | null
+          id?: string
+          notes?: string | null
+          order_date?: string
+          order_no: string
+          party_door_size?: string | null
+          rate?: number
+          total?: number
+          updated_at?: string
+        }
+        Update: {
+          back_mica?: string | null
+          category?: string
+          created_at?: string
+          created_by?: string | null
+          customer_name?: string
+          door_taken_size?: string | null
+          door_type_id?: string | null
+          door_type_name?: string | null
+          front_mica?: string | null
+          id?: string
+          notes?: string | null
+          order_date?: string
+          order_no?: string
+          party_door_size?: string | null
+          rate?: number
+          total?: number
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "door_orders_door_type_id_fkey"
+            columns: ["door_type_id"]
+            isOneToOne: false
+            referencedRelation: "door_types"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      door_types: {
+        Row: {
+          active: boolean
+          created_at: string
+          id: string
+          name: string
+          rate: number
+          updated_at: string
+        }
+        Insert: {
+          active?: boolean
+          created_at?: string
+          id?: string
+          name: string
+          rate?: number
+          updated_at?: string
+        }
+        Update: {
+          active?: boolean
+          created_at?: string
+          id?: string
+          name?: string
+          rate?: number
+          updated_at?: string
+        }
+        Relationships: []
+      }
       godowns: {
         Row: {
           active: boolean

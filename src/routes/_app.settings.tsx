@@ -83,8 +83,80 @@ function Settings() {
           <Button onClick={async () => { if (!cust.name) return; await supabase.from("customers").insert(cust); setCust({ name: "", phone: "", gstin: "", address: "", state: "" }); load(); }}>Add customer</Button>
           <ul className="text-sm grid grid-cols-2 gap-1 max-h-40 overflow-auto">{customers.map(c => <li key={c.id} className="border-b py-1">{c.name} <span className="text-muted-foreground">{c.phone}</span></li>)}</ul>
         </Card>
+        <div className="lg:col-span-2"><DoorTypesPanel /></div>
       </div>
     </>
+  );
+}
+
+/* ---------- Door types management ---------- */
+
+function DoorTypesPanel() {
+  const [rows, setRows] = useState<any[]>([]);
+  const [name, setName] = useState("");
+  const [rate, setRate] = useState<number>(0);
+
+  const load = async () => {
+    const { data } = await supabase.from("door_types").select("*").order("name");
+    setRows(data ?? []);
+  };
+  useEffect(() => { load(); }, []);
+
+  const add = async () => {
+    if (!name.trim()) { toast.error("Name required"); return; }
+    const { error } = await supabase.from("door_types").insert({ name: name.trim(), rate });
+    if (error) { toast.error(error.message); return; }
+    setName(""); setRate(0); load();
+  };
+
+  const updateRate = async (id: string, newRate: number) => {
+    const { error } = await supabase.from("door_types").update({ rate: newRate }).eq("id", id);
+    if (error) toast.error(error.message);
+    else load();
+  };
+
+  const toggle = async (id: string, active: boolean) => {
+    await supabase.from("door_types").update({ active }).eq("id", id);
+    load();
+  };
+
+  const remove = async (id: string) => {
+    await supabase.from("door_types").delete().eq("id", id);
+    load();
+  };
+
+  return (
+    <Card className="p-5 space-y-3">
+      <div className="font-bold text-lg">Door types & rates</div>
+      <div className="text-sm text-muted-foreground">
+        Used by the Door module. Vypaari orders auto-fill their price from the rate set here.
+      </div>
+      <div className="grid grid-cols-[1fr_160px_auto] gap-2">
+        <Input placeholder="Door type name (e.g. Flush 32mm)" value={name} onChange={(e) => setName(e.target.value)} />
+        <Input type="number" placeholder="Rate" value={rate} onChange={(e) => setRate(Number(e.target.value || 0))} />
+        <Button onClick={add}>Add</Button>
+      </div>
+      <ul className="text-sm divide-y">
+        {rows.map((r) => (
+          <li key={r.id} className="py-2 grid grid-cols-[1fr_160px_auto_auto] gap-2 items-center">
+            <span className={r.active ? "" : "text-muted-foreground line-through"}>{r.name}</span>
+            <Input
+              type="number"
+              defaultValue={r.rate}
+              onBlur={(e) => {
+                const v = Number(e.target.value || 0);
+                if (v !== Number(r.rate)) updateRate(r.id, v);
+              }}
+            />
+            <Switch checked={r.active} onCheckedChange={(v) => toggle(r.id, v)} />
+            <Button variant="ghost" size="sm" onClick={() => remove(r.id)}>Delete</Button>
+          </li>
+        ))}
+        {rows.length === 0 && (
+          <li className="py-3 text-muted-foreground">No door types yet. Add one above.</li>
+        )}
+      </ul>
+    </Card>
   );
 }
 
