@@ -259,7 +259,7 @@ function LedgerPage() {
                             </td>
                             <td className="p-3 font-medium">
                               {linkTo ? (
-                                <Link to={linkTo} className="text-primary hover:underline">
+                                <Link to={linkTo as string} className="text-primary hover:underline">
                                   {e.ref}
                                 </Link>
                               ) : (
