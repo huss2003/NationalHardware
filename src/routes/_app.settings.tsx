@@ -166,16 +166,45 @@ function AppConfigPanel() {
   const live = useUiConfig();
   const [draft, setDraft] = useState<UiConfig | null>(null);
   const [saving, setSaving] = useState(false);
-  // Re-sync draft when the live config changes (initial load).
-  useEffect(() => { setDraft(JSON.parse(JSON.stringify(live))); }, [live]);
+  // Initialize draft once when the live config first loads. Avoid deep-cloning
+  // on every live change — that resets in-progress edits and is expensive.
+  useEffect(() => {
+    setDraft((prev) => prev ?? (JSON.parse(JSON.stringify(live)) as UiConfig));
+  }, [live]);
 
   if (!draft) return null;
 
-  const setPath = (mutator: (d: UiConfig) => void) => {
-    const next = JSON.parse(JSON.stringify(draft)) as UiConfig;
-    mutator(next);
-    setDraft(next);
-  };
+  // Shallow, functional updater so toggles don't deep-clone the whole config
+  // on every click. Each helper clones only the path it changes.
+  const updateNav = (k: string, v: boolean) =>
+    setDraft((d) => d && ({ ...d, nav: { ...d.nav, [k]: v } }));
+  const updateTile = (k: string, v: boolean) =>
+    setDraft((d) => d && ({
+      ...d,
+      dashboard: { ...d.dashboard, tiles: { ...d.dashboard.tiles, [k]: v } },
+    }));
+  const updateListCol = (list: "purchases"|"sales"|"production", k: string, v: boolean) =>
+    setDraft((d) => d && ({
+      ...d,
+      lists: {
+        ...d.lists,
+        [list]: { ...d.lists[list], columns: { ...d.lists[list].columns, [k]: v } },
+      },
+    }));
+  const updateFormField = (form: "new_purchase"|"new_sale"|"new_production", k: string, patch: Partial<FieldCfg>) =>
+    setDraft((d) => d && ({
+      ...d,
+      forms: {
+        ...d.forms,
+        [form]: {
+          ...d.forms[form],
+          fields: {
+            ...d.forms[form].fields,
+            [k]: { ...d.forms[form].fields[k], ...patch },
+          },
+        },
+      },
+    }));
 
   const save = async () => {
     setSaving(true);
@@ -200,14 +229,14 @@ function AppConfigPanel() {
         title="Sidebar navigation"
         entries={Object.keys(draft.nav).map((k) => ({ key: k, label: k }))}
         get={(k) => draft.nav[k] !== false}
-        set={(k, v) => setPath((d) => { d.nav[k] = v; })}
+        set={updateNav}
       />
 
       <ToggleGroup
         title="Dashboard tiles"
         entries={Object.keys(draft.dashboard.tiles).map((k) => ({ key: k, label: humanize(k) }))}
         get={(k) => draft.dashboard.tiles[k] !== false}
-        set={(k, v) => setPath((d) => { d.dashboard.tiles[k] = v; })}
+        set={updateTile}
       />
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-5">
@@ -217,7 +246,7 @@ function AppConfigPanel() {
             title={`${capitalize(list)} list columns`}
             entries={Object.keys(draft.lists[list].columns).map((k) => ({ key: k, label: humanize(k) }))}
             get={(k) => draft.lists[list].columns[k] !== false}
-            set={(k, v) => setPath((d) => { d.lists[list].columns[k] = v; })}
+            set={(k, v) => updateListCol(list, k, v)}
           />
         ))}
       </div>
@@ -228,9 +257,7 @@ function AppConfigPanel() {
             key={form}
             title={`Form: ${humanize(form)}`}
             fields={draft.forms[form].fields}
-            onChange={(k, patch) => setPath((d) => {
-              d.forms[form].fields[k] = { ...d.forms[form].fields[k], ...patch };
-            })}
+            onChange={(k, patch) => updateFormField(form, k, patch)}
           />
         ))}
       </div>
