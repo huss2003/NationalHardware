@@ -4,6 +4,7 @@ import {
   BarChart3, Users, Bell, Settings, Layers, ScanLine, Wrench,
   Undo2, RotateCcw, Warehouse,
   DoorOpen,
+  BookOpen,
 } from "lucide-react";
 import { useAuth } from "@/lib/auth-store";
 import { Button } from "@/components/ui/button";
@@ -17,6 +18,7 @@ const items = [
   { key: "purchase_returns", to: "/purchase-returns", label: "Purchase Returns", icon: RotateCcw },
   { key: "sales",      to: "/sales",           label: "Sales",      icon: Receipt },
   { key: "sales_returns",    to: "/sales-returns",    label: "Sales Returns",    icon: Undo2 },
+  { key: "ledger",           to: "/ledger",           label: "Ledger",           icon: BookOpen },
   { key: "godowns",          to: "/godowns",          label: "Godowns",          icon: Warehouse },
   { key: "door",             to: "/door",             label: "Door",             icon: DoorOpen },
   { key: "production", to: "/production",      label: "Production", icon: Factory },
