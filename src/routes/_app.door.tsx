@@ -32,6 +32,22 @@ type DoorOrder = {
 const DEFAULT_DOOR_TYPE_NAMES = ["F-Hard", "F-Pine", "WF-Pine", "WF-Hard"] as const;
 const DOOR_MADE_OPTIONS = ["S.D", "D.D", "J.D", "JDD", "PLY", "WINDOW"] as const;
 
+function mergeDefaultDoorTypes(doorTypes: DoorType[]) {
+  const existingNames = new Set(doorTypes.map((d) => d.name.toLowerCase()));
+  const missingDefaults = DEFAULT_DOOR_TYPE_NAMES.filter((name) => !existingNames.has(name.toLowerCase())).map((name) => ({
+    id: `default:${name}`,
+    name,
+    rate: 0,
+    active: true,
+  }));
+
+  return [...doorTypes, ...missingDefaults].sort((a, b) => a.name.localeCompare(b.name));
+}
+
+function dbDoorTypeId(id: string) {
+  return id.startsWith("default:") ? null : id;
+}
+
 async function ensureDefaultDoorTypes() {
   const defaults = DEFAULT_DOOR_TYPE_NAMES.map((name) => ({ name, rate: 0, active: true }));
   await supabase.from("door_types").upsert(defaults, { onConflict: "name", ignoreDuplicates: true });
@@ -57,6 +73,8 @@ function DoorPage() {
   };
   useEffect(() => { reload(); }, []);
 
+  const selectableDoorTypes = useMemo(() => mergeDefaultDoorTypes(doorTypes), [doorTypes]);
+
   const filtered = useMemo(
     () => orders.filter((o) => o.category === tab),
     [orders, tab],
@@ -77,7 +95,7 @@ function DoorPage() {
 
           <TabsContent value="general" className="space-y-5">
             <GeneralOrderForm
-              doorTypes={doorTypes}
+              doorTypes={selectableDoorTypes}
               nextOrderNoHint={nextOrderNo(orders, "general")}
               onSaved={reload}
             />
@@ -86,7 +104,7 @@ function DoorPage() {
 
           <TabsContent value="vypaari" className="space-y-5">
             <VypaariForm
-              doorTypes={doorTypes}
+              doorTypes={selectableDoorTypes}
               nextOrderNoHint={nextOrderNo(orders, "vypaari")}
               onSaved={reload}
             />
