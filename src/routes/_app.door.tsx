@@ -15,7 +15,7 @@ import {
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { inr } from "@/lib/codes";
 import { toast } from "sonner";
-import { Plus, DoorOpen } from "lucide-react";
+import { Plus, DoorOpen, Trash2 } from "lucide-react";
 
 export const Route = createFileRoute("/_app/door")({ component: DoorPage });
 
@@ -28,6 +28,8 @@ type DoorOrder = {
   door_type_id: string | null; door_type_name: string | null;
   rate: number; total: number;
 };
+
+const DOOR_MADE_OPTIONS = ["S.D", "D.D", "J.D", "JDD", "PLY", "WINDOW"] as const;
 
 function DoorPage() {
   const [tab, setTab] = useState<Category>("general");
@@ -56,7 +58,7 @@ function DoorPage() {
     <>
       <PageHeader
         title="Door"
-        subtitle="Record door orders. General accepts a custom rate; Vypaari uses the saved door-type rate."
+        subtitle="Record door orders. General builds a multi-line order priced per sqft; Vypaari uses the saved door-type rate."
       />
       <div className="px-8 pb-10 max-w-[1400px] mx-auto w-full">
         <Tabs value={tab} onValueChange={(v) => setTab(v as Category)}>
@@ -65,17 +67,23 @@ function DoorPage() {
             <TabsTrigger value="vypaari">Vypaari</TabsTrigger>
           </TabsList>
 
-          {(["general", "vypaari"] as const).map((cat) => (
-            <TabsContent key={cat} value={cat} className="space-y-5">
-              <DoorForm
-                category={cat}
-                doorTypes={doorTypes}
-                nextOrderNoHint={nextOrderNo(orders, cat)}
-                onSaved={reload}
-              />
-              <OrdersTable rows={filtered} loading={loading} />
-            </TabsContent>
-          ))}
+          <TabsContent value="general" className="space-y-5">
+            <GeneralOrderForm
+              doorTypes={doorTypes}
+              nextOrderNoHint={nextOrderNo(orders, "general")}
+              onSaved={reload}
+            />
+            <OrdersTable rows={filtered} loading={loading} />
+          </TabsContent>
+
+          <TabsContent value="vypaari" className="space-y-5">
+            <VypaariForm
+              doorTypes={doorTypes}
+              nextOrderNoHint={nextOrderNo(orders, "vypaari")}
+              onSaved={reload}
+            />
+            <OrdersTable rows={filtered} loading={loading} />
+          </TabsContent>
         </Tabs>
       </div>
     </>
@@ -91,14 +99,334 @@ function nextOrderNo(orders: DoorOrder[], cat: Category) {
   return `${prefix}-${String(max + 1).padStart(4, "0")}`;
 }
 
-function DoorForm({
-  category, doorTypes, nextOrderNoHint, onSaved,
-}: {
-  category: Category;
-  doorTypes: DoorType[];
-  nextOrderNoHint: string;
-  onSaved: () => void;
-}) {
+/* ---------- size helpers ---------- */
+function parseInchSize(s: string): { l: number; w: number } | null {
+  if (!s) return null;
+  const cleaned = s.replace(/inches?/gi, "").replace(/in\b/gi, "").trim();
+  const parts = cleaned.split(/[*x×]/i).map((p) => p.trim());
+  if (parts.length !== 2) return null;
+  const l = Number(parts[0]); const w = Number(parts[1]);
+  if (!isFinite(l) || !isFinite(w) || l <= 0 || w <= 0) return null;
+  return { l, w };
+}
+function toSqft(l: number, w: number) {
+  return Math.round(((l * w) / 144) * 100) / 100;
+}
+function round2(n: number) { return Math.round(n * 100) / 100; }
+
+/* ---------- General multi-line form ---------- */
+type DoorLine = {
+  key: string;
+  party_door_size: string;
+  front_mica: string;
+  back_mica: string;
+  door_taken_size: string;
+  door_type_id: string;
+  door_type_name: string;
+  door_made: string;
+  qty: number;
+  party_sqft: number;
+  taken_sqft: number;
+  billable_sqft: number;
+  rate_per_sqft: number;
+  line_total: number;
+};
+
+function emptyLine(): Omit<DoorLine, "key"> {
+  return {
+    party_door_size: "", front_mica: "", back_mica: "", door_taken_size: "",
+    door_type_id: "", door_type_name: "", door_made: "", qty: 1,
+    party_sqft: 0, taken_sqft: 0, billable_sqft: 0, rate_per_sqft: 0, line_total: 0,
+  };
+}
+
+function GeneralOrderForm({
+  doorTypes, nextOrderNoHint, onSaved,
+}: { doorTypes: DoorType[]; nextOrderNoHint: string; onSaved: () => void; }) {
+  const [orderNo, setOrderNo] = useState(nextOrderNoHint);
+  const [customer, setCustomer] = useState("");
+  const [notes, setNotes] = useState("");
+  const [lines, setLines] = useState<DoorLine[]>([]);
+  const [draft, setDraft] = useState(emptyLine());
+  const [busy, setBusy] = useState(false);
+
+  useEffect(() => { setOrderNo(nextOrderNoHint); }, [nextOrderNoHint]);
+
+  const partyParsed = parseInchSize(draft.party_door_size);
+  const takenParsed = parseInchSize(draft.door_taken_size);
+  const partySqft = partyParsed ? toSqft(partyParsed.l, partyParsed.w) : 0;
+  const takenSqft = takenParsed ? toSqft(takenParsed.l, takenParsed.w) : 0;
+  const billableSqft = Math.max(partySqft, takenSqft);
+  const previewTotal = round2(billableSqft * (draft.rate_per_sqft || 0) * (draft.qty || 0));
+
+  const grandTotal = useMemo(
+    () => round2(lines.reduce((a, l) => a + Number(l.line_total || 0), 0)),
+    [lines],
+  );
+
+  const addLine = () => {
+    if (!partyParsed) return toast.error("Party Door Size format: e.g. 72.05*32.28");
+    if (!takenParsed) return toast.error("Door Taken Size format: e.g. 72.05*32.28");
+    if (!draft.door_type_id) return toast.error("Select door type");
+    if (!draft.door_made) return toast.error("Select Door Made");
+    if (draft.qty < 1) return toast.error("Quantity must be at least 1");
+    if (draft.rate_per_sqft <= 0) return toast.error("Enter price per sqft");
+
+    const selectedType = doorTypes.find((d) => d.id === draft.door_type_id);
+    const line: DoorLine = {
+      ...draft,
+      key: crypto.randomUUID(),
+      door_type_name: selectedType?.name ?? "",
+      party_sqft: partySqft,
+      taken_sqft: takenSqft,
+      billable_sqft: billableSqft,
+      line_total: previewTotal,
+    };
+    setLines((prev) => [...prev, line]);
+    setDraft(emptyLine());
+  };
+
+  const removeLine = (key: string) => setLines((p) => p.filter((l) => l.key !== key));
+
+  const resetAll = () => {
+    setCustomer(""); setNotes(""); setLines([]); setDraft(emptyLine());
+  };
+
+  const save = async () => {
+    if (!customer.trim()) return toast.error("Customer name is required");
+    if (lines.length === 0) return toast.error("Add at least one door");
+    setBusy(true);
+    const { data: orderRow, error } = await supabase.from("door_orders").insert({
+      order_no: orderNo,
+      category: "general",
+      customer_name: customer.trim(),
+      rate: 0,
+      total: grandTotal,
+      notes: notes || null,
+    }).select("id").single();
+    if (error || !orderRow) {
+      setBusy(false);
+      toast.error(error?.message ?? "Failed to save order");
+      return;
+    }
+    const orderId = (orderRow as any).id as string;
+    const itemsPayload = lines.map((l) => ({
+      order_id: orderId,
+      party_door_size: l.party_door_size,
+      front_mica: l.front_mica || null,
+      back_mica: l.back_mica || null,
+      door_taken_size: l.door_taken_size,
+      door_type_id: l.door_type_id,
+      door_type_name: l.door_type_name,
+      door_made: l.door_made,
+      qty: l.qty,
+      party_sqft: l.party_sqft,
+      taken_sqft: l.taken_sqft,
+      billable_sqft: l.billable_sqft,
+      rate_per_sqft: l.rate_per_sqft,
+      line_total: l.line_total,
+    }));
+    const { error: itemsErr } = await (supabase as any)
+      .from("door_order_items").insert(itemsPayload);
+    if (itemsErr) {
+      await supabase.from("door_orders").delete().eq("id", orderId);
+      setBusy(false);
+      toast.error(itemsErr.message);
+      return;
+    }
+    setBusy(false);
+    toast.success(`Order ${orderNo} saved (${lines.length} doors)`);
+    resetAll();
+    onSaved();
+  };
+
+  return (
+    <div className="space-y-5">
+      {/* Header card */}
+      <Card className="p-5 space-y-4">
+        <div className="flex items-center gap-2">
+          <div className="h-9 w-9 rounded-lg bg-primary/10 text-primary grid place-items-center">
+            <DoorOpen className="h-4 w-4" />
+          </div>
+          <div>
+            <div className="font-semibold text-base">New General door order</div>
+            <div className="text-xs text-muted-foreground">
+              Set order header, then add one or more doors below. Pricing uses sqft (larger of Party / Taken size).
+            </div>
+          </div>
+        </div>
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+          <Field label="Order No.">
+            <Input value={orderNo} onChange={(e) => setOrderNo(e.target.value)} />
+          </Field>
+          <Field label="Date">
+            <Input value={new Date().toLocaleDateString()} disabled />
+          </Field>
+          <Field label="Customer / Name">
+            <Input value={customer} onChange={(e) => setCustomer(e.target.value)} placeholder="Customer name" />
+          </Field>
+        </div>
+      </Card>
+
+      {/* Line draft card */}
+      <Card className="p-5 space-y-4">
+        <div className="font-semibold text-sm">Add door</div>
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+          <Field label="Party Door Size (inches, e.g. 72.05*32.28)">
+            <Input
+              value={draft.party_door_size}
+              onChange={(e) => setDraft({ ...draft, party_door_size: e.target.value })}
+              placeholder="72.05*32.28"
+            />
+          </Field>
+          <Field label="Front Mica">
+            <Input value={draft.front_mica} onChange={(e) => setDraft({ ...draft, front_mica: e.target.value })} />
+          </Field>
+          <Field label="Back Mica">
+            <Input value={draft.back_mica} onChange={(e) => setDraft({ ...draft, back_mica: e.target.value })} />
+          </Field>
+
+          <Field label="Door Taken Size (inches, e.g. 72.05*32.28)">
+            <Input
+              value={draft.door_taken_size}
+              onChange={(e) => setDraft({ ...draft, door_taken_size: e.target.value })}
+              placeholder="72.05*32.28"
+            />
+          </Field>
+          <Field label="Door Type">
+            <Select
+              value={draft.door_type_id}
+              onValueChange={(v) => setDraft({ ...draft, door_type_id: v })}
+            >
+              <SelectTrigger>
+                <SelectValue placeholder={doorTypes.length ? "Select door type" : "Add types in Settings"} />
+              </SelectTrigger>
+              <SelectContent>
+                {doorTypes.map((d) => (
+                  <SelectItem key={d.id} value={d.id}>{d.name}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </Field>
+          <Field label="Door Made">
+            <Select
+              value={draft.door_made}
+              onValueChange={(v) => setDraft({ ...draft, door_made: v })}
+            >
+              <SelectTrigger><SelectValue placeholder="Select" /></SelectTrigger>
+              <SelectContent>
+                {DOOR_MADE_OPTIONS.map((o) => (
+                  <SelectItem key={o} value={o}>{o}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </Field>
+
+          <Field label="Quantity">
+            <Input
+              type="number" min={1}
+              value={draft.qty}
+              onChange={(e) => setDraft({ ...draft, qty: Math.max(1, parseInt(e.target.value || "1", 10)) })}
+            />
+          </Field>
+          <Field label="Price (per sqft)">
+            <Input
+              type="number" min={0}
+              value={draft.rate_per_sqft}
+              onChange={(e) => setDraft({ ...draft, rate_per_sqft: Number(e.target.value || 0) })}
+            />
+          </Field>
+          <Field label="Billable sqft (max of party / taken)">
+            <Input value={`${billableSqft.toFixed(2)} sqft`} disabled />
+          </Field>
+        </div>
+
+        <div className="flex items-center justify-between pt-1">
+          <div className="text-xs text-muted-foreground">
+            Party {partySqft.toFixed(2)} sqft · Taken {takenSqft.toFixed(2)} sqft · Line total{" "}
+            <span className="font-semibold text-foreground">{inr(previewTotal)}</span>
+          </div>
+          <Button onClick={addLine} className="gap-2">
+            <Plus className="h-4 w-4" /> Add door
+          </Button>
+        </div>
+      </Card>
+
+      {/* Lines table */}
+      <Card className="overflow-hidden">
+        <div className="px-5 pt-5 pb-3 font-semibold">Doors in this order</div>
+        <Table>
+          <TableHeader>
+            <TableRow>
+              <TableHead className="pl-5">#</TableHead>
+              <TableHead>Party size</TableHead>
+              <TableHead>Taken size</TableHead>
+              <TableHead>Type</TableHead>
+              <TableHead>Made</TableHead>
+              <TableHead>Front mica</TableHead>
+              <TableHead>Back mica</TableHead>
+              <TableHead className="text-right">Sqft</TableHead>
+              <TableHead className="text-right">Qty</TableHead>
+              <TableHead className="text-right">Rate/sqft</TableHead>
+              <TableHead className="text-right">Total</TableHead>
+              <TableHead className="pr-5"></TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            {lines.map((l, i) => (
+              <TableRow key={l.key}>
+                <TableCell className="pl-5">{i + 1}</TableCell>
+                <TableCell>{l.party_door_size}</TableCell>
+                <TableCell>{l.door_taken_size}</TableCell>
+                <TableCell>{l.door_type_name}</TableCell>
+                <TableCell>{l.door_made}</TableCell>
+                <TableCell>{l.front_mica || "—"}</TableCell>
+                <TableCell>{l.back_mica || "—"}</TableCell>
+                <TableCell className="text-right tabular-nums">{l.billable_sqft.toFixed(2)}</TableCell>
+                <TableCell className="text-right tabular-nums">{l.qty}</TableCell>
+                <TableCell className="text-right tabular-nums">{inr(l.rate_per_sqft)}</TableCell>
+                <TableCell className="text-right tabular-nums font-semibold">{inr(l.line_total)}</TableCell>
+                <TableCell className="pr-5">
+                  <Button variant="ghost" size="icon" onClick={() => removeLine(l.key)}>
+                    <Trash2 className="h-4 w-4" />
+                  </Button>
+                </TableCell>
+              </TableRow>
+            ))}
+            {lines.length === 0 && (
+              <TableRow>
+                <TableCell colSpan={12} className="text-center py-8 text-muted-foreground">
+                  No doors added yet.
+                </TableCell>
+              </TableRow>
+            )}
+          </TableBody>
+        </Table>
+        <div className="flex items-end justify-between gap-3 p-5 border-t">
+          <div className="w-full max-w-md">
+            <label className="text-xs font-medium text-muted-foreground mb-1.5 block">Notes</label>
+            <Textarea value={notes} onChange={(e) => setNotes(e.target.value)} rows={2} placeholder="Optional" />
+          </div>
+          <div className="text-right">
+            <div className="text-xs text-muted-foreground">Grand total</div>
+            <div className="text-2xl font-semibold tabular-nums">{inr(grandTotal)}</div>
+            <div className="flex gap-2 mt-3 justify-end">
+              <Button variant="ghost" onClick={resetAll}>Reset</Button>
+              <Button onClick={save} disabled={busy || lines.length === 0} className="gap-2">
+                <Plus className="h-4 w-4" /> {busy ? "Saving…" : "Save order"}
+              </Button>
+            </div>
+          </div>
+        </div>
+      </Card>
+    </div>
+  );
+}
+
+/* ---------- Vypaari form (unchanged behavior) ---------- */
+function VypaariForm({
+  doorTypes, nextOrderNoHint, onSaved,
+}: { doorTypes: DoorType[]; nextOrderNoHint: string; onSaved: () => void; }) {
   const [orderNo, setOrderNo] = useState(nextOrderNoHint);
   const [customer, setCustomer] = useState("");
   const [partySize, setPartySize] = useState("");
@@ -107,31 +435,28 @@ function DoorForm({
   const [takenSize, setTakenSize] = useState("");
   const [doorTypeId, setDoorTypeId] = useState<string>("");
   const [qty, setQty] = useState<number>(1);
-  const [manualRate, setManualRate] = useState<number>(0);
   const [notes, setNotes] = useState("");
   const [busy, setBusy] = useState(false);
 
   useEffect(() => { setOrderNo(nextOrderNoHint); }, [nextOrderNoHint]);
 
   const selectedType = doorTypes.find((d) => d.id === doorTypeId);
-  const isVypaari = category === "vypaari";
-  const rate = isVypaari ? Number(selectedType?.rate ?? 0) : Number(manualRate || 0);
+  const rate = Number(selectedType?.rate ?? 0);
   const total = rate * (qty || 0);
 
   const reset = () => {
     setCustomer(""); setPartySize(""); setFrontMica(""); setBackMica("");
-    setTakenSize(""); setDoorTypeId(""); setQty(1); setManualRate(0); setNotes("");
+    setTakenSize(""); setDoorTypeId(""); setQty(1); setNotes("");
   };
 
   const save = async () => {
     if (!customer.trim()) { toast.error("Customer name is required"); return; }
     if (!doorTypeId) { toast.error("Select a door type"); return; }
-    if (isVypaari && !selectedType) { toast.error("Door type rate missing"); return; }
-    if (!isVypaari && manualRate <= 0) { toast.error("Enter a price"); return; }
+    if (!selectedType) { toast.error("Door type rate missing"); return; }
     setBusy(true);
     const { error } = await supabase.from("door_orders").insert({
       order_no: orderNo,
-      category,
+      category: "vypaari",
       customer_name: customer.trim(),
       party_door_size: partySize || null,
       front_mica: frontMica || null,
@@ -157,24 +482,14 @@ function DoorForm({
           <DoorOpen className="h-4 w-4" />
         </div>
         <div>
-          <div className="font-semibold text-base">
-            New {isVypaari ? "Vypaari" : "General"} door order
-          </div>
-          <div className="text-xs text-muted-foreground">
-            {isVypaari
-              ? "Rate is auto-filled from the selected door type."
-              : "Enter the price manually. Total is calculated automatically."}
-          </div>
+          <div className="font-semibold text-base">New Vypaari door order</div>
+          <div className="text-xs text-muted-foreground">Rate is auto-filled from the selected door type.</div>
         </div>
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-        <Field label="Order No.">
-          <Input value={orderNo} onChange={(e) => setOrderNo(e.target.value)} />
-        </Field>
-        <Field label="Date">
-          <Input value={new Date().toLocaleDateString()} disabled />
-        </Field>
+        <Field label="Order No."><Input value={orderNo} onChange={(e) => setOrderNo(e.target.value)} /></Field>
+        <Field label="Date"><Input value={new Date().toLocaleDateString()} disabled /></Field>
         <Field label="Customer / Name">
           <Input value={customer} onChange={(e) => setCustomer(e.target.value)} placeholder="Customer name" />
         </Field>
@@ -182,12 +497,8 @@ function DoorForm({
         <Field label="Party Door Size">
           <Input value={partySize} onChange={(e) => setPartySize(e.target.value)} placeholder="e.g. 7x3" />
         </Field>
-        <Field label="Front Mica">
-          <Input value={frontMica} onChange={(e) => setFrontMica(e.target.value)} />
-        </Field>
-        <Field label="Back Mica">
-          <Input value={backMica} onChange={(e) => setBackMica(e.target.value)} />
-        </Field>
+        <Field label="Front Mica"><Input value={frontMica} onChange={(e) => setFrontMica(e.target.value)} /></Field>
+        <Field label="Back Mica"><Input value={backMica} onChange={(e) => setBackMica(e.target.value)} /></Field>
 
         <Field label="Door Taken Size">
           <Input value={takenSize} onChange={(e) => setTakenSize(e.target.value)} placeholder="e.g. 6.8x2.10" />
@@ -199,39 +510,20 @@ function DoorForm({
             </SelectTrigger>
             <SelectContent>
               {doorTypes.map((d) => (
-                <SelectItem key={d.id} value={d.id}>
-                  {d.name}{isVypaari ? ` — ${inr(Number(d.rate))}` : ""}
-                </SelectItem>
+                <SelectItem key={d.id} value={d.id}>{d.name} — {inr(Number(d.rate))}</SelectItem>
               ))}
             </SelectContent>
           </Select>
         </Field>
         <Field label="Quantity">
-          <Input
-            type="number" min={1}
-            value={qty}
-            onChange={(e) => setQty(Math.max(1, parseInt(e.target.value || "1", 10)))}
-          />
+          <Input type="number" min={1} value={qty}
+            onChange={(e) => setQty(Math.max(1, parseInt(e.target.value || "1", 10)))} />
         </Field>
 
-        <Field label={isVypaari ? "Rate (auto)" : "Price (per door)"}>
-          <Input
-            type="number"
-            value={isVypaari ? rate : manualRate}
-            disabled={isVypaari}
-            onChange={(e) => setManualRate(Number(e.target.value || 0))}
-          />
-        </Field>
-        <Field label="Total">
-          <Input value={inr(total)} disabled />
-        </Field>
+        <Field label="Rate (auto)"><Input type="number" value={rate} disabled /></Field>
+        <Field label="Total"><Input value={inr(total)} disabled /></Field>
         <Field label="Notes">
-          <Textarea
-            value={notes}
-            onChange={(e) => setNotes(e.target.value)}
-            rows={1}
-            placeholder="Optional"
-          />
+          <Textarea value={notes} onChange={(e) => setNotes(e.target.value)} rows={1} placeholder="Optional" />
         </Field>
       </div>
 

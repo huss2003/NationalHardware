@@ -226,6 +226,71 @@ export type Database = {
         }
         Relationships: []
       }
+      door_order_items: {
+        Row: {
+          back_mica: string | null
+          billable_sqft: number
+          created_at: string
+          door_made: string | null
+          door_taken_size: string | null
+          door_type_id: string | null
+          door_type_name: string | null
+          front_mica: string | null
+          id: string
+          line_total: number
+          order_id: string
+          party_door_size: string | null
+          party_sqft: number
+          qty: number
+          rate_per_sqft: number
+          taken_sqft: number
+        }
+        Insert: {
+          back_mica?: string | null
+          billable_sqft?: number
+          created_at?: string
+          door_made?: string | null
+          door_taken_size?: string | null
+          door_type_id?: string | null
+          door_type_name?: string | null
+          front_mica?: string | null
+          id?: string
+          line_total?: number
+          order_id: string
+          party_door_size?: string | null
+          party_sqft?: number
+          qty?: number
+          rate_per_sqft?: number
+          taken_sqft?: number
+        }
+        Update: {
+          back_mica?: string | null
+          billable_sqft?: number
+          created_at?: string
+          door_made?: string | null
+          door_taken_size?: string | null
+          door_type_id?: string | null
+          door_type_name?: string | null
+          front_mica?: string | null
+          id?: string
+          line_total?: number
+          order_id?: string
+          party_door_size?: string | null
+          party_sqft?: number
+          qty?: number
+          rate_per_sqft?: number
+          taken_sqft?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "door_order_items_order_id_fkey"
+            columns: ["order_id"]
+            isOneToOne: false
+            referencedRelation: "door_orders"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       door_orders: {
         Row: {
           back_mica: string | null
