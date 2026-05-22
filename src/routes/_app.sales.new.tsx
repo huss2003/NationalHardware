@@ -25,6 +25,7 @@ type Line = {
   product_id: string; item_instance_id: string | null; name: string;
   qty: number; rate: number; gst_rate: number; hsn?: string | null;
   alt_unit?: string | null; alt_conversion?: number | null;
+  is_lot?: boolean; max_qty?: number;
 };
 
 function NewSale() {
@@ -62,7 +63,19 @@ function NewSale() {
         msg: `Prefix "${prefix || "?"}" is not a known category. Expected one of: ${knownPrefixes.join(", ")}.` });
       return;
     }
-    if (lines.find(l => l.item_instance_id === code)) {
+    const existingIdx = lines.findIndex(l => l.item_instance_id === code);
+    if (existingIdx !== -1) {
+      const existing = lines[existingIdx];
+      if (existing.is_lot) {
+        const nextQty = existing.qty + 1;
+        if (existing.max_qty != null && nextQty > existing.max_qty) {
+          setWarn({ kind: "generic", code, msg: `Only ${existing.max_qty} in stock for this item.` });
+          return;
+        }
+        setLines(lines.map((l, i) => i === existingIdx ? { ...l, qty: nextQty } : l));
+        toast.success(`+1 ${existing.name}`);
+        return;
+      }
       setWarn({ kind: "duplicate", code, msg: "This item is already in the cart." }); return;
     }
     const { data: item } = await supabase.from("item_instances").select("*, products(*)").eq("id", code).maybeSingle();
@@ -79,12 +92,19 @@ function NewSale() {
       setWarn({ kind, code, msg: `Status is ${String(item.status).toUpperCase()} — cannot be sold.` });
       return;
     }
+    const isLot = !!(item as any).is_lot;
+    const maxQty = isLot ? Number((item as any).qty_on_hand ?? 1) : 1;
+    if (isLot && maxQty <= 0) {
+      setWarn({ kind: "generic", code, msg: "Out of stock." });
+      return;
+    }
     setLines([...lines, {
       product_id: item.product_id, item_instance_id: item.id, name: item.products.name,
       qty: 1, rate: Number(item.products.default_price), gst_rate: Number(item.products.gst_rate),
       hsn: item.products.hsn,
       alt_unit: (item.products as any).alt_unit ?? null,
       alt_conversion: (item.products as any).alt_conversion ?? null,
+      is_lot: isLot, max_qty: maxQty,
     }]);
     toast.success(`Added ${item.id}`);
   };
