@@ -29,7 +29,14 @@ type DoorOrder = {
   rate: number; total: number;
 };
 
+const DEFAULT_DOOR_TYPE_NAMES = ["F-Hard", "F-Pine", "WF-Pine", "WF-Hard"] as const;
 const DOOR_MADE_OPTIONS = ["S.D", "D.D", "J.D", "JDD", "PLY", "WINDOW"] as const;
+
+async function ensureDefaultDoorTypes() {
+  const defaults = DEFAULT_DOOR_TYPE_NAMES.map((name) => ({ name, rate: 0, active: true }));
+  await supabase.from("door_types").upsert(defaults, { onConflict: "name", ignoreDuplicates: true });
+  await supabase.from("door_types").update({ active: true }).in("name", [...DEFAULT_DOOR_TYPE_NAMES]);
+}
 
 function DoorPage() {
   const [tab, setTab] = useState<Category>("general");
@@ -39,6 +46,7 @@ function DoorPage() {
 
   const reload = async () => {
     setLoading(true);
+    await ensureDefaultDoorTypes();
     const [dt, oo] = await Promise.all([
       supabase.from("door_types").select("*").eq("active", true).order("name"),
       supabase.from("door_orders").select("*").order("created_at", { ascending: false }).limit(200),
