@@ -253,30 +253,47 @@ function NewSale() {
                               </div>
                             </td>
                             <td className="py-3 px-3">
-                              <div className="inline-flex items-center rounded-md border border-input">
-                                <button
-                                  type="button"
-                                  className="h-8 w-8 grid place-items-center text-muted-foreground hover:text-foreground"
-                                  onClick={() => upd(i, { qty: Math.max(1, l.qty - 1) })}
+                              {l.is_lot ? (
+                                <div className="inline-flex items-center rounded-md border border-input">
+                                  <button
+                                    type="button"
+                                    className="h-8 w-8 grid place-items-center text-muted-foreground hover:text-foreground"
+                                    onClick={() => upd(i, { qty: Math.max(1, l.qty - 1) })}
+                                  >
+                                    <Minus className="h-3 w-3" />
+                                  </button>
+                                  <input
+                                    className="h-8 w-12 text-center text-sm bg-transparent border-x border-input focus:outline-none tabular-nums"
+                                    type="number"
+                                    value={l.qty}
+                                    onChange={(e) => {
+                                      const v = Math.max(1, Number(e.target.value));
+                                      upd(i, { qty: l.max_qty != null ? Math.min(v, l.max_qty) : v });
+                                    }}
+                                  />
+                                  <button
+                                    type="button"
+                                    className="h-8 w-8 grid place-items-center text-muted-foreground hover:text-foreground"
+                                    onClick={() => {
+                                      const nx = l.qty + 1;
+                                      if (l.max_qty != null && nx > l.max_qty) {
+                                        toast.error(`Only ${l.max_qty} in stock`);
+                                        return;
+                                      }
+                                      upd(i, { qty: nx });
+                                    }}
+                                  >
+                                    <Plus className="h-3 w-3" />
+                                  </button>
+                                </div>
+                              ) : (
+                                <div
+                                  className="inline-flex items-center justify-center h-8 px-3 rounded-md border border-dashed border-input bg-muted/40 text-sm font-medium tabular-nums text-muted-foreground"
+                                  title="Unique unit — qty locked to 1"
                                 >
-                                  <Minus className="h-3 w-3" />
-                                </button>
-                                <input
-                                  className="h-8 w-12 text-center text-sm bg-transparent border-x border-input focus:outline-none tabular-nums"
-                                  type="number"
-                                  value={l.qty}
-                                  onChange={(e) =>
-                                    upd(i, { qty: Math.max(1, Number(e.target.value)) })
-                                  }
-                                />
-                                <button
-                                  type="button"
-                                  className="h-8 w-8 grid place-items-center text-muted-foreground hover:text-foreground"
-                                  onClick={() => upd(i, { qty: l.qty + 1 })}
-                                >
-                                  <Plus className="h-3 w-3" />
-                                </button>
-                              </div>
+                                  1
+                                </div>
+                              )}
                             </td>
                             <td className="py-3 px-3 text-xs tabular-nums">
                               {l.alt_unit && l.alt_conversion
