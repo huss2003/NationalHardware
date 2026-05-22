@@ -144,6 +144,7 @@ function NewSale() {
             supabase.from("sales").select("*").eq("id", saleId).single(),
             supabase.from("app_settings").select("*").eq("id", true).maybeSingle(),
           ]);
+          const { buildInvoicePdf, shareInvoiceOnWhatsApp } = await import("@/lib/invoice-pdf");
           const pdf = buildInvoicePdf({
             shop, sale: sale as any, customer,
             items: lines.map((l) => ({ ...l, line_total: l.qty * l.rate })),
