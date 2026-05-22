@@ -6,7 +6,7 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { PageHeader } from "@/components/erp/PageHeader";
 import { inr } from "@/lib/codes";
-import { Search, Users, Truck, FileText, ShoppingCart, Receipt as ReceiptIcon } from "lucide-react";
+import { Search, Users, Truck, FileText, ShoppingCart, Receipt as ReceiptIcon, DoorOpen, RotateCcw } from "lucide-react";
 
 export const Route = createFileRoute("/_app/ledger")({ component: LedgerPage });
 
@@ -15,7 +15,7 @@ type Party = { id: string; name: string; phone?: string | null };
 
 type Entry = {
   date: string;
-  kind: "sale" | "purchase" | "receipt";
+  kind: "sale" | "purchase" | "receipt" | "door" | "sales-return" | "purchase-return";
   ref: string;
   refId?: string;
   debit: number;   // increases what party owes us (sale) / what we owe (purchase from supplier view = credit)
@@ -55,7 +55,7 @@ function LedgerPage() {
     setLoading(true);
     const list: Entry[] = [];
     if (kind === "customer") {
-      const [s, r] = await Promise.all([
+      const [s, r, d, sr] = await Promise.all([
         supabase.from("sales")
           .select("id, invoice_no, invoice_date, grand_total, paid_amount, payment_mode, notes")
           .eq("customer_id", p.id).is("deleted_at", null)
@@ -64,6 +64,14 @@ function LedgerPage() {
           .select("id, receipt_no, amount, mode, created_at, receipt_type, notes")
           .eq("customer_id", p.id)
           .order("created_at", { ascending: true }),
+        supabase.from("door_orders")
+          .select("id, order_no, order_date, total, category, notes")
+          .eq("customer_name", p.name)
+          .order("order_date", { ascending: true }),
+        supabase.from("sales_returns")
+          .select("id, return_no, return_date, grand_total, reason")
+          .eq("customer_id", p.id).is("deleted_at", null)
+          .order("return_date", { ascending: true }),
       ]);
       for (const x of s.data ?? []) {
         const total = Number(x.grand_total);
@@ -88,11 +96,37 @@ function LedgerPage() {
           notes: x.notes ?? undefined,
         });
       }
+      for (const x of d.data ?? []) {
+        list.push({
+          date: x.order_date as string,
+          kind: "door",
+          ref: `Door Order ${x.order_no}${x.category ? ` · ${x.category}` : ""}`,
+          debit: Number(x.total),
+          credit: 0,
+          notes: x.notes ?? undefined,
+        });
+      }
+      for (const x of sr.data ?? []) {
+        list.push({
+          date: x.return_date as string,
+          kind: "sales-return",
+          ref: `Sales Return ${x.return_no ?? ""}`.trim(),
+          debit: 0,
+          credit: Number(x.grand_total),
+          notes: x.reason ?? undefined,
+        });
+      }
     } else {
-      const p_ = await supabase.from("purchases")
-        .select("id, bill_no, bill_date, grand_total")
-        .eq("supplier_id", p.id).is("deleted_at", null)
-        .order("bill_date", { ascending: true });
+      const [p_, pr] = await Promise.all([
+        supabase.from("purchases")
+          .select("id, bill_no, bill_date, grand_total")
+          .eq("supplier_id", p.id).is("deleted_at", null)
+          .order("bill_date", { ascending: true }),
+        supabase.from("purchase_returns")
+          .select("id, return_no, return_date, grand_total, reason")
+          .eq("supplier_id", p.id).is("deleted_at", null)
+          .order("return_date", { ascending: true }),
+      ]);
       for (const x of p_.data ?? []) {
         list.push({
           date: x.bill_date as string,
@@ -101,6 +135,16 @@ function LedgerPage() {
           refId: x.id,
           debit: Number(x.grand_total),
           credit: 0,
+        });
+      }
+      for (const x of pr.data ?? []) {
+        list.push({
+          date: x.return_date as string,
+          kind: "purchase-return",
+          ref: `Purchase Return ${x.return_no ?? ""}`.trim(),
+          debit: 0,
+          credit: Number(x.grand_total),
+          notes: x.reason ?? undefined,
         });
       }
     }
@@ -238,7 +282,12 @@ function LedgerPage() {
                     </thead>
                     <tbody>
                       {rows.map((e, i) => {
-                        const Icon = e.kind === "sale" ? FileText : e.kind === "purchase" ? ShoppingCart : ReceiptIcon;
+                        const Icon =
+                          e.kind === "sale" ? FileText :
+                          e.kind === "purchase" ? ShoppingCart :
+                          e.kind === "door" ? DoorOpen :
+                          e.kind === "sales-return" || e.kind === "purchase-return" ? RotateCcw :
+                          ReceiptIcon;
                         const linkProps =
                           e.refId && e.kind === "sale"
                             ? { to: "/sales/$id", params: { id: e.refId } }
@@ -254,6 +303,9 @@ function LedgerPage() {
                               <span className={`inline-flex items-center gap-1.5 px-2 py-0.5 rounded-md text-xs font-semibold capitalize ${
                                 e.kind === "sale" ? "bg-blue-500/10 text-blue-600" :
                                 e.kind === "purchase" ? "bg-amber-500/10 text-amber-600" :
+                                e.kind === "door" ? "bg-purple-500/10 text-purple-600" :
+                                e.kind === "sales-return" ? "bg-rose-500/10 text-rose-600" :
+                                e.kind === "purchase-return" ? "bg-orange-500/10 text-orange-600" :
                                 "bg-emerald-500/10 text-emerald-600"
                               }`}>
                                 <Icon className="h-3 w-3" /> {e.kind}
