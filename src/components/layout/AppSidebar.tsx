@@ -1,7 +1,7 @@
 import { Link, useRouterState } from "@tanstack/react-router";
 import {
-  LayoutDashboard, Boxes, ShoppingCart, Receipt, Factory,
-  BarChart3, Users, Bell, Settings, Layers, ScanLine, Wrench,
+  LayoutDashboard, Boxes, ShoppingCart, Receipt,
+  BarChart3, Bell, Settings, ScanLine,
   Undo2, RotateCcw, Warehouse,
   DoorOpen,
   BookOpen,
@@ -21,13 +21,9 @@ const items = [
   { key: "ledger",           to: "/ledger",           label: "Ledger",           icon: BookOpen },
   { key: "godowns",          to: "/godowns",          label: "Godowns",          icon: Warehouse },
   { key: "door",             to: "/door",             label: "Door",             icon: DoorOpen },
-  { key: "production", to: "/production",      label: "Production", icon: Factory },
-  { key: "bom",        to: "/bom",             label: "BOM",        icon: Layers },
   { key: "reports",    to: "/reports",         label: "Reports",    icon: BarChart3 },
-  { key: "employees",  to: "/employees",       label: "Employees",  icon: Users },
   { key: "alerts",     to: "/alerts",          label: "Alerts",     icon: Bell },
   { key: "settings",   to: "/settings",        label: "Settings",   icon: Settings },
-  { key: "dev",        to: "/dev",             label: "Dev tools",  icon: Wrench },
 ] as const;
 
 export function AppSidebar() {

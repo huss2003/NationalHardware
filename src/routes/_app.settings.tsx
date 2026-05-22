@@ -183,7 +183,7 @@ function AppConfigPanel() {
       ...d,
       dashboard: { ...d.dashboard, tiles: { ...d.dashboard.tiles, [k]: v } },
     }));
-  const updateListCol = (list: "purchases"|"sales"|"production", k: string, v: boolean) =>
+  const updateListCol = (list: "purchases"|"sales", k: string, v: boolean) =>
     setDraft((d) => d && ({
       ...d,
       lists: {
@@ -191,7 +191,7 @@ function AppConfigPanel() {
         [list]: { ...d.lists[list], columns: { ...d.lists[list].columns, [k]: v } },
       },
     }));
-  const updateFormField = (form: "new_purchase"|"new_sale"|"new_production", k: string, patch: Partial<FieldCfg>) =>
+  const updateFormField = (form: "new_purchase"|"new_sale", k: string, patch: Partial<FieldCfg>) =>
     setDraft((d) => d && ({
       ...d,
       forms: {
@@ -240,7 +240,7 @@ function AppConfigPanel() {
       />
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-5">
-        {(["purchases","sales","production"] as const).map((list) => (
+        {(["purchases","sales"] as const).map((list) => (
           <ToggleGroup
             key={list}
             title={`${capitalize(list)} list columns`}
@@ -252,7 +252,7 @@ function AppConfigPanel() {
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-5">
-        {(["new_purchase","new_sale","new_production"] as const).map((form) => (
+        {(["new_purchase","new_sale"] as const).map((form) => (
           <FieldGroup
             key={form}
             title={`Form: ${humanize(form)}`}

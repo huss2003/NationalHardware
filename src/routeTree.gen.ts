@@ -15,17 +15,13 @@ import { Route as IndexRouteImport } from './routes/index'
 import { Route as AppSettingsRouteImport } from './routes/_app.settings'
 import { Route as AppReportsRouteImport } from './routes/_app.reports'
 import { Route as AppLedgerRouteImport } from './routes/_app.ledger'
-import { Route as AppEmployeesRouteImport } from './routes/_app.employees'
 import { Route as AppDoorRouteImport } from './routes/_app.door'
-import { Route as AppDevRouteImport } from './routes/_app.dev'
 import { Route as AppDashboardRouteImport } from './routes/_app.dashboard'
-import { Route as AppBomRouteImport } from './routes/_app.bom'
 import { Route as AppAlertsRouteImport } from './routes/_app.alerts'
 import { Route as AppSalesIndexRouteImport } from './routes/_app.sales.index'
 import { Route as AppSalesReturnsIndexRouteImport } from './routes/_app.sales-returns.index'
 import { Route as AppPurchasesIndexRouteImport } from './routes/_app.purchases.index'
 import { Route as AppPurchaseReturnsIndexRouteImport } from './routes/_app.purchase-returns.index'
-import { Route as AppProductionIndexRouteImport } from './routes/_app.production.index'
 import { Route as AppInventoryIndexRouteImport } from './routes/_app.inventory.index'
 import { Route as AppGodownsIndexRouteImport } from './routes/_app.godowns.index'
 import { Route as AppUnitsItemIdRouteImport } from './routes/_app.units.$itemId'
@@ -34,8 +30,6 @@ import { Route as AppSalesNewRouteImport } from './routes/_app.sales.new'
 import { Route as AppSalesIdRouteImport } from './routes/_app.sales.$id'
 import { Route as AppPurchasesNewRouteImport } from './routes/_app.purchases.new'
 import { Route as AppPurchasesIdRouteImport } from './routes/_app.purchases.$id'
-import { Route as AppProductionNewRouteImport } from './routes/_app.production.new'
-import { Route as AppProductionIdRouteImport } from './routes/_app.production.$id'
 import { Route as AppInventoryScanRouteImport } from './routes/_app.inventory.scan'
 import { Route as AppInventoryProductIdRouteImport } from './routes/_app.inventory.$productId'
 
@@ -68,29 +62,14 @@ const AppLedgerRoute = AppLedgerRouteImport.update({
   path: '/ledger',
   getParentRoute: () => AppRoute,
 } as any)
-const AppEmployeesRoute = AppEmployeesRouteImport.update({
-  id: '/employees',
-  path: '/employees',
-  getParentRoute: () => AppRoute,
-} as any)
 const AppDoorRoute = AppDoorRouteImport.update({
   id: '/door',
   path: '/door',
   getParentRoute: () => AppRoute,
 } as any)
-const AppDevRoute = AppDevRouteImport.update({
-  id: '/dev',
-  path: '/dev',
-  getParentRoute: () => AppRoute,
-} as any)
 const AppDashboardRoute = AppDashboardRouteImport.update({
   id: '/dashboard',
   path: '/dashboard',
-  getParentRoute: () => AppRoute,
-} as any)
-const AppBomRoute = AppBomRouteImport.update({
-  id: '/bom',
-  path: '/bom',
   getParentRoute: () => AppRoute,
 } as any)
 const AppAlertsRoute = AppAlertsRouteImport.update({
@@ -116,11 +95,6 @@ const AppPurchasesIndexRoute = AppPurchasesIndexRouteImport.update({
 const AppPurchaseReturnsIndexRoute = AppPurchaseReturnsIndexRouteImport.update({
   id: '/purchase-returns/',
   path: '/purchase-returns/',
-  getParentRoute: () => AppRoute,
-} as any)
-const AppProductionIndexRoute = AppProductionIndexRouteImport.update({
-  id: '/production/',
-  path: '/production/',
   getParentRoute: () => AppRoute,
 } as any)
 const AppInventoryIndexRoute = AppInventoryIndexRouteImport.update({
@@ -163,16 +137,6 @@ const AppPurchasesIdRoute = AppPurchasesIdRouteImport.update({
   path: '/purchases/$id',
   getParentRoute: () => AppRoute,
 } as any)
-const AppProductionNewRoute = AppProductionNewRouteImport.update({
-  id: '/production/new',
-  path: '/production/new',
-  getParentRoute: () => AppRoute,
-} as any)
-const AppProductionIdRoute = AppProductionIdRouteImport.update({
-  id: '/production/$id',
-  path: '/production/$id',
-  getParentRoute: () => AppRoute,
-} as any)
 const AppInventoryScanRoute = AppInventoryScanRouteImport.update({
   id: '/inventory/scan',
   path: '/inventory/scan',
@@ -188,18 +152,13 @@ export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/login': typeof LoginRoute
   '/alerts': typeof AppAlertsRoute
-  '/bom': typeof AppBomRoute
   '/dashboard': typeof AppDashboardRoute
-  '/dev': typeof AppDevRoute
   '/door': typeof AppDoorRoute
-  '/employees': typeof AppEmployeesRoute
   '/ledger': typeof AppLedgerRoute
   '/reports': typeof AppReportsRoute
   '/settings': typeof AppSettingsRoute
   '/inventory/$productId': typeof AppInventoryProductIdRoute
   '/inventory/scan': typeof AppInventoryScanRoute
-  '/production/$id': typeof AppProductionIdRoute
-  '/production/new': typeof AppProductionNewRoute
   '/purchases/$id': typeof AppPurchasesIdRoute
   '/purchases/new': typeof AppPurchasesNewRoute
   '/sales/$id': typeof AppSalesIdRoute
@@ -208,7 +167,6 @@ export interface FileRoutesByFullPath {
   '/units/$itemId': typeof AppUnitsItemIdRoute
   '/godowns/': typeof AppGodownsIndexRoute
   '/inventory/': typeof AppInventoryIndexRoute
-  '/production/': typeof AppProductionIndexRoute
   '/purchase-returns/': typeof AppPurchaseReturnsIndexRoute
   '/purchases/': typeof AppPurchasesIndexRoute
   '/sales-returns/': typeof AppSalesReturnsIndexRoute
@@ -218,18 +176,13 @@ export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/login': typeof LoginRoute
   '/alerts': typeof AppAlertsRoute
-  '/bom': typeof AppBomRoute
   '/dashboard': typeof AppDashboardRoute
-  '/dev': typeof AppDevRoute
   '/door': typeof AppDoorRoute
-  '/employees': typeof AppEmployeesRoute
   '/ledger': typeof AppLedgerRoute
   '/reports': typeof AppReportsRoute
   '/settings': typeof AppSettingsRoute
   '/inventory/$productId': typeof AppInventoryProductIdRoute
   '/inventory/scan': typeof AppInventoryScanRoute
-  '/production/$id': typeof AppProductionIdRoute
-  '/production/new': typeof AppProductionNewRoute
   '/purchases/$id': typeof AppPurchasesIdRoute
   '/purchases/new': typeof AppPurchasesNewRoute
   '/sales/$id': typeof AppSalesIdRoute
@@ -238,7 +191,6 @@ export interface FileRoutesByTo {
   '/units/$itemId': typeof AppUnitsItemIdRoute
   '/godowns': typeof AppGodownsIndexRoute
   '/inventory': typeof AppInventoryIndexRoute
-  '/production': typeof AppProductionIndexRoute
   '/purchase-returns': typeof AppPurchaseReturnsIndexRoute
   '/purchases': typeof AppPurchasesIndexRoute
   '/sales-returns': typeof AppSalesReturnsIndexRoute
@@ -250,18 +202,13 @@ export interface FileRoutesById {
   '/_app': typeof AppRouteWithChildren
   '/login': typeof LoginRoute
   '/_app/alerts': typeof AppAlertsRoute
-  '/_app/bom': typeof AppBomRoute
   '/_app/dashboard': typeof AppDashboardRoute
-  '/_app/dev': typeof AppDevRoute
   '/_app/door': typeof AppDoorRoute
-  '/_app/employees': typeof AppEmployeesRoute
   '/_app/ledger': typeof AppLedgerRoute
   '/_app/reports': typeof AppReportsRoute
   '/_app/settings': typeof AppSettingsRoute
   '/_app/inventory/$productId': typeof AppInventoryProductIdRoute
   '/_app/inventory/scan': typeof AppInventoryScanRoute
-  '/_app/production/$id': typeof AppProductionIdRoute
-  '/_app/production/new': typeof AppProductionNewRoute
   '/_app/purchases/$id': typeof AppPurchasesIdRoute
   '/_app/purchases/new': typeof AppPurchasesNewRoute
   '/_app/sales/$id': typeof AppSalesIdRoute
@@ -270,7 +217,6 @@ export interface FileRoutesById {
   '/_app/units/$itemId': typeof AppUnitsItemIdRoute
   '/_app/godowns/': typeof AppGodownsIndexRoute
   '/_app/inventory/': typeof AppInventoryIndexRoute
-  '/_app/production/': typeof AppProductionIndexRoute
   '/_app/purchase-returns/': typeof AppPurchaseReturnsIndexRoute
   '/_app/purchases/': typeof AppPurchasesIndexRoute
   '/_app/sales-returns/': typeof AppSalesReturnsIndexRoute
@@ -282,18 +228,13 @@ export interface FileRouteTypes {
     | '/'
     | '/login'
     | '/alerts'
-    | '/bom'
     | '/dashboard'
-    | '/dev'
     | '/door'
-    | '/employees'
     | '/ledger'
     | '/reports'
     | '/settings'
     | '/inventory/$productId'
     | '/inventory/scan'
-    | '/production/$id'
-    | '/production/new'
     | '/purchases/$id'
     | '/purchases/new'
     | '/sales/$id'
@@ -302,7 +243,6 @@ export interface FileRouteTypes {
     | '/units/$itemId'
     | '/godowns/'
     | '/inventory/'
-    | '/production/'
     | '/purchase-returns/'
     | '/purchases/'
     | '/sales-returns/'
@@ -312,18 +252,13 @@ export interface FileRouteTypes {
     | '/'
     | '/login'
     | '/alerts'
-    | '/bom'
     | '/dashboard'
-    | '/dev'
     | '/door'
-    | '/employees'
     | '/ledger'
     | '/reports'
     | '/settings'
     | '/inventory/$productId'
     | '/inventory/scan'
-    | '/production/$id'
-    | '/production/new'
     | '/purchases/$id'
     | '/purchases/new'
     | '/sales/$id'
@@ -332,7 +267,6 @@ export interface FileRouteTypes {
     | '/units/$itemId'
     | '/godowns'
     | '/inventory'
-    | '/production'
     | '/purchase-returns'
     | '/purchases'
     | '/sales-returns'
@@ -343,18 +277,13 @@ export interface FileRouteTypes {
     | '/_app'
     | '/login'
     | '/_app/alerts'
-    | '/_app/bom'
     | '/_app/dashboard'
-    | '/_app/dev'
     | '/_app/door'
-    | '/_app/employees'
     | '/_app/ledger'
     | '/_app/reports'
     | '/_app/settings'
     | '/_app/inventory/$productId'
     | '/_app/inventory/scan'
-    | '/_app/production/$id'
-    | '/_app/production/new'
     | '/_app/purchases/$id'
     | '/_app/purchases/new'
     | '/_app/sales/$id'
@@ -363,7 +292,6 @@ export interface FileRouteTypes {
     | '/_app/units/$itemId'
     | '/_app/godowns/'
     | '/_app/inventory/'
-    | '/_app/production/'
     | '/_app/purchase-returns/'
     | '/_app/purchases/'
     | '/_app/sales-returns/'
@@ -420,13 +348,6 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppLedgerRouteImport
       parentRoute: typeof AppRoute
     }
-    '/_app/employees': {
-      id: '/_app/employees'
-      path: '/employees'
-      fullPath: '/employees'
-      preLoaderRoute: typeof AppEmployeesRouteImport
-      parentRoute: typeof AppRoute
-    }
     '/_app/door': {
       id: '/_app/door'
       path: '/door'
@@ -434,25 +355,11 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppDoorRouteImport
       parentRoute: typeof AppRoute
     }
-    '/_app/dev': {
-      id: '/_app/dev'
-      path: '/dev'
-      fullPath: '/dev'
-      preLoaderRoute: typeof AppDevRouteImport
-      parentRoute: typeof AppRoute
-    }
     '/_app/dashboard': {
       id: '/_app/dashboard'
       path: '/dashboard'
       fullPath: '/dashboard'
       preLoaderRoute: typeof AppDashboardRouteImport
-      parentRoute: typeof AppRoute
-    }
-    '/_app/bom': {
-      id: '/_app/bom'
-      path: '/bom'
-      fullPath: '/bom'
-      preLoaderRoute: typeof AppBomRouteImport
       parentRoute: typeof AppRoute
     }
     '/_app/alerts': {
@@ -488,13 +395,6 @@ declare module '@tanstack/react-router' {
       path: '/purchase-returns'
       fullPath: '/purchase-returns/'
       preLoaderRoute: typeof AppPurchaseReturnsIndexRouteImport
-      parentRoute: typeof AppRoute
-    }
-    '/_app/production/': {
-      id: '/_app/production/'
-      path: '/production'
-      fullPath: '/production/'
-      preLoaderRoute: typeof AppProductionIndexRouteImport
       parentRoute: typeof AppRoute
     }
     '/_app/inventory/': {
@@ -553,20 +453,6 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppPurchasesIdRouteImport
       parentRoute: typeof AppRoute
     }
-    '/_app/production/new': {
-      id: '/_app/production/new'
-      path: '/production/new'
-      fullPath: '/production/new'
-      preLoaderRoute: typeof AppProductionNewRouteImport
-      parentRoute: typeof AppRoute
-    }
-    '/_app/production/$id': {
-      id: '/_app/production/$id'
-      path: '/production/$id'
-      fullPath: '/production/$id'
-      preLoaderRoute: typeof AppProductionIdRouteImport
-      parentRoute: typeof AppRoute
-    }
     '/_app/inventory/scan': {
       id: '/_app/inventory/scan'
       path: '/inventory/scan'
@@ -586,18 +472,13 @@ declare module '@tanstack/react-router' {
 
 interface AppRouteChildren {
   AppAlertsRoute: typeof AppAlertsRoute
-  AppBomRoute: typeof AppBomRoute
   AppDashboardRoute: typeof AppDashboardRoute
-  AppDevRoute: typeof AppDevRoute
   AppDoorRoute: typeof AppDoorRoute
-  AppEmployeesRoute: typeof AppEmployeesRoute
   AppLedgerRoute: typeof AppLedgerRoute
   AppReportsRoute: typeof AppReportsRoute
   AppSettingsRoute: typeof AppSettingsRoute
   AppInventoryProductIdRoute: typeof AppInventoryProductIdRoute
   AppInventoryScanRoute: typeof AppInventoryScanRoute
-  AppProductionIdRoute: typeof AppProductionIdRoute
-  AppProductionNewRoute: typeof AppProductionNewRoute
   AppPurchasesIdRoute: typeof AppPurchasesIdRoute
   AppPurchasesNewRoute: typeof AppPurchasesNewRoute
   AppSalesIdRoute: typeof AppSalesIdRoute
@@ -606,7 +487,6 @@ interface AppRouteChildren {
   AppUnitsItemIdRoute: typeof AppUnitsItemIdRoute
   AppGodownsIndexRoute: typeof AppGodownsIndexRoute
   AppInventoryIndexRoute: typeof AppInventoryIndexRoute
-  AppProductionIndexRoute: typeof AppProductionIndexRoute
   AppPurchaseReturnsIndexRoute: typeof AppPurchaseReturnsIndexRoute
   AppPurchasesIndexRoute: typeof AppPurchasesIndexRoute
   AppSalesReturnsIndexRoute: typeof AppSalesReturnsIndexRoute
@@ -615,18 +495,13 @@ interface AppRouteChildren {
 
 const AppRouteChildren: AppRouteChildren = {
   AppAlertsRoute: AppAlertsRoute,
-  AppBomRoute: AppBomRoute,
   AppDashboardRoute: AppDashboardRoute,
-  AppDevRoute: AppDevRoute,
   AppDoorRoute: AppDoorRoute,
-  AppEmployeesRoute: AppEmployeesRoute,
   AppLedgerRoute: AppLedgerRoute,
   AppReportsRoute: AppReportsRoute,
   AppSettingsRoute: AppSettingsRoute,
   AppInventoryProductIdRoute: AppInventoryProductIdRoute,
   AppInventoryScanRoute: AppInventoryScanRoute,
-  AppProductionIdRoute: AppProductionIdRoute,
-  AppProductionNewRoute: AppProductionNewRoute,
   AppPurchasesIdRoute: AppPurchasesIdRoute,
   AppPurchasesNewRoute: AppPurchasesNewRoute,
   AppSalesIdRoute: AppSalesIdRoute,
@@ -635,7 +510,6 @@ const AppRouteChildren: AppRouteChildren = {
   AppUnitsItemIdRoute: AppUnitsItemIdRoute,
   AppGodownsIndexRoute: AppGodownsIndexRoute,
   AppInventoryIndexRoute: AppInventoryIndexRoute,
-  AppProductionIndexRoute: AppProductionIndexRoute,
   AppPurchaseReturnsIndexRoute: AppPurchaseReturnsIndexRoute,
   AppPurchasesIndexRoute: AppPurchasesIndexRoute,
   AppSalesReturnsIndexRoute: AppSalesReturnsIndexRoute,
