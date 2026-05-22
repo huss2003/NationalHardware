@@ -7,7 +7,7 @@ import { PageHeader } from "@/components/erp/PageHeader";
 import { DetailSkeleton, TableSkeleton } from "@/components/erp/Skeletons";
 import { inr } from "@/lib/codes";
 import { Printer, MessageCircle } from "lucide-react";
-import { buildInvoicePdf, shareInvoiceOnWhatsApp } from "@/lib/invoice-pdf";
+// jspdf + jspdf-autotable (~250KB) loaded only when the user clicks Send.
 import { toast } from "sonner";
 
 export const Route = createFileRoute("/_app/sales/$id")({ component: SaleDetail });
