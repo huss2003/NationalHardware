@@ -8,7 +8,7 @@ import { PageHeader } from "@/components/erp/PageHeader";
 import { DetailSkeleton } from "@/components/erp/Skeletons";
 import { toast } from "sonner";
 import { Switch } from "@/components/ui/switch";
-import { useUiConfig, saveUiConfig, type UiConfig } from "@/lib/ui-config";
+import { useUiConfig, saveUiConfig, type UiConfig, type FieldCfg } from "@/lib/ui-config";
 
 export const Route = createFileRoute("/_app/settings")({ component: Settings });
 function Settings() {
