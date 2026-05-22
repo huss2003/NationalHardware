@@ -29,7 +29,30 @@ type DoorOrder = {
   rate: number; total: number;
 };
 
+const DEFAULT_DOOR_TYPE_NAMES = ["F-Hard", "F-Pine", "WF-Pine", "WF-Hard"] as const;
 const DOOR_MADE_OPTIONS = ["S.D", "D.D", "J.D", "JDD", "PLY", "WINDOW"] as const;
+
+function mergeDefaultDoorTypes(doorTypes: DoorType[]) {
+  const existingNames = new Set(doorTypes.map((d) => d.name.toLowerCase()));
+  const missingDefaults = DEFAULT_DOOR_TYPE_NAMES.filter((name) => !existingNames.has(name.toLowerCase())).map((name) => ({
+    id: `default:${name}`,
+    name,
+    rate: 0,
+    active: true,
+  }));
+
+  return [...doorTypes, ...missingDefaults].sort((a, b) => a.name.localeCompare(b.name));
+}
+
+function dbDoorTypeId(id: string) {
+  return id.startsWith("default:") ? null : id;
+}
+
+async function ensureDefaultDoorTypes() {
+  const defaults = DEFAULT_DOOR_TYPE_NAMES.map((name) => ({ name, rate: 0, active: true }));
+  await supabase.from("door_types").upsert(defaults, { onConflict: "name", ignoreDuplicates: true });
+  await supabase.from("door_types").update({ active: true }).in("name", [...DEFAULT_DOOR_TYPE_NAMES]);
+}
 
 function DoorPage() {
   const [tab, setTab] = useState<Category>("general");
@@ -39,6 +62,7 @@ function DoorPage() {
 
   const reload = async () => {
     setLoading(true);
+    await ensureDefaultDoorTypes();
     const [dt, oo] = await Promise.all([
       supabase.from("door_types").select("*").eq("active", true).order("name"),
       supabase.from("door_orders").select("*").order("created_at", { ascending: false }).limit(200),
@@ -48,6 +72,8 @@ function DoorPage() {
     setLoading(false);
   };
   useEffect(() => { reload(); }, []);
+
+  const selectableDoorTypes = useMemo(() => mergeDefaultDoorTypes(doorTypes), [doorTypes]);
 
   const filtered = useMemo(
     () => orders.filter((o) => o.category === tab),
@@ -69,7 +95,7 @@ function DoorPage() {
 
           <TabsContent value="general" className="space-y-5">
             <GeneralOrderForm
-              doorTypes={doorTypes}
+              doorTypes={selectableDoorTypes}
               nextOrderNoHint={nextOrderNo(orders, "general")}
               onSaved={reload}
             />
@@ -78,7 +104,7 @@ function DoorPage() {
 
           <TabsContent value="vypaari" className="space-y-5">
             <VypaariForm
-              doorTypes={doorTypes}
+              doorTypes={selectableDoorTypes}
               nextOrderNoHint={nextOrderNo(orders, "vypaari")}
               onSaved={reload}
             />
@@ -222,7 +248,7 @@ function GeneralOrderForm({
       front_mica: l.front_mica || null,
       back_mica: l.back_mica || null,
       door_taken_size: l.door_taken_size,
-      door_type_id: l.door_type_id,
+      door_type_id: dbDoorTypeId(l.door_type_id),
       door_type_name: l.door_type_name,
       door_made: l.door_made,
       qty: l.qty,
@@ -477,7 +503,7 @@ function VypaariForm({
       front_mica: frontMica || null,
       back_mica: backMica || null,
       door_taken_size: takenSize || null,
-      door_type_id: doorTypeId,
+      door_type_id: dbDoorTypeId(doorTypeId),
       door_type_name: selectedType?.name ?? null,
       rate,
       total,
