@@ -1,28 +1,26 @@
-# Door — General form tweaks
+## Goal
+The Ledger currently shows only Sales + Receipts (customers) and Purchases (suppliers). Extend it so **every** transaction tied to a customer or supplier appears — including **Door module orders** and Sales/Purchase Returns.
 
-Scope: `src/routes/_app.door.tsx` (General tab only). No DB changes; door types already seeded.
+## Changes (single file: `src/routes/_app.ledger.tsx`)
 
-## Changes
+### Customer ledger — add these sources
+1. **Door orders** (`door_orders`) — matched by `customer_name` (door module stores name, not id).
+   - Entry: `kind: "door"`, debit = `total`, credit = `0`, ref = `Door Order <order_no>`.
+   - Currently no detail route exists for door orders, so the ref will be non-clickable (display-only).
+2. **Sales returns** (`sales_returns`) where `customer_id = party.id`, `deleted_at is null`.
+   - Entry: `kind: "sales-return"`, credit = `grand_total` (reduces customer dues), ref = `Sales Return <return_no>`.
 
-1. **Door Type dropdown** — already populated from `door_types` (F-Hard, F-Pine, WF-Pine, WF-Hard seeded). Verify they appear; if the live table is missing any, the seed migration covers it. No code change unless dropdown is empty.
+### Supplier ledger — add this source
+3. **Purchase returns** (`purchase_returns`) where `supplier_id = party.id`, `deleted_at is null`.
+   - Entry: `kind: "purchase-return"`, credit = `grand_total` (reduces what we owe), ref = `Purchase Return <return_no>`.
+   - (Supplier payments table doesn't exist yet, so nothing else to add on supplier side.)
 
-2. **Replace "Billable sqft" field with "Total"** — In the Add-door card, swap the disabled `Billable sqft` input for a disabled `Total` input showing `inr(previewTotal)` (already computed). Keep the small footer hint line as-is for sqft breakdown.
+### UI
+- Add new badge styles + icons for `door` (Hammer/DoorOpen icon, purple), `sales-return` (RotateCcw, rose), `purchase-return` (RotateCcw, amber).
+- Sort all entries by date; running balance + outstanding totals already handle new rows automatically.
+- Keep existing Sales→`/sales/$id` and Purchases→`/purchases/$id` deep links. Door / returns stay non-linked for now (no detail routes exist).
 
-3. **New "Mica Add-on" field** — Add a numeric input (label: "Mica Add-on") in the Add-door grid. Default `0`. Stored on each `DoorLine` as `mica_addon: number`.
-
-4. **Total formula update**:
-   - `line_total = round(billable_sqft * rate_per_sqft * qty + mica_addon, 2)`
-   - If `mica_addon` is 0 or empty → behaves exactly as before.
-   - Preview Total in the form and the Lines table "Total" column both reflect this.
-   - Grand total sum unchanged (sums `line_total`).
-
-5. **Persistence**: insert `mica_addon` into `door_order_items` payload. Column already nullable-friendly? It does not exist yet — add a `mica_addon numeric not null default 0` column via a small migration so it persists.
-
-## Files
-
-- `src/routes/_app.door.tsx` — UI + math changes in `GeneralOrderForm`.
-- New migration: `alter table door_order_items add column mica_addon numeric not null default 0;`
-
-## Out of scope
-
-Vypaari tab, editing existing orders, showing mica add-on in the recent-orders table.
+## Notes
+- Door orders link to customer by name string. If multiple customers share a name this will overcollect — acceptable given the current door schema. (Future: add `customer_id` to `door_orders`.)
+- All 5 source queries run in a single `Promise.all` per party.
+- No schema/migration changes. No other files touched.
