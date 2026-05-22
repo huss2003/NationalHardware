@@ -1,47 +1,97 @@
-# Hardware vs Unique-Unit QR Behavior
+# Doors — multi-line orders with size-based pricing
 
-Today every purchased unit gets its **own** QR (e.g. `PLY-000123`). Sales scan once = 1 unit, qty locked. This stays true for **plywood, door, other**.
+Restructure the Doors page so a user enters order-level info once, then adds multiple door lines, then finalises the order. Pricing is per square foot and uses the larger of Party size vs Taken size.
 
-For **hardware**, the user wants:
-- One shared QR per hardware product (not per unit).
-- Scanning that QR in Sales adds it to the cart; scanning the same code again (or pressing +) increases qty.
-- Stock is tracked as a single lot row with a running quantity, not one row per piece.
+## Scope
+- Only the **General** tab gets the new flow.
+- **Vypaari** tab stays exactly as it is today.
+- Door-types catalog: ensure F-Hard, F-Pine, WF-Pine, WF-Hard rows exist in `door_types` (do not touch existing rows).
+- Add a new "Door Made" dropdown with options: S.D, D.D, J.D, JDD, PLY, WINDOW.
 
-## Database changes
+## New General flow (UI)
 
-Add to `item_instances`:
-- `qty_on_hand integer NOT NULL DEFAULT 1`
-- `is_lot boolean NOT NULL DEFAULT false`
+Top card — order header (entered once):
+- Order No. (auto, editable)
+- Date (today)
+- Customer Name
 
-Update `mint_item_instances(_purchase_item_id, _actor)`:
-- If `products.category = 'hardware'`:
-  - Look up the existing **available** lot row for that product (`is_lot = true`, `status = 'available'`).
-  - If found → `qty_on_hand += purchase qty`, log history, return same row.
-  - If not found → create one row with id = `product.prefix` (e.g. `HW-NAILS`) or `next_item_id(prefix)` reused as the lot id, `is_lot = true`, `qty_on_hand = purchase qty`, barcode = same id.
-- Otherwise (plywood/door/other): unchanged — one row per unit, unique IDs.
+Below — "Add door" line form (repeatable):
+- Party Door Size  (text, format `72.05*32.28`, inches)
+- Front Mica
+- Back Mica
+- Door Taken Size (text, same inches format)
+- Door Type (dropdown from `door_types`)
+- Door Made (dropdown: S.D, D.D, J.D, JDD, PLY, WINDOW)
+- Quantity (int, default 1)
+- Price per sqft (₹) — manual input
+- Computed (read-only preview): Party sqft, Taken sqft, Billable sqft (= max of the two), Line total
+- "Add door" button → pushes line into an in-memory list, resets the line form
 
-Update `record_sale`:
-- For a sold line whose item_instance is a lot (`is_lot = true`):
-  - Decrement `qty_on_hand` by the sold qty.
-  - Reject if qty would go negative ("Not enough stock for HW-XYZ").
-  - Keep status `available` until qty reaches 0; then mark `sold`.
-- Unit rows (non-lot): unchanged — mark `sold`, reject if not available.
+Lines table below: shows added doors with all fields + line total + remove button.
 
-## Frontend changes
+Footer:
+- Grand total (sum of line totals)
+- "Save order" button — persists the order + all lines atomically, then resets.
 
-`src/routes/_app.sales.new.tsx`:
-- When scanning a code that matches an existing cart line:
-  - If `is_lot` (hardware) → `qty += 1` instead of showing "duplicate".
-  - Else → show duplicate warning (current behavior).
-- In the cart table:
-  - For non-lot lines (plywood/door/other): hide the +/− buttons and lock the qty field at 1.
-  - For lot lines (hardware): keep the existing qty controls; show available stock so the user can't oversell.
-- Add `is_lot` and `qty_on_hand` to the `Line` type so the UI knows which rule to apply.
+## Pricing math
+- Parse `L*W` (accept `x` or `*`, trim "inches"/"in"). Reject if not two positive numbers.
+- sqft = round((L * W) / 144, 2)
+- billable_sqft = max(party_sqft, taken_sqft)  — strict numeric max, so 2900.01 wins over 2900.
+- line_total = round(price_per_sqft * billable_sqft * qty, 2)
 
-`src/routes/_app.purchases.new.tsx`: no UI change — the RPC handles lot vs unit minting automatically based on product category.
+## Data model
 
-Inventory pages already read `item_instances`; they'll start showing hardware as one row with `qty_on_hand > 1` instead of N rows.
+`door_orders` already stores one row per order today. We need multiple doors per order, so add a child table:
 
-## Out of scope for this change
-- Labels/print: hardware labels will print one label per product (since the QR is shared). Existing label code keeps working.
-- Returns: sales/purchase returns will continue to operate on item_instance rows; for hardware lots they'll add qty back to the lot row (handled by reusing the same decrement logic in reverse later).
+```text
+door_orders (existing, header only)
+  └── door_order_items (new, one row per door line)
+```
+
+New table `door_order_items`:
+- id uuid PK
+- order_id uuid (door_orders.id, on delete cascade)
+- party_door_size text
+- front_mica text
+- back_mica text
+- door_taken_size text
+- door_type_id uuid (door_types.id)
+- door_type_name text  (snapshot)
+- door_made text       (S.D | D.D | J.D | JDD | PLY | WINDOW)
+- qty int
+- party_sqft numeric
+- taken_sqft numeric
+- billable_sqft numeric
+- rate_per_sqft numeric
+- line_total numeric
+- created_at timestamptz
+- RLS: same `authenticated` read/write/update/delete pattern used across the app.
+
+`door_orders` header changes for General orders:
+- `rate`, `door_type_id`, `door_type_name`, `door_taken_size`, `party_door_size`, `front_mica`, `back_mica` become optional (already nullable except `rate`). Make `rate` default-0 stay; we'll store 0 on header for multi-line General orders.
+- `total` = sum of `door_order_items.line_total`.
+- Vypaari rows continue to write the existing single-line fields and ignore `door_order_items`.
+
+Seed/ensure: insert the 4 door types if missing (idempotent `on conflict do nothing` on name).
+
+## Save flow
+Client does:
+1. Validate header (customer, ≥1 line).
+2. Insert `door_orders` row with computed `total`.
+3. Insert all `door_order_items` rows referencing that order id.
+4. On any error, delete the header row to avoid orphans (best-effort; acceptable since this is single-user shop ops).
+
+## Recent orders table
+- Keep showing one row per order (existing table). Add a small line-count column (e.g. "3 doors"). Clicking a row can be a follow-up; not in this scope.
+
+## Out of scope
+- Editing existing orders / their lines.
+- Vypaari multi-line flow.
+- PDF / print.
+- Inventory linkage for door orders.
+
+## Technical notes
+- New file: none. All UI changes inside `src/routes/_app.door.tsx` (split `DoorForm` into `GeneralOrderForm` (multi-line) and the existing single-line form kept for Vypaari).
+- Helper: `parseInchSize(str): { l:number, w:number } | null` and `toSqft(l,w): number` co-located in the route file.
+- Migration creates `door_order_items` + RLS + seeds 4 door types.
+- Regenerate `src/integrations/supabase/types.ts` after migration.
