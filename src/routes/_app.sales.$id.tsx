@@ -33,6 +33,7 @@ function SaleDetail() {
     if (!s.customers?.phone) { toast.error("Customer has no phone"); return; }
     setSending(true);
     try {
+      const { buildInvoicePdf, shareInvoiceOnWhatsApp } = await import("@/lib/invoice-pdf");
       const pdf = buildInvoicePdf({
         shop, sale: s, customer: s.customers,
         items: items.map((it) => ({
