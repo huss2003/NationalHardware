@@ -129,6 +129,7 @@ type DoorLine = {
   taken_sqft: number;
   billable_sqft: number;
   rate_per_sqft: number;
+  mica_addon: number;
   line_total: number;
 };
 
@@ -136,7 +137,8 @@ function emptyLine(): Omit<DoorLine, "key"> {
   return {
     party_door_size: "", front_mica: "", back_mica: "", door_taken_size: "",
     door_type_id: "", door_type_name: "", door_made: "", qty: 1,
-    party_sqft: 0, taken_sqft: 0, billable_sqft: 0, rate_per_sqft: 0, line_total: 0,
+    party_sqft: 0, taken_sqft: 0, billable_sqft: 0, rate_per_sqft: 0,
+    mica_addon: 0, line_total: 0,
   };
 }
 
@@ -157,7 +159,10 @@ function GeneralOrderForm({
   const partySqft = partyParsed ? toSqft(partyParsed.l, partyParsed.w) : 0;
   const takenSqft = takenParsed ? toSqft(takenParsed.l, takenParsed.w) : 0;
   const billableSqft = Math.max(partySqft, takenSqft);
-  const previewTotal = round2(billableSqft * (draft.rate_per_sqft || 0) * (draft.qty || 0));
+  const previewTotal = round2(
+    billableSqft * (draft.rate_per_sqft || 0) * (draft.qty || 0) +
+      (Number(draft.mica_addon) || 0),
+  );
 
   const grandTotal = useMemo(
     () => round2(lines.reduce((a, l) => a + Number(l.line_total || 0), 0)),
@@ -180,6 +185,7 @@ function GeneralOrderForm({
       party_sqft: partySqft,
       taken_sqft: takenSqft,
       billable_sqft: billableSqft,
+      mica_addon: Number(draft.mica_addon) || 0,
       line_total: previewTotal,
     };
     setLines((prev) => [...prev, line]);
@@ -224,6 +230,7 @@ function GeneralOrderForm({
       taken_sqft: l.taken_sqft,
       billable_sqft: l.billable_sqft,
       rate_per_sqft: l.rate_per_sqft,
+      mica_addon: l.mica_addon,
       line_total: l.line_total,
     }));
     const { error: itemsErr } = await (supabase as any)
@@ -336,8 +343,16 @@ function GeneralOrderForm({
               onChange={(e) => setDraft({ ...draft, rate_per_sqft: Number(e.target.value || 0) })}
             />
           </Field>
-          <Field label="Billable sqft (max of party / taken)">
-            <Input value={`${billableSqft.toFixed(2)} sqft`} disabled />
+          <Field label="Mica Add-on">
+            <Input
+              type="number" min={0}
+              value={draft.mica_addon}
+              onChange={(e) => setDraft({ ...draft, mica_addon: Number(e.target.value || 0) })}
+              placeholder="0"
+            />
+          </Field>
+          <Field label="Total">
+            <Input value={inr(previewTotal)} disabled />
           </Field>
         </div>
 

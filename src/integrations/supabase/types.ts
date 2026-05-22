@@ -238,6 +238,7 @@ export type Database = {
           front_mica: string | null
           id: string
           line_total: number
+          mica_addon: number
           order_id: string
           party_door_size: string | null
           party_sqft: number
@@ -256,6 +257,7 @@ export type Database = {
           front_mica?: string | null
           id?: string
           line_total?: number
+          mica_addon?: number
           order_id: string
           party_door_size?: string | null
           party_sqft?: number
@@ -274,6 +276,7 @@ export type Database = {
           front_mica?: string | null
           id?: string
           line_total?: number
+          mica_addon?: number
           order_id?: string
           party_door_size?: string | null
           party_sqft?: number
