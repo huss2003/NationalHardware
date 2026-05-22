@@ -25,6 +25,7 @@ type Line = {
   product_id: string; item_instance_id: string | null; name: string;
   qty: number; rate: number; gst_rate: number; hsn?: string | null;
   alt_unit?: string | null; alt_conversion?: number | null;
+  is_lot?: boolean; max_qty?: number;
 };
 
 function NewSale() {
@@ -62,7 +63,19 @@ function NewSale() {
         msg: `Prefix "${prefix || "?"}" is not a known category. Expected one of: ${knownPrefixes.join(", ")}.` });
       return;
     }
-    if (lines.find(l => l.item_instance_id === code)) {
+    const existingIdx = lines.findIndex(l => l.item_instance_id === code);
+    if (existingIdx !== -1) {
+      const existing = lines[existingIdx];
+      if (existing.is_lot) {
+        const nextQty = existing.qty + 1;
+        if (existing.max_qty != null && nextQty > existing.max_qty) {
+          setWarn({ kind: "generic", code, msg: `Only ${existing.max_qty} in stock for this item.` });
+          return;
+        }
+        setLines(lines.map((l, i) => i === existingIdx ? { ...l, qty: nextQty } : l));
+        toast.success(`+1 ${existing.name}`);
+        return;
+      }
       setWarn({ kind: "duplicate", code, msg: "This item is already in the cart." }); return;
     }
     const { data: item } = await supabase.from("item_instances").select("*, products(*)").eq("id", code).maybeSingle();
@@ -79,12 +92,19 @@ function NewSale() {
       setWarn({ kind, code, msg: `Status is ${String(item.status).toUpperCase()} — cannot be sold.` });
       return;
     }
+    const isLot = !!(item as any).is_lot;
+    const maxQty = isLot ? Number((item as any).qty_on_hand ?? 1) : 1;
+    if (isLot && maxQty <= 0) {
+      setWarn({ kind: "generic", code, msg: "Out of stock." });
+      return;
+    }
     setLines([...lines, {
       product_id: item.product_id, item_instance_id: item.id, name: item.products.name,
       qty: 1, rate: Number(item.products.default_price), gst_rate: Number(item.products.gst_rate),
       hsn: item.products.hsn,
       alt_unit: (item.products as any).alt_unit ?? null,
       alt_conversion: (item.products as any).alt_conversion ?? null,
+      is_lot: isLot, max_qty: maxQty,
     }]);
     toast.success(`Added ${item.id}`);
   };
@@ -233,30 +253,47 @@ function NewSale() {
                               </div>
                             </td>
                             <td className="py-3 px-3">
-                              <div className="inline-flex items-center rounded-md border border-input">
-                                <button
-                                  type="button"
-                                  className="h-8 w-8 grid place-items-center text-muted-foreground hover:text-foreground"
-                                  onClick={() => upd(i, { qty: Math.max(1, l.qty - 1) })}
+                              {l.is_lot ? (
+                                <div className="inline-flex items-center rounded-md border border-input">
+                                  <button
+                                    type="button"
+                                    className="h-8 w-8 grid place-items-center text-muted-foreground hover:text-foreground"
+                                    onClick={() => upd(i, { qty: Math.max(1, l.qty - 1) })}
+                                  >
+                                    <Minus className="h-3 w-3" />
+                                  </button>
+                                  <input
+                                    className="h-8 w-12 text-center text-sm bg-transparent border-x border-input focus:outline-none tabular-nums"
+                                    type="number"
+                                    value={l.qty}
+                                    onChange={(e) => {
+                                      const v = Math.max(1, Number(e.target.value));
+                                      upd(i, { qty: l.max_qty != null ? Math.min(v, l.max_qty) : v });
+                                    }}
+                                  />
+                                  <button
+                                    type="button"
+                                    className="h-8 w-8 grid place-items-center text-muted-foreground hover:text-foreground"
+                                    onClick={() => {
+                                      const nx = l.qty + 1;
+                                      if (l.max_qty != null && nx > l.max_qty) {
+                                        toast.error(`Only ${l.max_qty} in stock`);
+                                        return;
+                                      }
+                                      upd(i, { qty: nx });
+                                    }}
+                                  >
+                                    <Plus className="h-3 w-3" />
+                                  </button>
+                                </div>
+                              ) : (
+                                <div
+                                  className="inline-flex items-center justify-center h-8 px-3 rounded-md border border-dashed border-input bg-muted/40 text-sm font-medium tabular-nums text-muted-foreground"
+                                  title="Unique unit — qty locked to 1"
                                 >
-                                  <Minus className="h-3 w-3" />
-                                </button>
-                                <input
-                                  className="h-8 w-12 text-center text-sm bg-transparent border-x border-input focus:outline-none tabular-nums"
-                                  type="number"
-                                  value={l.qty}
-                                  onChange={(e) =>
-                                    upd(i, { qty: Math.max(1, Number(e.target.value)) })
-                                  }
-                                />
-                                <button
-                                  type="button"
-                                  className="h-8 w-8 grid place-items-center text-muted-foreground hover:text-foreground"
-                                  onClick={() => upd(i, { qty: l.qty + 1 })}
-                                >
-                                  <Plus className="h-3 w-3" />
-                                </button>
-                              </div>
+                                  1
+                                </div>
+                              )}
                             </td>
                             <td className="py-3 px-3 text-xs tabular-nums">
                               {l.alt_unit && l.alt_conversion

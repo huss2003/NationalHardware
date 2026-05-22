@@ -425,11 +425,13 @@ export type Database = {
           dimension_unit: string | null
           godown_id: string | null
           id: string
+          is_lot: boolean
           length_value: number | null
           location: string | null
           produced_by_order_id: string | null
           product_id: string
           qr_payload: Json
+          qty_on_hand: number
           source_purchase_item_id: string | null
           status: Database["public"]["Enums"]["item_status"]
           updated_at: string
@@ -443,11 +445,13 @@ export type Database = {
           dimension_unit?: string | null
           godown_id?: string | null
           id: string
+          is_lot?: boolean
           length_value?: number | null
           location?: string | null
           produced_by_order_id?: string | null
           product_id: string
           qr_payload: Json
+          qty_on_hand?: number
           source_purchase_item_id?: string | null
           status?: Database["public"]["Enums"]["item_status"]
           updated_at?: string
@@ -461,11 +465,13 @@ export type Database = {
           dimension_unit?: string | null
           godown_id?: string | null
           id?: string
+          is_lot?: boolean
           length_value?: number | null
           location?: string | null
           produced_by_order_id?: string | null
           product_id?: string
           qr_payload?: Json
+          qty_on_hand?: number
           source_purchase_item_id?: string | null
           status?: Database["public"]["Enums"]["item_status"]
           updated_at?: string
@@ -1351,11 +1357,13 @@ export type Database = {
           dimension_unit: string | null
           godown_id: string | null
           id: string
+          is_lot: boolean
           length_value: number | null
           location: string | null
           produced_by_order_id: string | null
           product_id: string
           qr_payload: Json
+          qty_on_hand: number
           source_purchase_item_id: string | null
           status: Database["public"]["Enums"]["item_status"]
           updated_at: string
@@ -1395,11 +1403,13 @@ export type Database = {
           dimension_unit: string | null
           godown_id: string | null
           id: string
+          is_lot: boolean
           length_value: number | null
           location: string | null
           produced_by_order_id: string | null
           product_id: string
           qr_payload: Json
+          qty_on_hand: number
           source_purchase_item_id: string | null
           status: Database["public"]["Enums"]["item_status"]
           updated_at: string
