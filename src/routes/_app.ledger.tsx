@@ -210,7 +210,7 @@ function LedgerPage() {
               return (
                 <button
                   key={p.id}
-                  onClick={() => loadLedger(p)}
+                  onClick={() => setSelected(p)}
                   className={`w-full text-left px-3 py-2 rounded-md text-sm transition-colors ${
                     active ? "bg-primary/10 text-primary font-semibold" : "hover:bg-muted"
                   }`}
