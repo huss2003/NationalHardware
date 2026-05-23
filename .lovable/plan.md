@@ -1,41 +1,35 @@
-## Goal
-Fix the ledger so Sales Returns and Purchase Returns are factored into Outstanding correctly, and make every return row clickable so the user can view its details.
+## Godown Stock In / Stock Out
 
-## Changes (single file: `src/routes/_app.ledger.tsx`)
+Add two action buttons on each Godown tile (and a header pair when "All Locations" is selected) that open dedicated dialogs.
 
-### 1. Customer ledger — sales-return + refund as two legs
+### Stock In dialog
 
-Today each `sales_returns` row pushes ONE entry: `credit = grand_total`. That drops the customer's outstanding even when we already paid the cash back.
+Tabs:
+1. **Move existing** — searchable list of `item_instances` with `status='available'` and `godown_id` ≠ this godown (includes unassigned). Multi-select → updates `godown_id` to chosen godown, writes `item_history` event `moved`.
+2. **Receive new** — pick product + qty → mints fresh `item_instances` via the same logic the purchase flow uses (unique units get N stickers; hardware reuses/creates a lot row). New rows get `godown_id` set. Auto-opens the print dialog (LabelSheet) for the minted stickers.
 
-New behavior — mirror the sale + receipt pattern:
-- Always push a **return entry**: `kind: "sales-return"`, `credit = grand_total`, `debit = 0`.
-- If `refund_amount > 0` AND `refund_mode !== 'credit_note'`, push a second **refund entry**: `kind: "refund-paid"`, `debit = refund_amount`, `credit = 0`, dated same as the return, ref `Refund <mode> for SR-…`.
+### Stock Out dialog
 
-Net effect:
-- Credit-note return → outstanding drops by `grand_total` (we owe them a future credit).
-- Cash/UPI/card refund → return credit + refund debit cancel → outstanding unchanged (we already squared up).
-- Partial cash refund → outstanding drops by `grand_total - refund_amount`.
+Step 1: pick units from this godown (scan or multi-select list, filtered to `godown_id = this`, `status='available'`).
 
-### 2. Supplier ledger — purchase-return stays as one credit
+Step 2: destination tabs:
+- **To Shop floor** — set `godown_id = null`, status stays `available`, write `moved` history.
+- **To Sales bill** — autocomplete on `sales` (recent + search by invoice_no/customer). On confirm: insert into `sales_items` with `item_instance_id`, recompute `sales.subtotal/grand_total`, mark instance `sold` (or decrement lot qty), write `sold` history with `ref_table='sales'`.
 
-Keep current logic (`credit = grand_total`) — schema has no refund column on `purchase_returns`, and the user didn't ask to change supplier-side math. We still want it clickable.
+After EITHER destination is committed, automatically mint NEW sequential stickers for the moved units (one per unique unit; lot units skip mint per your choice) using the existing `mintReprintForSale` helper in `src/lib/relabel.ts` — original row is marked moved/sold, new sticker carries `replaces: <oldId>`. The new stickers open in the existing `ReprintLabelDialog` for printing.
 
-### 3. Make return rows clickable
+**Hardware lots:** Stock Out asks for qty, decrements `qty_on_hand` on the lot row, reprints the existing lot sticker only (no new ID minted). If qty becomes 0, status flips to `sold`/`moved`.
 
-Add `refId` to both `sales-return` and `purchase-return` entries, and wire row-level click:
-- `sales-return` → open the existing `ReturnTimelineDialog` (refTable `sales_returns`) so the user sees items, history, reason, refund mode/amount.
-- `purchase-return` → open `ReturnTimelineDialog` with refTable `purchase_returns`.
-- `refund-paid` → no link (it's a virtual leg derived from the same return).
+### Files
 
-Add a small state `{ id, no, refTable }` for the open dialog, mount one `ReturnTimelineDialog` at the bottom of the page, and trigger from row `onClick`.
+- New: `src/components/erp/GodownStockInDialog.tsx`
+- New: `src/components/erp/GodownStockOutDialog.tsx`
+- New: `src/lib/godown-stock.ts` — helpers: `moveToGodown`, `moveOutOfGodown`, `attachUnitsToSale`, `mintFreshIntoGodown` (wraps existing mint pattern).
+- Edit: `src/routes/_app.godowns.index.tsx` — add "Stock In" / "Stock Out" buttons on tile + page header; mount the two dialogs and the existing `ReprintLabelDialog`.
+- Reuse: `src/lib/relabel.ts` (`mintReprintForSale`) for the new-sticker mint on stock-out.
 
-### 4. Type + UI polish
+### Notes
 
-- Extend the `Entry["kind"]` union with `"refund-paid"`.
-- Pick an icon (`Wallet` or `Undo2`) and a muted color chip for `refund-paid`.
-- Row sorting unchanged (already by date).
-
-## Out of scope
-- No DB migration. Pure read-side calculation change.
-- No change to how `sales_returns.refund_amount` is recorded (already captured in the create-return dialog).
-- Supplier-side refund tracking (not in schema).
+- No schema changes — `item_instances.godown_id` already exists, `item_history` already supports `moved`.
+- Sale total recomputation mirrors what `record_sale` does (subtotal + GST split). Done client-side via `supabase.update` on `sales` after inserting the line.
+- "Stock Out" buttons only enabled when a specific godown (not "All") is selected.
