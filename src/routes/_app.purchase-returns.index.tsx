@@ -14,11 +14,15 @@ import {
 import { ScanInput } from "@/components/erp/ScanInput";
 import { ScanWarning, type ScanWarningKind } from "@/components/erp/ScanWarning";
 import { ReturnTimelineDialog } from "@/components/erp/ReturnTimelineDialog";
+import { ReprintLabelDialog } from "@/components/erp/ReprintLabelDialog";
+import { Checkbox } from "@/components/ui/checkbox";
+import { Input } from "@/components/ui/input";
+import { mintReplacementForPurchase, type MintedSticker } from "@/lib/relabel";
 import { inr } from "@/lib/codes";
 import { toast } from "sonner";
 import { useAuth } from "@/lib/auth-store";
 import {
-  Plus, RotateCcw, ClipboardList, TrendingDown, Calendar, Building2, Trash2, History,
+  Plus, RotateCcw, ClipboardList, TrendingDown, Calendar, Building2, History, Printer,
 } from "lucide-react";
 
 export const Route = createFileRoute("/_app/purchase-returns/")({ component: PurchaseReturns });
@@ -157,22 +161,17 @@ function PurchaseReturns() {
   );
 }
 
-type ScannedRow = {
-  item_instance_id: string;
-  product_id: string;
-  product_name: string;
-  rate: number;
-  gst_rate: number;
-  qty: number;
-};
-
 function NewPurchaseReturnDialog({
   onClose, onSaved, userId,
 }: { onClose: () => void; onSaved: () => void; userId?: string }) {
   const [purchases, setPurchases] = useState<any[]>([]);
   const [purchaseId, setPurchaseId] = useState("");
   const [instances, setInstances] = useState<any[]>([]);
-  const [cart, setCart] = useState<ScannedRow[]>([]);
+  const [products, setProducts] = useState<any[]>([]);
+  const [selected, setSelected] = useState<Set<string>>(new Set());
+  const [replaceFor, setReplaceFor] = useState<any | null>(null);
+  const [mintedNew, setMintedNew] = useState<MintedSticker[]>([]);
+  const [reprintOpen, setReprintOpen] = useState(false);
   const [reason, setReason] = useState("");
   const [status, setStatus] = useState("sent");
   const [scanError, setScanError] = useState<{ kind: ScanWarningKind; msg: string; code?: string } | null>(null);
@@ -180,18 +179,22 @@ function NewPurchaseReturnDialog({
 
   useEffect(() => {
     (async () => {
-      const { data } = await supabase
-        .from("purchases")
-        .select("id, bill_no, grand_total, supplier_id, suppliers(name)")
-        .is("deleted_at", null)
-        .order("created_at", { ascending: false })
-        .limit(100);
-      setPurchases(data ?? []);
+      const [pu, pr] = await Promise.all([
+        supabase
+          .from("purchases")
+          .select("id, bill_no, grand_total, supplier_id, suppliers(name)")
+          .is("deleted_at", null)
+          .order("created_at", { ascending: false })
+          .limit(100),
+        supabase.from("products").select("id, name, prefix").eq("active", true).order("name"),
+      ]);
+      setPurchases(pu.data ?? []);
+      setProducts(pr.data ?? []);
     })();
   }, []);
 
   useEffect(() => {
-    setCart([]); setScanError(null);
+    setSelected(new Set()); setScanError(null);
     if (!purchaseId) { setInstances([]); return; }
     (async () => {
       const { data: pi } = await supabase
@@ -216,42 +219,39 @@ function NewPurchaseReturnDialog({
 
   const selectedPurchase = purchases.find((p) => p.id === purchaseId);
 
+  const toggle = (id: string) => {
+    setSelected((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id); else next.add(id);
+      return next;
+    });
+  };
+
   const onScan = async (code: string) => {
     setScanError(null);
     if (!purchaseId) { setScanError({ kind: "generic", msg: "Pick a purchase bill first." }); return; }
-    const prefix = code.split("-")[0]?.toUpperCase();
-    const known = Array.from(new Set(instances.map((i: any) => i.product_prefix).filter(Boolean)));
-    if (cart.some((c) => c.item_instance_id === code)) {
-      setScanError({ kind: "duplicate", code, msg: "This item is already in the return cart." }); return;
-    }
     const inst = instances.find((i) => i.id === code);
     if (!inst) {
-      if (known.length && prefix && !known.includes(prefix)) {
-        setScanError({ kind: "wrong_prefix", code,
-          msg: `Prefix "${prefix}" doesn't match this bill. Expected: ${known.join(", ")}.` });
-      } else {
-        setScanError({ kind: "unknown", code, msg: "This item was not on the selected purchase bill." });
-      }
+      setScanError({ kind: "unknown", code, msg: "This item was not on the selected purchase bill." });
       return;
     }
     if (inst.status !== "available") {
-      const kind: ScanWarningKind =
-        inst.status === "sold" ? "sold"
-        : inst.status === "damaged" ? "damaged"
-        : inst.status === "used_in_production" ? "used"
-        : "generic";
-      setScanError({ kind, code, msg: `Status is ${String(inst.status).toUpperCase()} — cannot return to supplier.` });
+      setScanError({ kind: "generic", code, msg: `Status is ${String(inst.status).toUpperCase()} — cannot return to supplier.` });
       return;
     }
-    setCart((c) => [...c, {
-      item_instance_id: code,
-      product_id: inst.product_id,
-      product_name: inst.product_name,
-      rate: inst.rate,
-      gst_rate: inst.gst_rate,
-      qty: 1,
-    }]);
+    toggle(code);
   };
+
+  const cart = useMemo(() => instances
+    .filter((i: any) => selected.has(i.id))
+    .map((i: any) => ({
+      item_instance_id: i.id as string,
+      product_id: i.product_id as string,
+      product_name: i.product_name,
+      rate: Number(i.rate ?? 0),
+      gst_rate: Number(i.gst_rate ?? 0),
+      qty: 1,
+    })), [instances, selected]);
 
   const subtotal = cart.reduce((s, c) => s + c.rate * c.qty, 0);
   const tax = cart.reduce((s, c) => s + (c.rate * c.qty * c.gst_rate) / 100, 0);
@@ -259,7 +259,7 @@ function NewPurchaseReturnDialog({
 
   const save = async () => {
     if (!purchaseId) { toast.error("Pick the original purchase"); return; }
-    if (cart.length === 0) { toast.error("Scan at least one item"); return; }
+    if (cart.length === 0) { toast.error("Select at least one item to return"); return; }
     setBusy(true);
 
     const returnNo = `PR-${Date.now().toString().slice(-6)}`;
@@ -316,8 +316,13 @@ function NewPurchaseReturnDialog({
     onSaved();
   };
 
+  const eligibleCount = instances.filter((i: any) => i.status === "available").length;
+  const allEligibleSelected = eligibleCount > 0 && instances
+    .filter((i: any) => i.status === "available")
+    .every((i: any) => selected.has(i.id));
+
   return (
-    <DialogContent className="sm:max-w-[760px] max-h-[90vh] overflow-y-auto">
+    <DialogContent className="sm:max-w-[880px] max-h-[90vh] overflow-y-auto">
       <DialogHeader>
         <DialogTitle>Record Purchase Return</DialogTitle>
       </DialogHeader>
@@ -338,18 +343,35 @@ function NewPurchaseReturnDialog({
           </select>
         </div>
 
-        <div>
-          <Label>Scan items being returned to supplier</Label>
-      <ScanInput onScan={onScan} placeholder="Scan / type item ID and press Enter" invalid={!!scanError} />
-      {scanError && <ScanWarning kind={scanError.kind} message={scanError.msg} code={scanError.code} />}
-          {purchaseId && instances.length > 0 && (
-            <div className="mt-2 text-xs text-muted-foreground">
-              {instances.filter((i) => i.status === "available").length} of {instances.length} units still available to return
+        {purchaseId && (
+          <div className="space-y-2">
+            <div className="flex items-center justify-between">
+              <Label>Items on this bill — tick what's going back to the supplier</Label>
+              <div className="text-xs text-muted-foreground">
+                {selected.size} of {eligibleCount} eligible selected
+              </div>
             </div>
-          )}
-        </div>
-
-        <ScannedTable cart={cart} onRemove={(id) => setCart((c) => c.filter((x) => x.item_instance_id !== id))} />
+            <BillItemsPicker
+              instances={instances}
+              selected={selected}
+              onToggle={toggle}
+              allEligibleSelected={allEligibleSelected}
+              onToggleAll={() => {
+                setSelected((prev) => {
+                  if (allEligibleSelected) return new Set();
+                  const next = new Set(prev);
+                  instances.forEach((i: any) => {
+                    if (i.status === "available") next.add(i.id);
+                  });
+                  return next;
+                });
+              }}
+              onReprintReplacement={(inst) => setReplaceFor(inst)}
+            />
+            <ScanInput onScan={onScan} placeholder="Optional: scan to toggle an item" invalid={!!scanError} />
+            {scanError && <ScanWarning kind={scanError.kind} message={scanError.msg} code={scanError.code} />}
+          </div>
+        )}
 
         <div className="grid grid-cols-2 gap-3">
           <div>
@@ -384,17 +406,41 @@ function NewPurchaseReturnDialog({
           {busy ? "Saving…" : `Record Return · ${inr(grand)}`}
         </Button>
       </DialogFooter>
+      <MintReplacementDialog
+        original={replaceFor}
+        products={products}
+        userId={userId}
+        onClose={() => setReplaceFor(null)}
+        onMinted={(items) => {
+          setReplaceFor(null);
+          setMintedNew(items);
+          setReprintOpen(true);
+        }}
+      />
+      <ReprintLabelDialog
+        open={reprintOpen}
+        onOpenChange={setReprintOpen}
+        items={mintedNew}
+        title="New replacement stickers"
+      />
     </DialogContent>
   );
 }
 
-function ScannedTable({
-  cart, onRemove,
-}: { cart: ScannedRow[]; onRemove: (id: string) => void }) {
-  if (cart.length === 0) {
+function BillItemsPicker({
+  instances, selected, onToggle, allEligibleSelected, onToggleAll, onReprintReplacement,
+}: {
+  instances: any[];
+  selected: Set<string>;
+  onToggle: (id: string) => void;
+  allEligibleSelected: boolean;
+  onToggleAll: () => void;
+  onReprintReplacement: (inst: any) => void;
+}) {
+  if (instances.length === 0) {
     return (
       <div className="border border-dashed rounded-lg p-6 text-center text-xs text-muted-foreground">
-        Scanned items will appear here.
+        No scannable units recorded against this bill.
       </div>
     );
   }
@@ -403,30 +449,127 @@ function ScannedTable({
       <Table>
         <TableHeader>
           <TableRow>
+            <TableHead className="w-8 pl-3">
+              <Checkbox checked={allEligibleSelected} onCheckedChange={() => onToggleAll()} />
+            </TableHead>
             <TableHead className="text-[11px] uppercase tracking-wider">Item ID</TableHead>
             <TableHead className="text-[11px] uppercase tracking-wider">Product</TableHead>
+            <TableHead className="text-[11px] uppercase tracking-wider">Status</TableHead>
             <TableHead className="text-[11px] uppercase tracking-wider text-right">Rate</TableHead>
-            <TableHead className="text-[11px] uppercase tracking-wider text-right">Total</TableHead>
-            <TableHead></TableHead>
+            <TableHead className="text-[11px] uppercase tracking-wider text-right pr-3">Replacement</TableHead>
           </TableRow>
         </TableHeader>
         <TableBody>
-          {cart.map((c) => (
-            <TableRow key={c.item_instance_id}>
-              <TableCell className="font-mono text-xs">{c.item_instance_id}</TableCell>
-              <TableCell>{c.product_name}</TableCell>
-              <TableCell className="text-right tabular-nums">{inr(c.rate)}</TableCell>
-              <TableCell className="text-right tabular-nums">{inr(c.rate * c.qty)}</TableCell>
-              <TableCell className="text-right">
-                <Button variant="ghost" size="icon" onClick={() => onRemove(c.item_instance_id)}>
-                  <Trash2 className="h-4 w-4 text-muted-foreground" />
-                </Button>
-              </TableCell>
-            </TableRow>
-          ))}
+          {instances.map((i: any) => {
+            const eligible = i.status === "available";
+            const isChecked = selected.has(i.id);
+            return (
+              <TableRow key={i.id} className={!eligible ? "opacity-50" : ""}>
+                <TableCell className="pl-3">
+                  <Checkbox
+                    checked={isChecked}
+                    disabled={!eligible}
+                    onCheckedChange={() => eligible && onToggle(i.id)}
+                  />
+                </TableCell>
+                <TableCell className="font-mono text-xs">{i.id}</TableCell>
+                <TableCell>{i.product_name}</TableCell>
+                <TableCell><span className="text-[11px] uppercase tracking-wider text-muted-foreground">{i.status}</span></TableCell>
+                <TableCell className="text-right tabular-nums">{inr(i.rate)}</TableCell>
+                <TableCell className="text-right pr-3">
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    className="h-8 gap-1.5"
+                    disabled={!isChecked}
+                    onClick={() => onReprintReplacement(i)}
+                    title={isChecked ? "Mint a new sticker for the replacement piece" : "Tick the row first"}
+                  >
+                    <Printer className="h-3.5 w-3.5" />
+                    Reprint
+                  </Button>
+                </TableCell>
+              </TableRow>
+            );
+          })}
         </TableBody>
       </Table>
     </div>
+  );
+}
+
+function MintReplacementDialog({
+  original, products, userId, onClose, onMinted,
+}: {
+  original: any | null;
+  products: any[];
+  userId?: string;
+  onClose: () => void;
+  onMinted: (items: MintedSticker[]) => void;
+}) {
+  const [productId, setProductId] = useState("");
+  const [qty, setQty] = useState(1);
+  const [busy, setBusy] = useState(false);
+
+  useEffect(() => {
+    if (original) {
+      setProductId(original.product_id);
+      setQty(1);
+    }
+  }, [original]);
+
+  if (!original) return null;
+
+  const submit = async () => {
+    setBusy(true);
+    try {
+      const minted = await mintReplacementForPurchase(original.id, productId, qty, userId);
+      toast.success(`${minted.length} new sticker(s) minted`);
+      onMinted(minted);
+    } catch (e: any) {
+      toast.error(e.message ?? "Failed to mint");
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  return (
+    <Dialog open={!!original} onOpenChange={(v) => !v && onClose()}>
+      <DialogContent className="sm:max-w-[460px]">
+        <DialogHeader>
+          <DialogTitle>Mint replacement sticker</DialogTitle>
+        </DialogHeader>
+        <div className="space-y-3 text-sm">
+          <p className="text-muted-foreground">
+            Original sticker <span className="font-mono">{original.id}</span> is being returned to the supplier.
+            Mint a brand-new sequential sticker for the replacement piece you received.
+          </p>
+          <div>
+            <Label>Replacement product</Label>
+            <select
+              className="h-10 w-full rounded-md border border-input bg-background px-3 text-sm"
+              value={productId}
+              onChange={(e) => setProductId(e.target.value)}
+            >
+              {products.map((p) => (
+                <option key={p.id} value={p.id}>{p.name} ({p.prefix})</option>
+              ))}
+            </select>
+          </div>
+          <div>
+            <Label>How many stickers?</Label>
+            <Input type="number" min={1} value={qty} onChange={(e) => setQty(Math.max(1, Number(e.target.value) || 1))} />
+          </div>
+        </div>
+        <DialogFooter>
+          <Button variant="ghost" onClick={onClose}>Cancel</Button>
+          <Button onClick={submit} disabled={busy || !productId}>
+            {busy ? "Minting…" : `Mint ${qty} sticker${qty > 1 ? "s" : ""}`}
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
   );
 }
 

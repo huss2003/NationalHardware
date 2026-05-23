@@ -3,7 +3,6 @@ import { useEffect, useMemo, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import { PageHeader } from "@/components/erp/PageHeader";
 import {
   Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
@@ -15,11 +14,14 @@ import {
 import { ScanInput } from "@/components/erp/ScanInput";
 import { ScanWarning, type ScanWarningKind } from "@/components/erp/ScanWarning";
 import { ReturnTimelineDialog } from "@/components/erp/ReturnTimelineDialog";
+import { ReprintLabelDialog } from "@/components/erp/ReprintLabelDialog";
+import { Checkbox } from "@/components/ui/checkbox";
+import { mintReprintForSale, type MintedSticker } from "@/lib/relabel";
 import { inr } from "@/lib/codes";
 import { toast } from "sonner";
 import { useAuth } from "@/lib/auth-store";
 import {
-  Plus, Undo2, Receipt, Wallet, TrendingDown, Calendar, Trash2, Warehouse, History,
+  Plus, Undo2, Receipt, Wallet, TrendingDown, Calendar, Warehouse, History, Printer,
 } from "lucide-react";
 
 export const Route = createFileRoute("/_app/sales-returns/")({ component: SalesReturns });
@@ -161,15 +163,6 @@ function SalesReturns() {
   );
 }
 
-type ScannedRow = {
-  item_instance_id: string;
-  product_id: string;
-  product_name: string;
-  rate: number;
-  gst_rate: number;
-  qty: number;
-};
-
 function NewSalesReturnDialog({
   onClose, onSaved, userId,
 }: { onClose: () => void; onSaved: () => void; userId?: string }) {
@@ -178,7 +171,10 @@ function NewSalesReturnDialog({
   const [saleLines, setSaleLines] = useState<any[]>([]);
   const [godowns, setGodowns] = useState<any[]>([]);
   const [godownId, setGodownId] = useState<string>("");
-  const [cart, setCart] = useState<ScannedRow[]>([]);
+  const [selected, setSelected] = useState<Set<string>>(new Set());
+  const [reprintBusy, setReprintBusy] = useState<string | null>(null);
+  const [reprintItems, setReprintItems] = useState<MintedSticker[]>([]);
+  const [reprintOpen, setReprintOpen] = useState(false);
   const [reason, setReason] = useState("");
   const [refundMode, setRefundMode] = useState("cash");
   const [scanError, setScanError] = useState<{ kind: ScanWarningKind; msg: string; code?: string } | null>(null);
@@ -200,66 +196,93 @@ function NewSalesReturnDialog({
   }, []);
 
   useEffect(() => {
-    setCart([]); setScanError(null);
+    setSelected(new Set()); setScanError(null);
     if (!saleId) { setSaleLines([]); return; }
     (async () => {
       const { data } = await supabase
         .from("sales_items")
-        .select("item_instance_id, product_id, rate, gst_rate, products(name)")
+        .select("item_instance_id, product_id, qty, rate, gst_rate, products(name), item_instances(status)")
         .eq("sale_id", saleId);
-      setSaleLines(data ?? []);
+      setSaleLines((data ?? []).filter((d: any) => d.item_instance_id));
     })();
   }, [saleId]);
 
   const selectedSale = sales.find((s) => s.id === saleId);
 
+  const toggle = (id: string) => {
+    setSelected((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id); else next.add(id);
+      return next;
+    });
+  };
+
   const onScan = async (code: string) => {
     setScanError(null);
     if (!saleId) { setScanError({ kind: "generic", msg: "Pick an invoice first." }); return; }
-    const prefix = code.split("-")[0]?.toUpperCase();
-    const known = Array.from(new Set(saleLines.map((l: any) => l.item_instance_id?.split("-")[0]).filter(Boolean)));
-    if (cart.some((c) => c.item_instance_id === code)) {
-      setScanError({ kind: "duplicate", code, msg: "This item is already in the return cart." }); return;
-    }
     const line = saleLines.find((l) => l.item_instance_id === code);
     if (!line) {
-      if (known.length && prefix && !known.includes(prefix)) {
-        setScanError({ kind: "wrong_prefix", code,
-          msg: `Prefix "${prefix}" doesn't match this invoice. Expected: ${known.join(", ")}.` });
-      } else {
-        setScanError({ kind: "unknown", code, msg: "This item was not sold on the selected invoice." });
-      }
+      setScanError({ kind: "unknown", code, msg: "This item was not sold on the selected invoice." });
       return;
     }
-    const { data: inst } = await supabase
-      .from("item_instances").select("id, status").eq("id", code).maybeSingle();
-    if (!inst) { setScanError({ kind: "unknown", code, msg: "Item not found in inventory." }); return; }
-    if (inst.status !== "sold") {
-      const kind: ScanWarningKind =
-        inst.status === "damaged" ? "damaged"
-        : inst.status === "used_in_production" ? "used"
-        : inst.status === "available" ? "generic"
-        : "generic";
-      setScanError({ kind, code, msg: `Status is ${String(inst.status).toUpperCase()} — only SOLD items can be returned.` });
+    const status = line.item_instances?.status;
+    if (status !== "sold") {
+      setScanError({ kind: "generic", code, msg: `Status is ${String(status).toUpperCase()} — only SOLD items can be returned.` });
       return;
     }
-    setCart((c) => [...c, {
-      item_instance_id: code,
-      product_id: line.product_id,
-      product_name: line.products?.name ?? "Item",
-      rate: Number(line.rate ?? 0),
-      gst_rate: Number(line.gst_rate ?? 0),
-      qty: 1,
-    }]);
+    toggle(code);
   };
+
+  const cart = useMemo(() => saleLines
+    .filter((l: any) => selected.has(l.item_instance_id))
+    .map((l: any) => ({
+      item_instance_id: l.item_instance_id as string,
+      product_id: l.product_id as string,
+      product_name: l.products?.name ?? "Item",
+      rate: Number(l.rate ?? 0),
+      gst_rate: Number(l.gst_rate ?? 0),
+      qty: Number(l.qty ?? 1),
+    })), [saleLines, selected]);
 
   const subtotal = cart.reduce((s, c) => s + c.rate * c.qty, 0);
   const tax = cart.reduce((s, c) => s + (c.rate * c.qty * c.gst_rate) / 100, 0);
   const grand = subtotal + tax;
 
+  const reprintOne = async (originalId: string) => {
+    setReprintBusy(originalId);
+    try {
+      const minted = await mintReprintForSale(originalId, userId, `Reprint via sales return for ${originalId}`);
+      setReprintItems([minted]);
+      setReprintOpen(true);
+      toast.success(`New sticker ${minted.id} minted`);
+    } catch (e: any) {
+      toast.error(e.message ?? "Failed to mint sticker");
+    } finally {
+      setReprintBusy(null);
+    }
+  };
+
+  const reprintAllSelected = async () => {
+    if (cart.length === 0) return;
+    setBusy(true);
+    try {
+      const minted: MintedSticker[] = [];
+      for (const c of cart) {
+        minted.push(await mintReprintForSale(c.item_instance_id, userId, `Bulk reprint via sales return`));
+      }
+      setReprintItems(minted);
+      setReprintOpen(true);
+      toast.success(`${minted.length} new sticker(s) minted`);
+    } catch (e: any) {
+      toast.error(e.message ?? "Failed");
+    } finally {
+      setBusy(false);
+    }
+  };
+
   const save = async () => {
     if (!saleId) { toast.error("Pick the original sale"); return; }
-    if (cart.length === 0) { toast.error("Scan at least one item"); return; }
+    if (cart.length === 0) { toast.error("Select at least one item to return"); return; }
     setBusy(true);
 
     const returnNo = `SR-${Date.now().toString().slice(-6)}`;
@@ -319,8 +342,13 @@ function NewSalesReturnDialog({
     onSaved();
   };
 
+  const eligibleCount = saleLines.filter((l: any) => l.item_instances?.status === "sold").length;
+  const allEligibleSelected = eligibleCount > 0 && saleLines
+    .filter((l: any) => l.item_instances?.status === "sold")
+    .every((l: any) => selected.has(l.item_instance_id));
+
   return (
-    <DialogContent className="sm:max-w-[760px] max-h-[90vh] overflow-y-auto">
+    <DialogContent className="sm:max-w-[860px] max-h-[90vh] overflow-y-auto">
       <DialogHeader>
         <DialogTitle>Record Sales Return</DialogTitle>
       </DialogHeader>
@@ -356,18 +384,43 @@ function NewSalesReturnDialog({
           </div>
         </div>
 
-        <div>
-          <Label>Scan items being returned</Label>
-          <ScanInput onScan={onScan} placeholder="Scan / type item ID and press Enter" invalid={!!scanError} />
-          {scanError && <ScanWarning kind={scanError.kind} message={scanError.msg} code={scanError.code} />}
-          {saleId && saleLines.length > 0 && cart.length < saleLines.length && (
-            <div className="mt-2 text-xs text-muted-foreground">
-              {saleLines.length - cart.length} of {saleLines.length} items remaining on invoice
+        {saleId && (
+          <div className="space-y-2">
+            <div className="flex items-center justify-between">
+              <Label>Items on this invoice — tick what's coming back</Label>
+              <div className="text-xs text-muted-foreground">
+                {selected.size} of {eligibleCount} eligible selected
+              </div>
             </div>
-          )}
-        </div>
-
-        <ScannedTable cart={cart} onRemove={(id) => setCart((c) => c.filter((x) => x.item_instance_id !== id))} />
+            <InvoiceItemsPicker
+              lines={saleLines}
+              selected={selected}
+              onToggle={toggle}
+              allEligibleSelected={allEligibleSelected}
+              onToggleAll={() => {
+                setSelected((prev) => {
+                  if (allEligibleSelected) return new Set();
+                  const next = new Set(prev);
+                  saleLines.forEach((l: any) => {
+                    if (l.item_instances?.status === "sold") next.add(l.item_instance_id);
+                  });
+                  return next;
+                });
+              }}
+              onReprint={reprintOne}
+              reprintBusy={reprintBusy}
+            />
+            <div className="flex flex-wrap items-center gap-2 pt-1">
+              <ScanInput onScan={onScan} placeholder="Optional: scan to toggle an item" invalid={!!scanError} />
+              {cart.length > 0 && (
+                <Button type="button" variant="outline" size="sm" className="gap-2" onClick={reprintAllSelected} disabled={busy}>
+                  <Printer className="h-4 w-4" /> Reprint all selected
+                </Button>
+              )}
+            </div>
+            {scanError && <ScanWarning kind={scanError.kind} message={scanError.msg} code={scanError.code} />}
+          </div>
+        )}
 
         <div className="grid grid-cols-2 gap-3">
           <div>
@@ -403,17 +456,31 @@ function NewSalesReturnDialog({
           {busy ? "Saving…" : `Record Return · ${inr(grand)}`}
         </Button>
       </DialogFooter>
+      <ReprintLabelDialog
+        open={reprintOpen}
+        onOpenChange={setReprintOpen}
+        items={reprintItems}
+        title="Reprint stickers"
+      />
     </DialogContent>
   );
 }
 
-function ScannedTable({
-  cart, onRemove,
-}: { cart: ScannedRow[]; onRemove: (id: string) => void }) {
-  if (cart.length === 0) {
+function InvoiceItemsPicker({
+  lines, selected, onToggle, allEligibleSelected, onToggleAll, onReprint, reprintBusy,
+}: {
+  lines: any[];
+  selected: Set<string>;
+  onToggle: (id: string) => void;
+  allEligibleSelected: boolean;
+  onToggleAll: () => void;
+  onReprint: (id: string) => void;
+  reprintBusy: string | null;
+}) {
+  if (lines.length === 0) {
     return (
       <div className="border border-dashed rounded-lg p-6 text-center text-xs text-muted-foreground">
-        Scanned items will appear here.
+        No scannable items on this invoice.
       </div>
     );
   }
@@ -422,27 +489,52 @@ function ScannedTable({
       <Table>
         <TableHeader>
           <TableRow>
+            <TableHead className="w-8 pl-3">
+              <Checkbox checked={allEligibleSelected} onCheckedChange={() => onToggleAll()} />
+            </TableHead>
             <TableHead className="text-[11px] uppercase tracking-wider">Item ID</TableHead>
             <TableHead className="text-[11px] uppercase tracking-wider">Product</TableHead>
+            <TableHead className="text-[11px] uppercase tracking-wider">Status</TableHead>
             <TableHead className="text-[11px] uppercase tracking-wider text-right">Rate</TableHead>
-            <TableHead className="text-[11px] uppercase tracking-wider text-right">Total</TableHead>
-            <TableHead></TableHead>
+            <TableHead className="text-[11px] uppercase tracking-wider text-right pr-3">Reprint</TableHead>
           </TableRow>
         </TableHeader>
         <TableBody>
-          {cart.map((c) => (
-            <TableRow key={c.item_instance_id}>
-              <TableCell className="font-mono text-xs">{c.item_instance_id}</TableCell>
-              <TableCell>{c.product_name}</TableCell>
-              <TableCell className="text-right tabular-nums">{inr(c.rate)}</TableCell>
-              <TableCell className="text-right tabular-nums">{inr(c.rate * c.qty)}</TableCell>
-              <TableCell className="text-right">
-                <Button variant="ghost" size="icon" onClick={() => onRemove(c.item_instance_id)}>
-                  <Trash2 className="h-4 w-4 text-muted-foreground" />
-                </Button>
-              </TableCell>
-            </TableRow>
-          ))}
+          {lines.map((l: any) => {
+            const id = l.item_instance_id as string;
+            const status = l.item_instances?.status ?? "—";
+            const eligible = status === "sold";
+            const isChecked = selected.has(id);
+            return (
+              <TableRow key={id} className={!eligible ? "opacity-50" : ""}>
+                <TableCell className="pl-3">
+                  <Checkbox
+                    checked={isChecked}
+                    disabled={!eligible}
+                    onCheckedChange={() => eligible && onToggle(id)}
+                  />
+                </TableCell>
+                <TableCell className="font-mono text-xs">{id}</TableCell>
+                <TableCell>{l.products?.name ?? "Item"}</TableCell>
+                <TableCell><span className="text-[11px] uppercase tracking-wider text-muted-foreground">{status}</span></TableCell>
+                <TableCell className="text-right tabular-nums">{inr(l.rate)}</TableCell>
+                <TableCell className="text-right pr-3">
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    className="h-8 gap-1.5"
+                    disabled={!isChecked || reprintBusy === id}
+                    onClick={() => onReprint(id)}
+                    title={isChecked ? "Mint a new sequential sticker" : "Tick the row first"}
+                  >
+                    <Printer className="h-3.5 w-3.5" />
+                    {reprintBusy === id ? "…" : "Reprint"}
+                  </Button>
+                </TableCell>
+              </TableRow>
+            );
+          })}
         </TableBody>
       </Table>
     </div>
