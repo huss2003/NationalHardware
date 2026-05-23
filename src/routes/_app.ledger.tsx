@@ -293,6 +293,7 @@ function LedgerPage() {
                           e.kind === "sale" ? FileText :
                           e.kind === "purchase" ? ShoppingCart :
                           e.kind === "sales-return" || e.kind === "purchase-return" ? RotateCcw :
+                          e.kind === "refund-paid" ? Wallet :
                           ReceiptIcon;
                         const linkProps =
                           e.refId && e.kind === "sale"
@@ -300,8 +301,15 @@ function LedgerPage() {
                             : e.refId && e.kind === "purchase"
                               ? { to: "/purchases/$id", params: { id: e.refId } }
                               : null;
+                        const openReturn = (e.kind === "sales-return" || e.kind === "purchase-return") && e.refId && e.refTable
+                          ? () => setReturnView({ id: e.refId!, no: e.ref, refTable: e.refTable! })
+                          : null;
                         return (
-                          <tr key={i} className="border-t hover:bg-muted/30">
+                          <tr
+                            key={i}
+                            className={`border-t hover:bg-muted/30 ${openReturn ? "cursor-pointer" : ""}`}
+                            onClick={openReturn ?? undefined}
+                          >
                             <td className="p-3 pl-5 text-muted-foreground whitespace-nowrap">
                               {new Date(e.date).toLocaleDateString()}
                             </td>
@@ -311,6 +319,7 @@ function LedgerPage() {
                                 e.kind === "purchase" ? "bg-amber-500/10 text-amber-600" :
                                 e.kind === "sales-return" ? "bg-rose-500/10 text-rose-600" :
                                 e.kind === "purchase-return" ? "bg-orange-500/10 text-orange-600" :
+                                e.kind === "refund-paid" ? "bg-muted text-muted-foreground" :
                                 "bg-emerald-500/10 text-emerald-600"
                               }`}>
                                 <Icon className="h-3 w-3" /> {e.kind}
@@ -318,7 +327,7 @@ function LedgerPage() {
                             </td>
                             <td className="p-3 font-medium">
                               {linkProps ? (
-                                <Link {...(linkProps as any)} className="text-primary hover:underline">
+                                <Link {...(linkProps as any)} className="text-primary hover:underline" onClick={(ev) => ev.stopPropagation()}>
                                   {e.ref}
                                 </Link>
                               ) : (
@@ -345,6 +354,13 @@ function LedgerPage() {
           )}
         </div>
       </div>
+      <ReturnTimelineDialog
+        open={!!returnView}
+        onOpenChange={(v) => !v && setReturnView(null)}
+        returnId={returnView?.id ?? null}
+        returnNo={returnView?.no}
+        refTable={returnView?.refTable ?? "sales_returns"}
+      />
     </>
   );
 }
