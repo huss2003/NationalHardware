@@ -429,7 +429,7 @@ function NewSalesReturnDialog({
                   if (allEligibleSelected) return new Set();
                   const next = new Set(prev);
                   saleLines.forEach((l: any) => {
-                    if (l.item_instances?.status === "sold") next.add(l.item_instance_id);
+                    if (isEligible(l)) next.add(rowKey(l));
                   });
                   return next;
                 });
