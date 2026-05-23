@@ -8,6 +8,8 @@ import { Button } from "@/components/ui/button";
 import { PageHeader } from "@/components/erp/PageHeader";
 import { inr } from "@/lib/codes";
 import { Search, Users, Truck, FileText, ShoppingCart, Receipt as ReceiptIcon, DoorOpen, RotateCcw } from "lucide-react";
+import { buildDoorOrderPdf, openPdfInNewTab } from "@/lib/invoice-pdf";
+import { toast } from "sonner";
 
 export const Route = createFileRoute("/_app/ledger")({ component: LedgerPage });
 
@@ -101,6 +103,7 @@ function LedgerPage() {
           date: x.order_date as string,
           kind: "door",
           ref: `Door Order ${x.order_no}${x.category ? ` · ${x.category}` : ""}`,
+          refId: x.id,
           debit: Number(x.total),
           credit: 0,
           notes: x.notes ?? undefined,
