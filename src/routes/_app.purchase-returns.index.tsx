@@ -14,11 +14,15 @@ import {
 import { ScanInput } from "@/components/erp/ScanInput";
 import { ScanWarning, type ScanWarningKind } from "@/components/erp/ScanWarning";
 import { ReturnTimelineDialog } from "@/components/erp/ReturnTimelineDialog";
+import { ReprintLabelDialog } from "@/components/erp/ReprintLabelDialog";
+import { Checkbox } from "@/components/ui/checkbox";
+import { Input } from "@/components/ui/input";
+import { mintReplacementForPurchase, type MintedSticker } from "@/lib/relabel";
 import { inr } from "@/lib/codes";
 import { toast } from "sonner";
 import { useAuth } from "@/lib/auth-store";
 import {
-  Plus, RotateCcw, ClipboardList, TrendingDown, Calendar, Building2, Trash2, History,
+  Plus, RotateCcw, ClipboardList, TrendingDown, Calendar, Building2, History, Printer,
 } from "lucide-react";
 
 export const Route = createFileRoute("/_app/purchase-returns/")({ component: PurchaseReturns });
