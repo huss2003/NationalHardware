@@ -6,8 +6,9 @@ import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { PageHeader } from "@/components/erp/PageHeader";
+import { ReturnTimelineDialog } from "@/components/erp/ReturnTimelineDialog";
 import { inr } from "@/lib/codes";
-import { Search, Users, Truck, FileText, ShoppingCart, Receipt as ReceiptIcon, RotateCcw } from "lucide-react";
+import { Search, Users, Truck, FileText, ShoppingCart, Receipt as ReceiptIcon, RotateCcw, Wallet } from "lucide-react";
 
 export const Route = createFileRoute("/_app/ledger")({ component: LedgerPage });
 
@@ -16,9 +17,10 @@ type Party = { id: string; name: string; phone?: string | null };
 
 type Entry = {
   date: string;
-  kind: "sale" | "purchase" | "receipt" | "sales-return" | "purchase-return";
+  kind: "sale" | "purchase" | "receipt" | "sales-return" | "purchase-return" | "refund-paid";
   ref: string;
   refId?: string;
+  refTable?: "sales_returns" | "purchase_returns";
   debit: number;   // increases what party owes us (sale) / what we owe (purchase from supplier view = credit)
   credit: number;  // payment received / payment made
   notes?: string;
@@ -28,6 +30,7 @@ function LedgerPage() {
   const [kind, setKind] = useState<Kind>("customer");
   const [search, setSearch] = useState("");
   const [selected, setSelected] = useState<Party | null>(null);
+  const [returnView, setReturnView] = useState<{ id: string; no: string; refTable: "sales_returns" | "purchase_returns" } | null>(null);
 
   const { data: parties = [] } = useQuery({
     queryKey: ["ledger", "parties", kind],
@@ -65,7 +68,7 @@ function LedgerPage() {
           .eq("customer_id", p.id)
           .order("created_at", { ascending: true }),
         supabase.from("sales_returns")
-          .select("id, return_no, return_date, grand_total, reason")
+          .select("id, return_no, return_date, grand_total, reason, refund_amount, refund_mode")
           .eq("customer_id", p.id).is("deleted_at", null)
           .order("return_date", { ascending: true }),
       ]);
@@ -93,14 +96,30 @@ function LedgerPage() {
         });
       }
       for (const x of sr.data ?? []) {
+        const total = Number(x.grand_total);
+        const refund = Number((x as any).refund_amount ?? 0);
+        const mode = (x as any).refund_mode as string | null;
         list.push({
           date: x.return_date as string,
           kind: "sales-return",
           ref: `Sales Return ${x.return_no ?? ""}`.trim(),
+          refId: x.id,
+          refTable: "sales_returns",
           debit: 0,
-          credit: Number(x.grand_total),
+          credit: total,
           notes: x.reason ?? undefined,
         });
+        if (refund > 0 && mode && mode !== "credit_note") {
+          list.push({
+            date: x.return_date as string,
+            kind: "refund-paid",
+            ref: `Refund ${mode.toUpperCase()} for ${x.return_no ?? ""}`.trim(),
+            refId: x.id,
+            refTable: "sales_returns",
+            debit: refund,
+            credit: 0,
+          });
+        }
       }
       } else {
       const [p_, pr] = await Promise.all([
@@ -128,6 +147,8 @@ function LedgerPage() {
           date: x.return_date as string,
           kind: "purchase-return",
           ref: `Purchase Return ${x.return_no ?? ""}`.trim(),
+          refId: x.id,
+          refTable: "purchase_returns",
           debit: 0,
           credit: Number(x.grand_total),
           notes: x.reason ?? undefined,
