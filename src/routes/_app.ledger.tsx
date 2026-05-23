@@ -31,6 +31,52 @@ function LedgerPage() {
   const [search, setSearch] = useState("");
   const [selected, setSelected] = useState<Party | null>(null);
 
+  async function openDoorPdf(orderId: string) {
+    try {
+      const { data: order } = await supabase.from("door_orders").select("*").eq("id", orderId).maybeSingle();
+      if (!order) { toast.error("Door order not found"); return; }
+      const [shopRes, itemsRes, custRes] = await Promise.all([
+        supabase.from("app_settings").select("shop_name, address, gstin").eq("id", true).maybeSingle(),
+        order.category === "general"
+          ? (supabase as any).from("door_order_items").select("*").eq("order_id", order.id)
+          : Promise.resolve({ data: null }),
+        supabase.from("customers").select("phone,address").eq("name", order.customer_name).maybeSingle(),
+      ]);
+      const items =
+        order.category === "general" && itemsRes?.data?.length
+          ? itemsRes.data
+          : [{
+              party_door_size: order.party_door_size,
+              door_taken_size: order.door_taken_size,
+              door_type_name: order.door_type_name,
+              door_made: null,
+              front_mica: order.front_mica,
+              back_mica: order.back_mica,
+              billable_sqft: null,
+              qty: 1,
+              rate_per_sqft: Number(order.rate),
+              mica_addon: 0,
+              line_total: Number(order.total),
+            }];
+      const doc = buildDoorOrderPdf({
+        shop: (shopRes.data as any) ?? null,
+        order: {
+          order_no: order.order_no,
+          order_date: order.order_date,
+          category: order.category,
+          customer_name: order.customer_name,
+          total: Number(order.total),
+          notes: order.notes ?? null,
+        },
+        customer: (custRes.data as any) ?? null,
+        items,
+      });
+      openPdfInNewTab(doc);
+    } catch (e: any) {
+      toast.error(e?.message ?? "Failed to open PDF");
+    }
+  }
+
   const { data: parties = [] } = useQuery({
     queryKey: ["ledger", "parties", kind],
     queryFn: async () => {
@@ -319,6 +365,13 @@ function LedgerPage() {
                                 <Link {...(linkProps as any)} className="text-primary hover:underline">
                                   {e.ref}
                                 </Link>
+                              ) : e.kind === "door" && e.refId ? (
+                                <button
+                                  onClick={() => openDoorPdf(e.refId!)}
+                                  className="text-primary hover:underline text-left"
+                                >
+                                  {e.ref}
+                                </button>
                               ) : (
                                 e.ref
                               )}
