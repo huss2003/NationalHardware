@@ -70,6 +70,23 @@ function ReceiptsPage() {
     const { receiptFileName } = await import("@/lib/invoice-pdf");
     pdf.save(receiptFileName(r.receipt_no));
   };
+  const whatsappReceipt = async (r: Receipt) => {
+    const cust = customers.find((c) => c.id === r.customer_id);
+    if (!cust?.phone) { toast.error("Customer has no phone number"); return; }
+    try {
+      const pdf = await buildPdfFor(r);
+      const { shareInvoiceOnWhatsApp } = await import("@/lib/invoice-pdf");
+      await shareInvoiceOnWhatsApp({
+        pdf,
+        invoiceNo: `Receipt-${r.receipt_no}`,
+        phone: cust.phone,
+        shopName: shop?.shop_name ?? undefined,
+        total: Number(r.amount),
+      });
+    } catch (e: any) {
+      toast.error(`WhatsApp share failed: ${e.message ?? e}`);
+    }
+  };
   useEffect(() => { load(); }, []);
 
   // Pending per customer = sum(grand_total - paid_amount of credit sales) - sum(credit receipts)
