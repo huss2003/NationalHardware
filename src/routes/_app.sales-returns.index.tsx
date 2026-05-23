@@ -534,36 +534,41 @@ function InvoiceItemsPicker({
         </TableHeader>
         <TableBody>
           {lines.map((l: any) => {
-            const id = l.item_instance_id as string;
-            const status = l.item_instances?.status ?? "—";
-            const eligible = status === "sold";
-            const isChecked = selected.has(id);
+            const instId = l.item_instance_id as string | null;
+            const key = (instId ?? `line:${l.id}`) as string;
+            const status = instId ? (l.item_instances?.status ?? "—") : "no sticker";
+            const eligible = !instId || l.item_instances?.status === "sold";
+            const isChecked = selected.has(key);
             return (
-              <TableRow key={id} className={!eligible ? "opacity-50" : ""}>
+              <TableRow key={key} className={!eligible ? "opacity-50" : ""}>
                 <TableCell className="pl-3">
                   <Checkbox
                     checked={isChecked}
                     disabled={!eligible}
-                    onCheckedChange={() => eligible && onToggle(id)}
+                    onCheckedChange={() => eligible && onToggle(key)}
                   />
                 </TableCell>
-                <TableCell className="font-mono text-xs">{id}</TableCell>
+                <TableCell className="font-mono text-xs">{instId ?? <span className="text-muted-foreground italic">no sticker</span>}</TableCell>
                 <TableCell>{l.products?.name ?? "Item"}</TableCell>
                 <TableCell><span className="text-[11px] uppercase tracking-wider text-muted-foreground">{status}</span></TableCell>
                 <TableCell className="text-right tabular-nums">{inr(l.rate)}</TableCell>
                 <TableCell className="text-right pr-3">
-                  <Button
-                    type="button"
-                    variant="ghost"
-                    size="sm"
-                    className="h-8 gap-1.5"
-                    disabled={!isChecked || reprintBusy === id}
-                    onClick={() => onReprint(id)}
-                    title={isChecked ? "Mint a new sequential sticker" : "Tick the row first"}
-                  >
-                    <Printer className="h-3.5 w-3.5" />
-                    {reprintBusy === id ? "…" : "Reprint"}
-                  </Button>
+                  {instId ? (
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="sm"
+                      className="h-8 gap-1.5"
+                      disabled={!isChecked || reprintBusy === instId}
+                      onClick={() => onReprint(instId)}
+                      title={isChecked ? "Mint a new sequential sticker" : "Tick the row first"}
+                    >
+                      <Printer className="h-3.5 w-3.5" />
+                      {reprintBusy === instId ? "…" : "Reprint"}
+                    </Button>
+                  ) : (
+                    <span className="text-[11px] text-muted-foreground">—</span>
+                  )}
                 </TableCell>
               </TableRow>
             );
