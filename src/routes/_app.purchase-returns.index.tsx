@@ -22,7 +22,7 @@ import { inr } from "@/lib/codes";
 import { toast } from "sonner";
 import { useAuth } from "@/lib/auth-store";
 import {
-  Plus, RotateCcw, ClipboardList, TrendingDown, Calendar, Building2, History, Printer,
+  Plus, RotateCcw, ClipboardList, TrendingDown, Calendar, Building2, History, Printer, Trash2,
 } from "lucide-react";
 
 export const Route = createFileRoute("/_app/purchase-returns/")({ component: PurchaseReturns });
