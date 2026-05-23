@@ -11,7 +11,7 @@ import { PageHeader } from "@/components/erp/PageHeader";
 import { inr } from "@/lib/codes";
 import { useAuth } from "@/lib/auth-store";
 import { toast } from "sonner";
-import { ArrowLeft, Receipt as ReceiptIcon, Wallet, FileText, Check } from "lucide-react";
+import { ArrowLeft, Receipt as ReceiptIcon, Wallet, FileText, Check, MessageCircle } from "lucide-react";
 import { TableSkeleton } from "@/components/erp/Skeletons";
 // jspdf + jspdf-autotable (~250KB) loaded only when the user prints/downloads a receipt.
 import { Printer, Download } from "lucide-react";
