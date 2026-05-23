@@ -9,7 +9,7 @@ import { toast } from "sonner";
 import { inr } from "@/lib/codes";
 import {
   Trash2, ArrowLeft, Check, ScanLine,
-  Minus, Plus, Search, Calendar, MessageCircle,
+  Plus, Calendar, MessageCircle,
 } from "lucide-react";
 import { useUiConfig } from "@/lib/ui-config";
 // jspdf + jspdf-autotable (~250KB) loaded only when finalize() actually runs.
@@ -47,10 +47,11 @@ function NewSale() {
   const [busy, setBusy] = useState(false);
   const [createCustomerOpen, setCreateCustomerOpen] = useState(false);
   const [products, setProducts] = useState<ProductRow[]>([]);
-  const [query, setQuery] = useState("");
-  const [suggestOpen, setSuggestOpen] = useState(false);
-  const [pendingQty, setPendingQty] = useState(1);
-  const entryRef = useRef<HTMLInputElement>(null);
+  const [draftQuery, setDraftQuery] = useState("");
+  const [draftFocused, setDraftFocused] = useState(false);
+  const [activeSuggest, setActiveSuggest] = useState(0);
+  const draftRef = useRef<HTMLInputElement>(null);
+  const scanRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     supabase.from("customers").select("*").order("name").then(({ data }) => setCustomers(data ?? []));
@@ -72,14 +73,15 @@ function NewSale() {
   // Keyboard shortcut: F2 to focus entry
   useEffect(() => {
     const h = (e: KeyboardEvent) => {
-      if (e.key === "F2") { e.preventDefault(); entryRef.current?.focus(); }
+      if (e.key === "F2") { e.preventDefault(); draftRef.current?.focus(); }
+      if (e.key === "F3") { e.preventDefault(); scanRef.current?.focus(); }
     };
     window.addEventListener("keydown", h);
     return () => window.removeEventListener("keydown", h);
   }, []);
 
-  const suggestions = useMemo(() => {
-    const q = query.trim().toLowerCase();
+  const draftSuggestions = useMemo(() => {
+    const q = draftQuery.trim().toLowerCase();
     if (!q) return [];
     return products
       .filter(p =>
@@ -88,7 +90,7 @@ function NewSale() {
         p.prefix.toLowerCase().includes(q)
       )
       .slice(0, 8);
-  }, [products, query]);
+  }, [products, draftQuery]);
 
   const looksLikeCode = (s: string) => /-/.test(s) && /^[A-Za-z0-9-]+$/.test(s);
 
@@ -153,15 +155,16 @@ function NewSale() {
       hsn: p.hsn, alt_unit: p.alt_unit, alt_conversion: p.alt_conversion,
       is_lot: true, max_qty: undefined,
     }]);
-    setQuery(""); setSuggestOpen(false); setPendingQty(1);
-    toast.success(`Added ${p.name}`);
+    setDraftQuery(""); setActiveSuggest(0);
+    // refocus the draft row so user can keep typing next line (Sheets-like)
+    setTimeout(() => draftRef.current?.focus(), 0);
   };
 
-  const handleEntrySubmit = () => {
-    const s = query.trim();
+  const handleDraftCommit = () => {
+    const s = draftQuery.trim();
     if (!s) return;
-    if (looksLikeCode(s)) { onScan(s); setQuery(""); setSuggestOpen(false); return; }
-    if (suggestions.length > 0) addProductLine(suggestions[0], Math.max(1, pendingQty));
+    if (looksLikeCode(s)) { onScan(s); setDraftQuery(""); return; }
+    if (draftSuggestions.length > 0) addProductLine(draftSuggestions[activeSuggest] ?? draftSuggestions[0], 1);
     else toast.error("No matching product");
   };
 
