@@ -20,7 +20,7 @@ export const Route = createFileRoute("/_app/sales/new")({ component: NewSale });
 type Line = {
   product_id: string; item_instance_id: string | null; name: string;
   qty: number; rate: number; gst_rate: number; hsn?: string | null;
-  alt_unit?: string | null; alt_conversion?: number | null;
+  unit?: string | null; alt_unit?: string | null; alt_conversion?: number | null;
   is_lot?: boolean; max_qty?: number;
 };
 
