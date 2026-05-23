@@ -161,15 +161,6 @@ function PurchaseReturns() {
   );
 }
 
-type ScannedRow = {
-  item_instance_id: string;
-  product_id: string;
-  product_name: string;
-  rate: number;
-  gst_rate: number;
-  qty: number;
-};
-
 function NewPurchaseReturnDialog({
   onClose, onSaved, userId,
 }: { onClose: () => void; onSaved: () => void; userId?: string }) {
