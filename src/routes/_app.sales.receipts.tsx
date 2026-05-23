@@ -26,6 +26,29 @@ type Receipt = {
   customers?: { name: string } | null;
 };
 
+async function generateReceiptArtifacts(r: Receipt, customer: Customer, shop: any) {
+  try {
+    const { buildReceiptPdf, receiptFileName, shareInvoiceOnWhatsApp } = await import("@/lib/invoice-pdf");
+    const pdf = buildReceiptPdf({ shop, receipt: r as any, customer: customer as any });
+    pdf.save(receiptFileName(r.receipt_no));
+    if (customer.phone) {
+      try {
+        await shareInvoiceOnWhatsApp({
+          pdf,
+          invoiceNo: `Receipt-${r.receipt_no}`,
+          phone: customer.phone,
+          shopName: shop?.shop_name ?? undefined,
+          total: Number(r.amount),
+        });
+      } catch {
+        toast.message("PDF downloaded. Use the WhatsApp button to share.");
+      }
+    }
+  } catch (e: any) {
+    toast.error(`PDF generation failed: ${e.message ?? e}`);
+  }
+}
+
 function ReceiptsPage() {
   const user = useAuth((s) => s.user);
   const [tab, setTab] = useState<"credit" | "general">("credit");
