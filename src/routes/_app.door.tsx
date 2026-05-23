@@ -1,4 +1,4 @@
-import { createFileRoute } from "@tanstack/react-router";
+import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Card } from "@/components/ui/card";
@@ -19,7 +19,31 @@ import { Plus, DoorOpen, Trash2, FileText } from "lucide-react";
 import { QuickCreatePartyDialog } from "@/components/erp/QuickCreatePartyDialog";
 import { buildDoorOrderPdf, openPdfInNewTab } from "@/lib/invoice-pdf";
 
-export const Route = createFileRoute("/_app/door")({ component: DoorPage });
+export const Route = createFileRoute("/_app/door")({
+  validateSearch: (search: Record<string, unknown>) => ({
+    returnTo: typeof search.returnTo === "string" ? search.returnTo : undefined,
+  }),
+  component: DoorPage,
+});
+
+async function findOrCreateDoorProduct() {
+  const { data: existing } = await supabase
+    .from("products")
+    .select("id,name,gst_rate,unit")
+    .eq("prefix", "DOOR")
+    .maybeSingle();
+  if (existing) return existing as { id: string; name: string; gst_rate: number; unit: string };
+  const { data: created, error } = await supabase
+    .from("products")
+    .insert({
+      name: "Door (Custom)", prefix: "DOOR", category: "door" as any,
+      unit: "pcs", gst_rate: 18, default_price: 0, active: true,
+    })
+    .select("id,name,gst_rate,unit")
+    .single();
+  if (error) throw error;
+  return created as { id: string; name: string; gst_rate: number; unit: string };
+}
 
 type Category = "general" | "vypaari";
 type DoorType = { id: string; name: string; rate: number; active: boolean };
@@ -105,6 +129,9 @@ async function ensureDefaultDoorTypes() {
 }
 
 function DoorPage() {
+  const search = Route.useSearch();
+  const isFromSale = search.returnTo === "sale";
+  const nav = useNavigate();
   const [tab, setTab] = useState<Category>("general");
   const [doorTypes, setDoorTypes] = useState<DoorType[]>([]);
   const [orders, setOrders] = useState<DoorOrder[]>([]);
@@ -137,9 +164,21 @@ function DoorPage() {
     <>
       <PageHeader
         title="Door"
-        subtitle="Record door orders. General builds a multi-line order priced per sqft; Vypaari uses the saved door-type rate."
+        subtitle={isFromSale
+          ? "Adding door(s) to current sale — fill details and tap 'Add to sale' to return."
+          : "Record door orders. General builds a multi-line order priced per sqft; Vypaari uses the saved door-type rate."}
       />
       <div className="px-8 pb-10 max-w-[1400px] mx-auto w-full">
+        {isFromSale && (
+          <div className="mb-4 flex items-center justify-between gap-3 rounded-lg border border-[#a78bfa] bg-[#a78bfa]/10 px-4 py-2.5 text-sm">
+            <div className="text-[#5b21b6] font-medium">
+              Door entry mode: lines will be added to the open sales bill (no separate door order created).
+            </div>
+            <Button variant="outline" size="sm" onClick={() => nav({ to: "/sales/new" })}>
+              Back to sale
+            </Button>
+          </div>
+        )}
         <Tabs value={tab} onValueChange={(v) => setTab(v as Category)}>
           <TabsList className="mb-5">
             <TabsTrigger value="general">General</TabsTrigger>
@@ -153,8 +192,9 @@ function DoorPage() {
               customers={customers}
               onCustomerCreated={(c) => setCustomers((p) => [...p, c].sort((a, b) => a.name.localeCompare(b.name)))}
               onSaved={reload}
+              isFromSale={isFromSale}
             />
-            <OrdersTable rows={filtered} loading={loading} />
+            {!isFromSale && <OrdersTable rows={filtered} loading={loading} />}
           </TabsContent>
 
           <TabsContent value="vypaari" className="space-y-5">
@@ -164,8 +204,9 @@ function DoorPage() {
               customers={customers}
               onCustomerCreated={(c) => setCustomers((p) => [...p, c].sort((a, b) => a.name.localeCompare(b.name)))}
               onSaved={reload}
+              isFromSale={isFromSale}
             />
-            <OrdersTable rows={filtered} loading={loading} />
+            {!isFromSale && <OrdersTable rows={filtered} loading={loading} />}
           </TabsContent>
         </Tabs>
       </div>
@@ -253,13 +294,15 @@ function focusNextOnEnter(
 }
 
 function GeneralOrderForm({
-  doorTypes, nextOrderNoHint, customers, onCustomerCreated, onSaved,
+  doorTypes, nextOrderNoHint, customers, onCustomerCreated, onSaved, isFromSale,
 }: {
   doorTypes: DoorType[]; nextOrderNoHint: string;
   customers: Customer[];
   onCustomerCreated: (c: Customer) => void;
   onSaved: () => void;
+  isFromSale?: boolean;
 }) {
+  const nav = useNavigate();
   const [orderNo, setOrderNo] = useState(nextOrderNoHint);
   const [customerId, setCustomerId] = useState("");
   const [customerName, setCustomerName] = useState("");
@@ -318,9 +361,39 @@ function GeneralOrderForm({
 
   const save = async () => {
     const finalCustomer = (customers.find((c) => c.id === customerId)?.name ?? customerName).trim();
-    if (!finalCustomer) return toast.error("Customer is required");
+    if (!isFromSale && !finalCustomer) return toast.error("Customer is required");
     if (lines.length === 0) return toast.error("Add at least one door");
     setBusy(true);
+
+    // From-sale mode: push lines back into sales/new via sessionStorage
+    if (isFromSale) {
+      try {
+        const doorProduct = await findOrCreateDoorProduct();
+        const saleLines = lines.map((l) => ({
+          product_id: doorProduct.id,
+          item_instance_id: null,
+          name: `Door — ${l.door_type_name || ""} ${l.door_taken_size || ""}${l.door_made ? ` (${l.door_made})` : ""}`.trim(),
+          qty: l.qty,
+          rate: l.qty > 0 ? Number(l.line_total) / l.qty : Number(l.line_total),
+          gst_rate: Number(doorProduct.gst_rate ?? 18),
+          hsn: null,
+          unit: doorProduct.unit ?? "pcs",
+          alt_unit: null,
+          alt_conversion: null,
+          is_lot: true,
+        }));
+        sessionStorage.setItem("pending_door_lines", JSON.stringify(saleLines));
+        setBusy(false);
+        toast.success(`Adding ${saleLines.length} door(s) to sale`);
+        nav({ to: "/sales/new" });
+        return;
+      } catch (e: any) {
+        setBusy(false);
+        toast.error(e?.message ?? "Failed to attach door to sale");
+        return;
+      }
+    }
+
     const { data: orderRow, error } = await supabase.from("door_orders").insert({
       order_no: orderNo,
       category: "general",
@@ -391,7 +464,7 @@ function GeneralOrderForm({
             <DoorOpen className="h-4 w-4" />
           </div>
           <div>
-            <div className="font-semibold text-base">New General door order</div>
+            <div className="font-semibold text-base">{isFromSale ? "Add door to sale (General)" : "New General door order"}</div>
             <div className="text-xs text-muted-foreground">
               Set order header, then add one or more doors below. Pricing uses sqft (larger of Party / Taken size).
             </div>
@@ -404,7 +477,7 @@ function GeneralOrderForm({
           <Field label="Date">
             <Input value={new Date().toLocaleDateString()} disabled />
           </Field>
-          <Field label="Customer / Name">
+          <Field label={isFromSale ? "Customer (optional — sale already has one)" : "Customer / Name"}>
             <div className="flex gap-2">
               <select
                 className="h-9 flex-1 rounded-md border border-input bg-background px-3 text-sm"
@@ -577,7 +650,7 @@ function GeneralOrderForm({
             <div className="flex gap-2 mt-3 justify-end">
               <Button variant="ghost" onClick={resetAll}>Reset</Button>
               <Button onClick={save} disabled={busy || lines.length === 0} className="gap-2">
-                <Plus className="h-4 w-4" /> {busy ? "Saving…" : "Save order"}
+                <Plus className="h-4 w-4" /> {busy ? "Saving…" : (isFromSale ? "Add to sale" : "Save order")}
               </Button>
             </div>
           </div>
@@ -599,13 +672,15 @@ function GeneralOrderForm({
 
 /* ---------- Vypaari form (unchanged behavior) ---------- */
 function VypaariForm({
-  doorTypes, nextOrderNoHint, customers, onCustomerCreated, onSaved,
+  doorTypes, nextOrderNoHint, customers, onCustomerCreated, onSaved, isFromSale,
 }: {
   doorTypes: DoorType[]; nextOrderNoHint: string;
   customers: Customer[];
   onCustomerCreated: (c: Customer) => void;
   onSaved: () => void;
+  isFromSale?: boolean;
 }) {
+  const nav = useNavigate();
   const [orderNo, setOrderNo] = useState(nextOrderNoHint);
   const [customerId, setCustomerId] = useState("");
   const [createCustomerOpen, setCreateCustomerOpen] = useState(false);
@@ -632,10 +707,40 @@ function VypaariForm({
 
   const save = async () => {
     const customerName = (customers.find((c) => c.id === customerId)?.name ?? "").trim();
-    if (!customerName) { toast.error("Select a customer"); return; }
+    if (!isFromSale && !customerName) { toast.error("Select a customer"); return; }
     if (!doorTypeId) { toast.error("Select a door type"); return; }
     if (!selectedType) { toast.error("Door type rate missing"); return; }
     setBusy(true);
+
+    if (isFromSale) {
+      try {
+        const doorProduct = await findOrCreateDoorProduct();
+        const label = `Door — ${selectedType?.name ?? ""} ${takenSize || partySize || ""}`.trim();
+        const saleLine = {
+          product_id: doorProduct.id,
+          item_instance_id: null,
+          name: label,
+          qty,
+          rate,
+          gst_rate: Number(doorProduct.gst_rate ?? 18),
+          hsn: null,
+          unit: doorProduct.unit ?? "pcs",
+          alt_unit: null,
+          alt_conversion: null,
+          is_lot: true,
+        };
+        sessionStorage.setItem("pending_door_lines", JSON.stringify([saleLine]));
+        setBusy(false);
+        toast.success("Adding door to sale");
+        nav({ to: "/sales/new" });
+        return;
+      } catch (e: any) {
+        setBusy(false);
+        toast.error(e?.message ?? "Failed to attach door to sale");
+        return;
+      }
+    }
+
     const { error } = await supabase.from("door_orders").insert({
       order_no: orderNo,
       category: "vypaari",
@@ -748,7 +853,7 @@ function VypaariForm({
       <div className="flex justify-end gap-2 pt-1">
         <Button variant="ghost" onClick={reset}>Reset</Button>
         <Button onClick={save} disabled={busy} className="gap-2">
-          <Plus className="h-4 w-4" /> {busy ? "Saving…" : "Save order"}
+          <Plus className="h-4 w-4" /> {busy ? "Saving…" : (isFromSale ? "Add to sale" : "Save order")}
         </Button>
       </div>
       <QuickCreatePartyDialog

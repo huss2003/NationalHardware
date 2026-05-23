@@ -7,9 +7,7 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { PageHeader } from "@/components/erp/PageHeader";
 import { inr } from "@/lib/codes";
-import { Search, Users, Truck, FileText, ShoppingCart, Receipt as ReceiptIcon, DoorOpen, RotateCcw } from "lucide-react";
-import { buildDoorOrderPdf, openPdfInNewTab } from "@/lib/invoice-pdf";
-import { toast } from "sonner";
+import { Search, Users, Truck, FileText, ShoppingCart, Receipt as ReceiptIcon, RotateCcw } from "lucide-react";
 
 export const Route = createFileRoute("/_app/ledger")({ component: LedgerPage });
 
@@ -18,7 +16,7 @@ type Party = { id: string; name: string; phone?: string | null };
 
 type Entry = {
   date: string;
-  kind: "sale" | "purchase" | "receipt" | "door" | "sales-return" | "purchase-return";
+  kind: "sale" | "purchase" | "receipt" | "sales-return" | "purchase-return";
   ref: string;
   refId?: string;
   debit: number;   // increases what party owes us (sale) / what we owe (purchase from supplier view = credit)
@@ -30,52 +28,6 @@ function LedgerPage() {
   const [kind, setKind] = useState<Kind>("customer");
   const [search, setSearch] = useState("");
   const [selected, setSelected] = useState<Party | null>(null);
-
-  async function openDoorPdf(orderId: string) {
-    try {
-      const { data: order } = await supabase.from("door_orders").select("*").eq("id", orderId).maybeSingle();
-      if (!order) { toast.error("Door order not found"); return; }
-      const [shopRes, itemsRes, custRes] = await Promise.all([
-        supabase.from("app_settings").select("shop_name, address, gstin").eq("id", true).maybeSingle(),
-        order.category === "general"
-          ? (supabase as any).from("door_order_items").select("*").eq("order_id", order.id)
-          : Promise.resolve({ data: null }),
-        supabase.from("customers").select("phone,address").eq("name", order.customer_name).maybeSingle(),
-      ]);
-      const items =
-        order.category === "general" && itemsRes?.data?.length
-          ? itemsRes.data
-          : [{
-              party_door_size: order.party_door_size,
-              door_taken_size: order.door_taken_size,
-              door_type_name: order.door_type_name,
-              door_made: null,
-              front_mica: order.front_mica,
-              back_mica: order.back_mica,
-              billable_sqft: null,
-              qty: 1,
-              rate_per_sqft: Number(order.rate),
-              mica_addon: 0,
-              line_total: Number(order.total),
-            }];
-      const doc = buildDoorOrderPdf({
-        shop: (shopRes.data as any) ?? null,
-        order: {
-          order_no: order.order_no,
-          order_date: order.order_date,
-          category: order.category,
-          customer_name: order.customer_name,
-          total: Number(order.total),
-          notes: order.notes ?? null,
-        },
-        customer: (custRes.data as any) ?? null,
-        items,
-      });
-      openPdfInNewTab(doc);
-    } catch (e: any) {
-      toast.error(e?.message ?? "Failed to open PDF");
-    }
-  }
 
   const { data: parties = [] } = useQuery({
     queryKey: ["ledger", "parties", kind],
@@ -103,7 +55,7 @@ function LedgerPage() {
       const p = selected!;
       const list: Entry[] = [];
       if (kind === "customer") {
-      const [s, r, d, sr] = await Promise.all([
+      const [s, r, sr] = await Promise.all([
         supabase.from("sales")
           .select("id, invoice_no, invoice_date, grand_total, paid_amount, payment_mode, notes")
           .eq("customer_id", p.id).is("deleted_at", null)
@@ -112,10 +64,6 @@ function LedgerPage() {
           .select("id, receipt_no, amount, mode, created_at, receipt_type, notes")
           .eq("customer_id", p.id)
           .order("created_at", { ascending: true }),
-        supabase.from("door_orders")
-          .select("id, order_no, order_date, total, category, notes")
-          .eq("customer_name", p.name)
-          .order("order_date", { ascending: true }),
         supabase.from("sales_returns")
           .select("id, return_no, return_date, grand_total, reason")
           .eq("customer_id", p.id).is("deleted_at", null)
@@ -141,17 +89,6 @@ function LedgerPage() {
           ref: `Receipt ${x.receipt_no} (${x.mode})`,
           debit: 0,
           credit: Number(x.amount),
-          notes: x.notes ?? undefined,
-        });
-      }
-      for (const x of d.data ?? []) {
-        list.push({
-          date: x.order_date as string,
-          kind: "door",
-          ref: `Door Order ${x.order_no}${x.category ? ` · ${x.category}` : ""}`,
-          refId: x.id,
-          debit: Number(x.total),
-          credit: 0,
           notes: x.notes ?? undefined,
         });
       }
@@ -334,7 +271,6 @@ function LedgerPage() {
                         const Icon =
                           e.kind === "sale" ? FileText :
                           e.kind === "purchase" ? ShoppingCart :
-                          e.kind === "door" ? DoorOpen :
                           e.kind === "sales-return" || e.kind === "purchase-return" ? RotateCcw :
                           ReceiptIcon;
                         const linkProps =
@@ -352,7 +288,6 @@ function LedgerPage() {
                               <span className={`inline-flex items-center gap-1.5 px-2 py-0.5 rounded-md text-xs font-semibold capitalize ${
                                 e.kind === "sale" ? "bg-blue-500/10 text-blue-600" :
                                 e.kind === "purchase" ? "bg-amber-500/10 text-amber-600" :
-                                e.kind === "door" ? "bg-purple-500/10 text-purple-600" :
                                 e.kind === "sales-return" ? "bg-rose-500/10 text-rose-600" :
                                 e.kind === "purchase-return" ? "bg-orange-500/10 text-orange-600" :
                                 "bg-emerald-500/10 text-emerald-600"
@@ -365,13 +300,6 @@ function LedgerPage() {
                                 <Link {...(linkProps as any)} className="text-primary hover:underline">
                                   {e.ref}
                                 </Link>
-                              ) : e.kind === "door" && e.refId ? (
-                                <button
-                                  onClick={() => openDoorPdf(e.refId!)}
-                                  className="text-primary hover:underline text-left"
-                                >
-                                  {e.ref}
-                                </button>
                               ) : (
                                 e.ref
                               )}
