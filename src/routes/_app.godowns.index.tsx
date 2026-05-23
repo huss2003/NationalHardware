@@ -17,6 +17,9 @@ import { toast } from "sonner";
 import {
   Plus, Warehouse, Boxes, MapPin, Building2, Package,
 } from "lucide-react";
+import { ArrowDownToLine, ArrowUpFromLine } from "lucide-react";
+import { GodownStockInDialog } from "@/components/erp/GodownStockInDialog";
+import { GodownStockOutDialog } from "@/components/erp/GodownStockOutDialog";
 
 export const Route = createFileRoute("/_app/godowns/")({ component: Godowns });
 
@@ -31,6 +34,8 @@ function Godowns() {
   const [loading, setLoading] = useState(true);
   const [open, setOpen] = useState(false);
   const [selectedId, setSelectedId] = useState<string>("all");
+  const [stockIn, setStockIn] = useState<{ id: string; name: string } | null>(null);
+  const [stockOut, setStockOut] = useState<{ id: string; name: string } | null>(null);
 
   const reload = async () => {
     setLoading(true);
@@ -95,7 +100,24 @@ function Godowns() {
         title="Godown Inventory"
         subtitle="Manage warehouses and stock allocation across locations."
         actions={
-          <Dialog open={open} onOpenChange={setOpen}>
+          <div className="flex items-center gap-2">
+            {selectedId !== "all" && selectedId !== "_none" && (() => {
+              const g = godowns.find((x) => x.id === selectedId);
+              if (!g) return null;
+              return (
+                <>
+                  <Button size="sm" variant="outline" className="gap-2"
+                    onClick={() => setStockIn({ id: g.id, name: g.name })}>
+                    <ArrowDownToLine className="h-4 w-4" /> Stock In
+                  </Button>
+                  <Button size="sm" variant="outline" className="gap-2"
+                    onClick={() => setStockOut({ id: g.id, name: g.name })}>
+                    <ArrowUpFromLine className="h-4 w-4" /> Stock Out
+                  </Button>
+                </>
+              );
+            })()}
+            <Dialog open={open} onOpenChange={setOpen}>
             <DialogTrigger asChild>
               <Button size="sm" className="gap-2">
                 <Plus className="h-4 w-4" /> New Godown
@@ -105,7 +127,8 @@ function Godowns() {
               onClose={() => setOpen(false)}
               onSaved={() => { setOpen(false); reload(); }}
             />
-          </Dialog>
+            </Dialog>
+          </div>
         }
       />
       <div className="px-8 pb-10 max-w-[1400px] mx-auto w-full space-y-5">
