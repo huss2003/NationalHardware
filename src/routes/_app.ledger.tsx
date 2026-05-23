@@ -181,7 +181,7 @@ function LedgerPage() {
               return (
                 <button
                   key={t.v}
-                  onClick={() => setKind(t.v)}
+                  onClick={() => { setKind(t.v); setSelected(null); }}
                   className={`flex-1 flex items-center justify-center gap-2 h-9 px-3 rounded-md text-sm font-medium transition-colors ${
                     active ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:text-foreground"
                   }`}
