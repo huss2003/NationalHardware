@@ -201,9 +201,9 @@ function NewSalesReturnDialog({
     (async () => {
       const { data } = await supabase
         .from("sales_items")
-        .select("item_instance_id, product_id, qty, rate, gst_rate, products(name), item_instances(status)")
+        .select("id, item_instance_id, product_id, qty, rate, gst_rate, products(name), item_instances(status)")
         .eq("sale_id", saleId);
-      setSaleLines((data ?? []).filter((d: any) => d.item_instance_id));
+      setSaleLines(data ?? []);
     })();
   }, [saleId]);
 
@@ -234,8 +234,9 @@ function NewSalesReturnDialog({
   };
 
   const cart = useMemo(() => saleLines
-    .filter((l: any) => selected.has(l.item_instance_id))
+    .filter((l: any) => selected.has(l.item_instance_id ?? `line:${l.id}`))
     .map((l: any) => ({
+      row_key: (l.item_instance_id ?? `line:${l.id}`) as string,
       item_instance_id: l.item_instance_id as string,
       product_id: l.product_id as string,
       product_name: l.products?.name ?? "Item",
@@ -263,11 +264,15 @@ function NewSalesReturnDialog({
   };
 
   const reprintAllSelected = async () => {
-    if (cart.length === 0) return;
+    const withInstance = cart.filter((c) => c.item_instance_id);
+    if (withInstance.length === 0) {
+      toast.info("No scannable items to reprint in this selection.");
+      return;
+    }
     setBusy(true);
     try {
       const minted: MintedSticker[] = [];
-      for (const c of cart) {
+      for (const c of withInstance) {
         minted.push(await mintReprintForSale(c.item_instance_id, userId, `Bulk reprint via sales return`));
       }
       setReprintItems(minted);
@@ -313,6 +318,7 @@ function NewSalesReturnDialog({
 
     // Update inventory & write history
     for (const c of cart) {
+      if (!c.item_instance_id) continue;
       const update: any = { status: "returned" };
       if (godownId) update.godown_id = godownId;
       await supabase.from("item_instances").update(update).eq("id", c.item_instance_id);
@@ -339,13 +345,33 @@ function NewSalesReturnDialog({
 
     setBusy(false);
     toast.success(`Return ${returnNo} recorded with ${cart.length} item(s)`);
-    onSaved();
+
+    // Auto-mint replacement stickers for scannable items so user can reprint right away
+    const withInstance = cart.filter((c) => c.item_instance_id);
+    if (withInstance.length > 0) {
+      try {
+        const minted: MintedSticker[] = [];
+        for (const c of withInstance) {
+          minted.push(await mintReprintForSale(c.item_instance_id, userId, `Reprint after return ${returnNo}`));
+        }
+        setReprintItems(minted);
+        setSavedAndPendingClose(true);
+        setReprintOpen(true);
+      } catch (e: any) {
+        toast.error(e.message ?? "Reprint failed");
+        onSaved();
+      }
+    } else {
+      onSaved();
+    }
   };
 
-  const eligibleCount = saleLines.filter((l: any) => l.item_instances?.status === "sold").length;
+  const isEligible = (l: any) => !l.item_instance_id || l.item_instances?.status === "sold";
+  const rowKey = (l: any) => (l.item_instance_id ?? `line:${l.id}`) as string;
+  const eligibleCount = saleLines.filter(isEligible).length;
   const allEligibleSelected = eligibleCount > 0 && saleLines
-    .filter((l: any) => l.item_instances?.status === "sold")
-    .every((l: any) => selected.has(l.item_instance_id));
+    .filter(isEligible)
+    .every((l: any) => selected.has(rowKey(l)));
 
   return (
     <DialogContent className="sm:max-w-[860px] max-h-[90vh] overflow-y-auto">
