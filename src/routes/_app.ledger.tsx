@@ -8,7 +8,6 @@ import { Button } from "@/components/ui/button";
 import { PageHeader } from "@/components/erp/PageHeader";
 import { inr } from "@/lib/codes";
 import { Search, Users, Truck, FileText, ShoppingCart, Receipt as ReceiptIcon, RotateCcw } from "lucide-react";
-import { toast } from "sonner";
 
 export const Route = createFileRoute("/_app/ledger")({ component: LedgerPage });
 
