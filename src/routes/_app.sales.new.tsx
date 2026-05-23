@@ -20,7 +20,7 @@ export const Route = createFileRoute("/_app/sales/new")({ component: NewSale });
 type Line = {
   product_id: string; item_instance_id: string | null; name: string;
   qty: number; rate: number; gst_rate: number; hsn?: string | null;
-  alt_unit?: string | null; alt_conversion?: number | null;
+  unit?: string | null; alt_unit?: string | null; alt_conversion?: number | null;
   is_lot?: boolean; max_qty?: number;
 };
 
@@ -85,7 +85,6 @@ function NewSale() {
     return products
       .filter(p =>
         p.name.toLowerCase().includes(q) ||
-        (p.hsn ?? "").toLowerCase().includes(q) ||
         p.prefix.toLowerCase().includes(q)
       )
       .slice(0, 8);
@@ -139,7 +138,7 @@ function NewSale() {
     setLines([...lines, {
       product_id: item.product_id, item_instance_id: item.id, name: item.products.name,
       qty: 1, rate: Number(item.products.default_price), gst_rate: Number(item.products.gst_rate),
-      hsn: item.products.hsn,
+      hsn: item.products.hsn, unit: (item.products as any).unit ?? 'pcs',
       alt_unit: (item.products as any).alt_unit ?? null,
       alt_conversion: (item.products as any).alt_conversion ?? null,
       is_lot: isLot, max_qty: maxQty,
@@ -151,7 +150,7 @@ function NewSale() {
     setLines(prev => [...prev, {
       product_id: p.id, item_instance_id: null, name: p.name,
       qty, rate: Number(p.default_price), gst_rate: Number(p.gst_rate),
-      hsn: p.hsn, alt_unit: p.alt_unit, alt_conversion: p.alt_conversion,
+      hsn: p.hsn, unit: p.unit ?? 'pcs', alt_unit: p.alt_unit, alt_conversion: p.alt_conversion,
       is_lot: true, max_qty: undefined,
     }]);
     setDraftQuery(""); setActiveSuggest(0);
@@ -342,12 +341,11 @@ function NewSale() {
         {/* Google-Sheets-style grid */}
         <div className="bg-white border border-slate-300 rounded-md overflow-hidden shadow-sm">
           <div className="overflow-x-auto">
-            <table className="w-full border-collapse min-w-[920px] text-[13px] font-mono">
+            <table className="w-full border-collapse min-w-[830px] text-[13px] font-mono">
               <colgroup>
                 <col style={{ width: 40 }} />
                 <col />
-                <col style={{ width: 90 }} />
-                <col style={{ width: 90 }} />
+                <col style={{ width: 110 }} />
                 <col style={{ width: 110 }} />
                 <col style={{ width: 110 }} />
                 {f.gst_rate.visible && <col style={{ width: 70 }} />}
@@ -358,7 +356,6 @@ function NewSale() {
                 <tr className="bg-slate-100 text-[11px] uppercase tracking-wide text-slate-600 font-sans">
                   <th className="border border-slate-300 px-2 py-1.5 text-center font-semibold">#</th>
                   <th className="border border-slate-300 px-2 py-1.5 text-left font-semibold">Product</th>
-                  <th className="border border-slate-300 px-2 py-1.5 text-left font-semibold">HSN</th>
                   <th className="border border-slate-300 px-2 py-1.5 text-center font-semibold">Qty</th>
                   <th className="border border-slate-300 px-2 py-1.5 text-left font-semibold">Alt Unit</th>
                   <th className="border border-slate-300 px-2 py-1.5 text-right font-semibold">Rate</th>
@@ -377,7 +374,6 @@ function NewSale() {
                         <div className="text-[10px] text-slate-400 truncate">{l.item_instance_id}</div>
                       )}
                     </td>
-                    <td className="border border-slate-300 px-2 py-0 text-slate-600 text-[12px]">{l.hsn ?? ""}</td>
                     <td className="border border-slate-300 px-0 py-0">
                       <input
                         type="number"
@@ -391,11 +387,14 @@ function NewSale() {
                         className="w-full h-full px-2 py-1.5 text-center bg-transparent focus:outline-none focus:bg-blue-50 focus:ring-2 focus:ring-inset focus:ring-[#3b82f6] disabled:text-slate-500"
                         aria-label={`Quantity for ${l.name}`}
                       />
+                      <div className="text-[10px] text-slate-500 text-center pb-0.5">
+                        {l.alt_unit ? `${l.unit ?? 'pcs'} / ${l.alt_unit}` : (l.unit ?? 'pcs')}
+                      </div>
                     </td>
                     <td className="border border-slate-300 px-2 py-0 text-[12px] text-slate-600">
                       {l.alt_unit && l.alt_conversion
                         ? `${(l.qty * Number(l.alt_conversion)).toLocaleString("en-IN", { maximumFractionDigits: 3 })} ${l.alt_unit}`
-                        : ""}
+                        : "—"}
                     </td>
                     <td className="border border-slate-300 px-0 py-0">
                       <input
@@ -477,7 +476,7 @@ function NewSale() {
                             <div className="min-w-0">
                               <div className="text-sm font-semibold text-slate-800 truncate">{p.name}</div>
                               <div className="text-[11px] text-slate-500">
-                                {p.prefix}{p.hsn ? ` · HSN ${p.hsn}` : ""} · {p.gst_rate}% GST · {p.unit}
+                                {p.prefix} · {p.gst_rate}% GST · {p.unit}{p.alt_unit ? ` / ${p.alt_unit}` : ""}
                               </div>
                             </div>
                             <div className="text-sm font-bold tabular-nums text-[#3b82f6] shrink-0">
