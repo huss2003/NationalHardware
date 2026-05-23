@@ -711,6 +711,19 @@ function VypaariForm({
   useEffect(() => { setOrderNo(nextOrderNoHint); }, [nextOrderNoHint]);
 
   const selectedType = doorTypes.find((d) => d.id === doorTypeId);
+
+  // Prefill from sales draft when entered via "Add Door" on the sale screen.
+  useEffect(() => {
+    if (!isFromSale) return;
+    try {
+      const raw = sessionStorage.getItem("sale_draft");
+      if (!raw) return;
+      const d = JSON.parse(raw);
+      if (d.invoiceNo) setOrderNo(d.invoiceNo);
+      if (d.customerId) setCustomerId(d.customerId);
+    } catch {}
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isFromSale]);
   const rate = Number(selectedType?.rate ?? 0);
   const total = rate * (qty || 0);
 
