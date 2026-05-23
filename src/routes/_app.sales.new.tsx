@@ -307,7 +307,7 @@ function NewSale() {
                     ))}
                   </select>
                   <Button type="button" variant="outline" size="sm" className="h-10 gap-1" onClick={() => setCreateCustomerOpen(true)}>
-                    <Plus className="h-4 w-4" /> <span className="hidden sm:inline">New</span>
+                    <Plus className="h-4 w-4" /> <span>New</span>
                   </Button>
                 </div>
               </div>
