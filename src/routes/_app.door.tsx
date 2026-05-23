@@ -786,24 +786,30 @@ function OrdersTable({ rows, loading }: { rows: DoorOrder[]; loading: boolean })
             <TableHead>Door Type</TableHead>
             <TableHead>Taken Size</TableHead>
             <TableHead className="text-right">Rate</TableHead>
-            <TableHead className="text-right pr-5">Total</TableHead>
+            <TableHead className="text-right">Total</TableHead>
+            <TableHead className="pr-5 text-right">Bill</TableHead>
           </TableRow>
         </TableHeader>
         <TableBody>
           {rows.map((o) => (
-            <TableRow key={o.id}>
+            <TableRow key={o.id} className="cursor-pointer" onClick={() => openDoorOrderPdf(o)}>
               <TableCell className="pl-5 font-medium">{o.order_no}</TableCell>
               <TableCell>{new Date(o.order_date).toLocaleDateString()}</TableCell>
               <TableCell>{o.customer_name}</TableCell>
               <TableCell>{o.door_type_name ?? "—"}</TableCell>
               <TableCell>{o.door_taken_size ?? "—"}</TableCell>
               <TableCell className="text-right tabular-nums">{inr(Number(o.rate))}</TableCell>
-              <TableCell className="text-right pr-5 font-semibold tabular-nums">{inr(Number(o.total))}</TableCell>
+              <TableCell className="text-right font-semibold tabular-nums">{inr(Number(o.total))}</TableCell>
+              <TableCell className="pr-5 text-right">
+                <Button variant="ghost" size="icon" onClick={(e) => { e.stopPropagation(); openDoorOrderPdf(o); }}>
+                  <FileText className="h-4 w-4" />
+                </Button>
+              </TableCell>
             </TableRow>
           ))}
           {!loading && rows.length === 0 && (
             <TableRow>
-              <TableCell colSpan={7} className="text-center py-10 text-muted-foreground">
+              <TableCell colSpan={8} className="text-center py-10 text-muted-foreground">
                 No door orders yet in this category.
               </TableCell>
             </TableRow>
