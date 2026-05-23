@@ -59,7 +59,7 @@ function NewSale() {
       const el = draftRef.current;
       if (!el) return;
       const r = el.getBoundingClientRect();
-      setDraftRect({ left: r.left, top: r.top, width: r.width });
+      setDraftRect({ left: r.left, top: r.bottom + 6, width: r.width });
     };
     update();
     window.addEventListener("scroll", update, true);
@@ -534,8 +534,7 @@ function NewSale() {
                         style={{
                           left: draftRect?.left ?? 0,
                           width: draftRect?.width ?? 300,
-                          top: (draftRect?.top ?? 0) - 8,
-                          transform: "translateY(-100%)",
+                          top: draftRect?.top ?? 0,
                         }}
                       >
                         {draftSuggestions.map((p, idx) => (
@@ -595,7 +594,7 @@ function NewSale() {
       </div>
 
       {/* Sticky Totals Bar */}
-      <footer className="fixed bottom-3 left-3 right-3 md:left-6 md:right-6 z-20 bg-white border border-[#e8ecf1] rounded-2xl px-3 md:px-5 py-2.5 md:py-3 shadow-2xl shadow-slate-200/60">
+      <footer className="sticky bottom-3 z-20 w-full max-w-7xl mx-auto bg-white border border-[#e8ecf1] rounded-2xl px-3 md:px-5 py-2.5 md:py-3 shadow-2xl shadow-slate-200/60">
         <div className="max-w-7xl mx-auto flex items-center justify-between gap-3 flex-nowrap">
           <div className="flex items-center gap-4 md:gap-6 min-w-0">
             <div className="shrink-0">
