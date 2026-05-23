@@ -374,7 +374,6 @@ function NewSale() {
                         <div className="text-[10px] text-slate-400 truncate">{l.item_instance_id}</div>
                       )}
                     </td>
-                    <td className="border border-slate-300 px-2 py-0 text-slate-600 text-[12px]">{l.hsn ?? ""}</td>
                     <td className="border border-slate-300 px-0 py-0">
                       <input
                         type="number"
@@ -388,11 +387,14 @@ function NewSale() {
                         className="w-full h-full px-2 py-1.5 text-center bg-transparent focus:outline-none focus:bg-blue-50 focus:ring-2 focus:ring-inset focus:ring-[#3b82f6] disabled:text-slate-500"
                         aria-label={`Quantity for ${l.name}`}
                       />
+                      <div className="text-[10px] text-slate-500 text-center pb-0.5">
+                        {l.alt_unit ? `${l.unit ?? 'pcs'} / ${l.alt_unit}` : (l.unit ?? 'pcs')}
+                      </div>
                     </td>
                     <td className="border border-slate-300 px-2 py-0 text-[12px] text-slate-600">
                       {l.alt_unit && l.alt_conversion
                         ? `${(l.qty * Number(l.alt_conversion)).toLocaleString("en-IN", { maximumFractionDigits: 3 })} ${l.alt_unit}`
-                        : ""}
+                        : "—"}
                     </td>
                     <td className="border border-slate-300 px-0 py-0">
                       <input
@@ -474,7 +476,7 @@ function NewSale() {
                             <div className="min-w-0">
                               <div className="text-sm font-semibold text-slate-800 truncate">{p.name}</div>
                               <div className="text-[11px] text-slate-500">
-                                {p.prefix}{p.hsn ? ` · HSN ${p.hsn}` : ""} · {p.gst_rate}% GST · {p.unit}
+                                {p.prefix} · {p.gst_rate}% GST · {p.unit}{p.alt_unit ? ` / ${p.alt_unit}` : ""}
                               </div>
                             </div>
                             <div className="text-sm font-bold tabular-nums text-[#3b82f6] shrink-0">
