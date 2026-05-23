@@ -215,6 +215,9 @@ function ReceiptsPage() {
                       <Button size="sm" variant="outline" className="gap-1 h-8" onClick={() => downloadReceipt(r)}>
                         <Download className="h-3.5 w-3.5" /> PDF
                       </Button>
+                      <Button size="sm" variant="outline" className="gap-1 h-8" onClick={() => whatsappReceipt(r)}>
+                        <MessageCircle className="h-3.5 w-3.5" /> WhatsApp
+                      </Button>
                     </div>
                   </td>
                 </tr>
