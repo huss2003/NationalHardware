@@ -653,6 +653,28 @@ function VypaariForm({
     setBusy(false);
     if (error) { toast.error(error.message); return; }
     toast.success("Door order saved");
+    try {
+      const shop = await loadShopForPdf();
+      const cust = await supabase.from("customers").select("phone,address")
+        .eq("id", customerId).maybeSingle();
+      const doc = buildDoorOrderPdf({
+        shop,
+        order: {
+          order_no: orderNo, order_date: new Date().toISOString(),
+          category: "vypaari", customer_name: customerName,
+          total, notes: notes || null,
+        },
+        customer: (cust.data as any) ?? null,
+        items: [{
+          party_door_size: partySize, door_taken_size: takenSize,
+          door_type_name: selectedType?.name ?? null, door_made: null,
+          front_mica: frontMica, back_mica: backMica,
+          billable_sqft: null, qty, rate_per_sqft: rate,
+          mica_addon: 0, line_total: total,
+        }],
+      });
+      openPdfInNewTab(doc);
+    } catch (e) { console.error(e); }
     reset();
     onSaved();
   };
