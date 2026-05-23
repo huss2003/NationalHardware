@@ -236,6 +236,7 @@ function ReceiptsPage() {
           maxAmount={pending.find((p) => p.customer.id === openFor.id)?.due ?? 0}
           onClose={() => setOpenFor(null)}
           onSaved={() => { setOpenFor(null); load(); }}
+          shop={shop}
           userId={user?.id ?? ""}
         />
       )}
@@ -244,8 +245,8 @@ function ReceiptsPage() {
 }
 
 function CreditReceiptDialog({
-  customer, maxAmount, onClose, onSaved, userId,
-}: { customer: Customer; maxAmount: number; onClose: () => void; onSaved: () => void; userId: string }) {
+  customer, maxAmount, onClose, onSaved, userId, shop,
+}: { customer: Customer; maxAmount: number; onClose: () => void; onSaved: () => void; userId: string; shop: any }) {
   const [amount, setAmount] = useState<number>(maxAmount);
   const [mode, setMode] = useState("cash");
   const [notes, setNotes] = useState("");
@@ -256,16 +257,17 @@ function CreditReceiptDialog({
     setBusy(true);
     const { data: noData, error: noErr } = await supabase.rpc("next_receipt_no", { _customer_id: customer.id });
     if (noErr) { setBusy(false); toast.error(noErr.message); return; }
-    const { error } = await supabase.from("receipts").insert({
+    const { data: inserted, error } = await supabase.from("receipts").insert({
       receipt_no: noData as string,
       customer_id: customer.id,
       receipt_type: "credit",
       amount, mode, notes,
       created_by: userId || null,
-    });
+    }).select("*").single();
     setBusy(false);
     if (error) { toast.error(error.message); return; }
     toast.success(`Receipt ${noData} generated`);
+    await generateReceiptArtifacts(inserted as any, customer, shop);
     onSaved();
   };
 
