@@ -1,5 +1,6 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { useEffect, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
+import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -25,22 +26,18 @@ type Entry = {
 
 function LedgerPage() {
   const [kind, setKind] = useState<Kind>("customer");
-  const [parties, setParties] = useState<Party[]>([]);
   const [search, setSearch] = useState("");
   const [selected, setSelected] = useState<Party | null>(null);
-  const [entries, setEntries] = useState<Entry[]>([]);
-  const [loading, setLoading] = useState(false);
 
-  // load parties on kind change
-  useEffect(() => {
-    setSelected(null);
-    setEntries([]);
-    (async () => {
+  const { data: parties = [] } = useQuery({
+    queryKey: ["ledger", "parties", kind],
+    queryFn: async () => {
       const table = kind === "customer" ? "customers" : "suppliers";
       const { data } = await supabase.from(table).select("id, name, phone").order("name");
-      setParties((data as Party[]) ?? []);
-    })();
-  }, [kind]);
+      return (data as Party[]) ?? [];
+    },
+    staleTime: 5 * 60 * 1000,
+  });
 
   const filtered = useMemo(() => {
     const q = search.trim().toLowerCase();
@@ -50,11 +47,14 @@ function LedgerPage() {
     ).slice(0, 50);
   }, [parties, search]);
 
-  const loadLedger = async (p: Party) => {
-    setSelected(p);
-    setLoading(true);
-    const list: Entry[] = [];
-    if (kind === "customer") {
+  const { data: entries = [], isFetching: loading } = useQuery({
+    enabled: !!selected,
+    queryKey: ["ledger", "entries", kind, selected?.id, selected?.name],
+    staleTime: 5 * 60 * 1000,
+    queryFn: async () => {
+      const p = selected!;
+      const list: Entry[] = [];
+      if (kind === "customer") {
       const [s, r, d, sr] = await Promise.all([
         supabase.from("sales")
           .select("id, invoice_no, invoice_date, grand_total, paid_amount, payment_mode, notes")
@@ -116,7 +116,7 @@ function LedgerPage() {
           notes: x.reason ?? undefined,
         });
       }
-    } else {
+      } else {
       const [p_, pr] = await Promise.all([
         supabase.from("purchases")
           .select("id, bill_no, bill_date, grand_total")
@@ -147,11 +147,11 @@ function LedgerPage() {
           notes: x.reason ?? undefined,
         });
       }
-    }
-    list.sort((a, b) => a.date.localeCompare(b.date));
-    setEntries(list);
-    setLoading(false);
-  };
+      }
+      list.sort((a, b) => a.date.localeCompare(b.date));
+      return list;
+    },
+  });
 
   let running = 0;
   const rows = entries.map((e) => {
