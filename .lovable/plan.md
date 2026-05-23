@@ -1,85 +1,52 @@
-## Scope & approach
+## Goal
 
-This is a single-shop ERP (~30 routes, small data today, growing). Rather than a sprawling sweep, I'll ship a focused set of high-impact changes that compound. No business logic, workflows, UI, or data are changed.
+Rework Sales Returns and Purchase Returns so the user picks items from a checklist after selecting the invoice/bill (scanning becomes optional). Add sticker reprint flows that mint brand-new sequential IDs.
 
-Work is grouped in 5 phases. You can approve all, or stop after any phase.
+## Sales Returns (`src/routes/_app.sales-returns.index.tsx`)
 
----
+1. After choosing an Invoice in the dialog, load every `sales_items` row joined with `item_instances` (id, status, product name, rate, gst_rate).
+2. Render a checklist table of all items on that invoice:
+   - Columns: checkbox · Item ID · Product · Rate · GST · Status badge.
+   - Disable + grey-out rows whose status is not `sold` (already returned/damaged) with a small reason tag.
+   - "Select all available" toggle in header.
+3. Keep the existing ScanInput as an optional shortcut — scanning just toggles the matching row's checkbox.
+4. The cart/totals/refund mode/reason block stays, driven from the checked rows.
+5. **Reprint stickers (new):**
+   - On every checked row add a "Reprint sticker" icon button.
+   - Clicking it calls a new helper `mintReplacementSticker(originalItemId)` that:
+     - Looks up the original instance's `product_id` to get the prefix.
+     - Calls `supabase.rpc("next_item_id", { _prefix })` to allocate the next sequential ID.
+     - Inserts a fresh `item_instances` row (status `available`, `is_lot=false`, qty 1, cost_price copied, qr_payload rebuilt with new id) — leaves the old row untouched.
+     - Writes an `item_history` row (`event: 'reprinted'` or `'minted'`, `notes: 'Reprint via sales return <return_no?>'`) on both old + new.
+     - Opens a print view using existing `LabelSheet` (single-item array) in a Dialog with a "Print" button (`window.print()`).
+   - Reprint is allowed any time after the row is checked; no need to save the return first.
+6. After "Record Return" save, also surface a "Reprint stickers for returned items" bulk button in a success toast/dialog that reprints all checked items in one LabelSheet.
 
-### Phase 1 — Database indexes & query shape (biggest single win)
+## Purchase Returns (`src/routes/_app.purchase-returns.index.tsx`)
 
-One migration adding indexes that match what the app actually filters/sorts on:
+1. Same checklist treatment: after picking a bill, list every `item_instances` row sourced from that bill's `purchase_items` (already fetched today). Show status badges; disable rows that are not `available`.
+2. Scan input stays as an optional helper that toggles a row.
+3. Cart/Totals/Status/Reason block unchanged, driven by the checklist.
+4. **Reprint sticker for a replacement (new):**
+   - Each checked row gets a "Reprint for replacement" button.
+   - Clicking opens a small dialog: "This sticker is being returned to the supplier. Mint a new sticker for the replacement piece you received?" with a product picker (default = same product as the returned item) and qty input (default 1).
+   - On confirm: for each qty, call `next_item_id(prefix of picked product)`, insert new `item_instances` row (`status='available'`, `is_lot=false`, qty 1, cost_price = original rate, qr_payload rebuilt, `source_purchase_item_id` = original instance's purchase_item_id so it stays tied to that bill), and write an `item_history` row (`event: 'minted'`, ref `purchase_returns`, notes "Replacement for <old id>").
+   - Show the new stickers in a printable LabelSheet inline.
+5. Save flow unchanged otherwise.
 
-- `sales(customer_id, invoice_date desc) where deleted_at is null`
-- `sales(invoice_date desc) where deleted_at is null`
-- `sales_items(sale_id)`, `sales_items(product_id)`
-- `purchases(supplier_id, bill_date desc) where deleted_at is null`
-- `purchase_items(purchase_id)`, `purchase_items(product_id)`
-- `receipts(customer_id, created_at desc)`, `receipts(sale_id)`
-- `item_instances(product_id, status)`, `item_instances(status) where status='available'`, `item_instances(barcode_payload)`, `item_instances(godown_id)`
-- `item_history(item_id, created_at desc)`
-- `door_orders(customer_name, order_date desc)`, `door_order_items(order_id)`
-- `sales_returns(customer_id)`, `sales_returns(sale_id)`, `purchase_returns(supplier_id)`, `purchase_returns(purchase_id)`
-- `audit_log(ref_table, ref_id)`, `alerts(read_at) where read_at is null`
-- Text search: `gin (name gin_trgm_ops)` on `products`, `customers`, `suppliers` (enable `pg_trgm`)
+## Shared bits
 
-Plus two RPC helpers to replace expensive client-side aggregation:
-- `dashboard_summary(_since timestamptz)` → returns sales/purchase totals, low-stock count, alerts, sparkline series in one round trip (today: 6 queries + JS sums on full tables).
-- `inventory_stock_view` materialized read (or a `SECURITY DEFINER` function) returning `(product_id, available_qty)` so the inventory page stops fetching every `item_instances` row.
+- New small component `src/components/erp/ReprintLabelDialog.tsx` — wraps `LabelSheet` for one or many items with a Print button.
+- New helper `src/lib/relabel.ts` exporting:
+  - `mintReprintForSale(originalItemId, actorUserId): Promise<ItemInstance>` (sales-side, same product).
+  - `mintReplacementForPurchase(originalItemId, productId, qty, actorUserId): Promise<ItemInstance[]>` (purchase-side, possibly different product).
+  - Both build `qr_payload` the same way the SQL function does, ensure `barcode_payload = new_id`.
+- No DB schema changes needed — `next_item_id` RPC already exists, `item_instances` and `item_history` accept inserts.
 
-### Phase 2 — Data layer migration to TanStack Query
+## Technical notes
 
-Convert `useEffect + useState + supabase.from(...)` to `queryOptions` + `ensureQueryData` + `useSuspenseQuery` on the hot routes. Gives caching, dedup, background refetch, no loading flash, no refetch on every nav.
-
-Hot routes (in order): `dashboard`, `inventory.index`, `sales.index`, `purchases.index`, `ledger`, `sales-returns`, `purchase-returns`, `door`, `sales.receipts`.
-
-Wire `defaultPreloadStaleTime: 0` in the router and a sensible per-query `staleTime` (30s reads, 5s for live tables like alerts).
-
-### Phase 3 — Server-side pagination, search, virtualization
-
-Lists currently fetch all rows then filter in JS — fine at 100, dead at 10k.
-
-- Add URL-driven `validateSearch` for `{ page, pageSize, q, status, dateFrom, dateTo }` on sales/purchases/inventory/receipts/returns/door.
-- Push search and filters into Supabase (`ilike`, range filters, `.range(from,to)`, `count: 'exact'`).
-- Debounce the search input (250ms).
-- Add a tiny `<VirtualTable>` (windowing via simple intersection observer; no extra dep) for any list that can exceed ~200 rows.
-
-### Phase 4 — Bundle, rendering, navigation polish
-
-- Replace `framer-motion` page-header animations with CSS transitions on routes that don't need them (cuts ~60KB on first paint; keep motion where it actually fires).
-- Code-split heavy one-off deps so they only load on the screens that use them: `xlsx`, `jspdf` + `jspdf-autotable`, `recharts`, `bwip-js`, `qrcode`, `@zxing/browser`, `embla-carousel-react`. All via dynamic `import()` at the call site.
-- Convert hot list rows / pure components to `memo`; stabilize callbacks with `useCallback` where they cross memo boundaries.
-- Enable Router link preloading on hover (`defaultPreload: 'intent'`) for instant nav.
-- `head()` `<link rel="preconnect">` to the Supabase URL on `__root.tsx`.
-- Tree-shake `lucide-react` imports (already per-icon ✓ — just verify).
-
-### Phase 5 — Misc cleanup & guardrails
-
-- Add `select(..., { count: 'exact', head: true })` for counts instead of fetching rows.
-- Replace blocking spinners with skeletons on the 5 most-visited screens.
-- Add a single `useDebouncedValue` hook and apply to every search box.
-- Remove dead files / unused imports the linter flags (no behavior change).
-- Add `PRAGMA`-style `EXPLAIN ANALYZE` snippets in a `docs/perf-notes.md` for future tuning.
-
----
-
-### Out of scope (intentionally)
-
-- No schema redesign / table renames / RLS rewrites (data stays intact).
-- No new infrastructure (Redis, queues, CDN). Cloudflare Workers + Supabase already cover edge + connection pooling.
-- No realtime subscriptions are added or removed — there aren't any today.
-- No visual redesign.
-
-### Verification per phase
-
-- Phase 1: run `EXPLAIN ANALYZE` before/after on dashboard & inventory queries via `supabase--read_query`.
-- Phase 2–4: TanStack devtools network panel + `browser--performance_profile` on dashboard, inventory, sales list. Target: <200ms TTI on cached nav, <1s cold dashboard load.
-- Phase 5: typecheck + lint clean.
-
-### Risk
-
-Phase 1 (indexes) and Phase 4 (lazy-load) are zero-risk. Phase 2 (Query migration) and Phase 3 (URL state + pagination) touch many files — done route-by-route with the screen verified after each.
-
----
-
-**Recommended:** approve Phase 1 + Phase 4 first (1 migration + bundle wins, ~30 min, immediate speedup), then I'll start Phase 2 route-by-route. Tell me if you'd rather I run all five end-to-end.
+- Status filter for clickable rows: sales-return enables only `sold`; purchase-return enables only `available`.
+- Use the existing `Checkbox` from `@/components/ui/checkbox` for selection.
+- Keep `qty_on_hand` semantics: lot/hardware rows skipped from the reprint UI (show a "lot — no sticker" hint) since lots share a single label.
+- Print uses existing `LabelSheet` `format='thermal'` (or read from `app_settings.default_label_format`).
+- All inserts go through the regular `supabase` browser client (RLS already allows anon/auth writes to these tables per current policies).
