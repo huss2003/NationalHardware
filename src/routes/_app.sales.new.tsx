@@ -175,7 +175,7 @@ function NewSale() {
     }
     setLines([...lines, {
       product_id: item.product_id, item_instance_id: item.id, name: item.products.name,
-      qty: 1, rate: Number(item.products.default_price), gst_rate: Number(item.products.gst_rate),
+      qty: 1, rate: Number(item.products.default_price), gst_rate: 0,
       hsn: item.products.hsn, unit: (item.products as any).unit ?? 'pcs',
       alt_unit: (item.products as any).alt_unit ?? null,
       alt_conversion: (item.products as any).alt_conversion ?? null,
@@ -187,7 +187,7 @@ function NewSale() {
   const addProductLine = (p: ProductRow, qty = 1) => {
     setLines(prev => [...prev, {
       product_id: p.id, item_instance_id: null, name: p.name,
-      qty, rate: Number(p.default_price), gst_rate: Number(p.gst_rate),
+      qty, rate: Number(p.default_price), gst_rate: 0,
       hsn: p.hsn, unit: p.unit ?? 'pcs', alt_unit: p.alt_unit, alt_conversion: p.alt_conversion,
       is_lot: true, max_qty: undefined,
     }]);
@@ -511,7 +511,7 @@ function NewSale() {
                       aria-label="Add new line"
                     />
                     {draftFocused && draftSuggestions.length > 0 && (
-                      <div className="absolute left-0 right-0 top-full mt-1 bg-white border border-slate-300 rounded-md shadow-xl z-30 max-h-72 overflow-auto font-sans">
+                      <div className="absolute left-0 right-0 bottom-full mb-1 bg-white border border-slate-300 rounded-md shadow-2xl z-30 max-h-80 overflow-auto font-sans">
                         {draftSuggestions.map((p, idx) => (
                           <button
                             key={p.id}
@@ -547,7 +547,7 @@ function NewSale() {
                 </tr>
 
                 {/* Filler empty rows so it looks like a sheet */}
-                {Array.from({ length: Math.max(0, 4 - lines.length) }).map((_, idx) => (
+                {Array.from({ length: Math.max(0, 7 - lines.length) }).map((_, idx) => (
                   <tr key={`filler-${idx}`} className="text-slate-300">
                     <td className="border border-slate-300 bg-slate-50 px-2 py-1.5 text-center text-[11px] font-sans">
                       {lines.length + 2 + idx}
