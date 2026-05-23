@@ -79,8 +79,12 @@ function NewSale() {
 
   const goAddDoor = () => {
     try {
+      const cust = customers.find((c) => c.id === customerId);
       sessionStorage.setItem("sale_draft", JSON.stringify({
-        customerId, paymentMode, discount, lines,
+        customerId,
+        customerName: cust?.name ?? "",
+        invoiceNo: invoicePreview,
+        paymentMode, discount, lines,
       }));
     } catch {}
     nav({ to: "/door", search: { returnTo: "sale" } as any });
