@@ -15,8 +15,9 @@ import {
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { inr } from "@/lib/codes";
 import { toast } from "sonner";
-import { Plus, DoorOpen, Trash2 } from "lucide-react";
+import { Plus, DoorOpen, Trash2, FileText } from "lucide-react";
 import { QuickCreatePartyDialog } from "@/components/erp/QuickCreatePartyDialog";
+import { buildDoorOrderPdf, openPdfInNewTab } from "@/lib/invoice-pdf";
 
 export const Route = createFileRoute("/_app/door")({ component: DoorPage });
 
@@ -29,10 +30,57 @@ type DoorOrder = {
   back_mica: string | null; door_taken_size: string | null;
   door_type_id: string | null; door_type_name: string | null;
   rate: number; total: number;
+  notes?: string | null;
 };
 
 const DEFAULT_DOOR_TYPE_NAMES = ["F-Hard", "F-Pine", "WF-Pine", "WF-Hard"] as const;
 const DOOR_MADE_OPTIONS = ["S.D", "D.D", "J.D", "JDD", "PLY", "WINDOW"] as const;
+
+async function loadShopForPdf() {
+  const { data } = await supabase.from("app_settings")
+    .select("shop_name, address, gstin").eq("id", true).maybeSingle();
+  return (data as any) ?? null;
+}
+
+async function openDoorOrderPdf(order: DoorOrder) {
+  const [shopRes, itemsRes, custRes] = await Promise.all([
+    loadShopForPdf(),
+    order.category === "general"
+      ? (supabase as any).from("door_order_items").select("*").eq("order_id", order.id)
+      : Promise.resolve({ data: null }),
+    supabase.from("customers").select("phone,address").eq("name", order.customer_name).maybeSingle(),
+  ]);
+  const items =
+    order.category === "general" && itemsRes?.data?.length
+      ? itemsRes.data
+      : [{
+          party_door_size: order.party_door_size,
+          door_taken_size: order.door_taken_size,
+          door_type_name: order.door_type_name,
+          door_made: null,
+          front_mica: order.front_mica,
+          back_mica: order.back_mica,
+          billable_sqft: null,
+          qty: 1,
+          rate_per_sqft: Number(order.rate),
+          mica_addon: 0,
+          line_total: Number(order.total),
+        }];
+  const doc = buildDoorOrderPdf({
+    shop: shopRes,
+    order: {
+      order_no: order.order_no,
+      order_date: order.order_date,
+      category: order.category,
+      customer_name: order.customer_name,
+      total: Number(order.total),
+      notes: order.notes ?? null,
+    },
+    customer: (custRes.data as any) ?? null,
+    items,
+  });
+  openPdfInNewTab(doc);
+}
 
 function mergeDefaultDoorTypes(doorTypes: DoorType[]) {
   const existingNames = new Set(doorTypes.map((d) => d.name.toLowerCase()));
@@ -314,6 +362,22 @@ function GeneralOrderForm({
     }
     setBusy(false);
     toast.success(`Order ${orderNo} saved (${lines.length} doors)`);
+    try {
+      const shop = await loadShopForPdf();
+      const cust = await supabase.from("customers").select("phone,address")
+        .eq("name", finalCustomer).maybeSingle();
+      const doc = buildDoorOrderPdf({
+        shop,
+        order: {
+          order_no: orderNo, order_date: new Date().toISOString(),
+          category: "general", customer_name: finalCustomer,
+          total: grandTotal, notes: notes || null,
+        },
+        customer: (cust.data as any) ?? null,
+        items: lines,
+      });
+      openPdfInNewTab(doc);
+    } catch (e) { console.error(e); }
     resetAll();
     onSaved();
   };
@@ -589,6 +653,28 @@ function VypaariForm({
     setBusy(false);
     if (error) { toast.error(error.message); return; }
     toast.success("Door order saved");
+    try {
+      const shop = await loadShopForPdf();
+      const cust = await supabase.from("customers").select("phone,address")
+        .eq("id", customerId).maybeSingle();
+      const doc = buildDoorOrderPdf({
+        shop,
+        order: {
+          order_no: orderNo, order_date: new Date().toISOString(),
+          category: "vypaari", customer_name: customerName,
+          total, notes: notes || null,
+        },
+        customer: (cust.data as any) ?? null,
+        items: [{
+          party_door_size: partySize, door_taken_size: takenSize,
+          door_type_name: selectedType?.name ?? null, door_made: null,
+          front_mica: frontMica, back_mica: backMica,
+          billable_sqft: null, qty, rate_per_sqft: rate,
+          mica_addon: 0, line_total: total,
+        }],
+      });
+      openPdfInNewTab(doc);
+    } catch (e) { console.error(e); }
     reset();
     onSaved();
   };
@@ -700,24 +786,30 @@ function OrdersTable({ rows, loading }: { rows: DoorOrder[]; loading: boolean })
             <TableHead>Door Type</TableHead>
             <TableHead>Taken Size</TableHead>
             <TableHead className="text-right">Rate</TableHead>
-            <TableHead className="text-right pr-5">Total</TableHead>
+            <TableHead className="text-right">Total</TableHead>
+            <TableHead className="pr-5 text-right">Bill</TableHead>
           </TableRow>
         </TableHeader>
         <TableBody>
           {rows.map((o) => (
-            <TableRow key={o.id}>
+            <TableRow key={o.id} className="cursor-pointer" onClick={() => openDoorOrderPdf(o)}>
               <TableCell className="pl-5 font-medium">{o.order_no}</TableCell>
               <TableCell>{new Date(o.order_date).toLocaleDateString()}</TableCell>
               <TableCell>{o.customer_name}</TableCell>
               <TableCell>{o.door_type_name ?? "—"}</TableCell>
               <TableCell>{o.door_taken_size ?? "—"}</TableCell>
               <TableCell className="text-right tabular-nums">{inr(Number(o.rate))}</TableCell>
-              <TableCell className="text-right pr-5 font-semibold tabular-nums">{inr(Number(o.total))}</TableCell>
+              <TableCell className="text-right font-semibold tabular-nums">{inr(Number(o.total))}</TableCell>
+              <TableCell className="pr-5 text-right">
+                <Button variant="ghost" size="icon" onClick={(e) => { e.stopPropagation(); openDoorOrderPdf(o); }}>
+                  <FileText className="h-4 w-4" />
+                </Button>
+              </TableCell>
             </TableRow>
           ))}
           {!loading && rows.length === 0 && (
             <TableRow>
-              <TableCell colSpan={7} className="text-center py-10 text-muted-foreground">
+              <TableCell colSpan={8} className="text-center py-10 text-muted-foreground">
                 No door orders yet in this category.
               </TableCell>
             </TableRow>
