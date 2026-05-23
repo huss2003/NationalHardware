@@ -1,4 +1,4 @@
-import { createFileRoute } from "@tanstack/react-router";
+import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Card } from "@/components/ui/card";
@@ -19,7 +19,31 @@ import { Plus, DoorOpen, Trash2, FileText } from "lucide-react";
 import { QuickCreatePartyDialog } from "@/components/erp/QuickCreatePartyDialog";
 import { buildDoorOrderPdf, openPdfInNewTab } from "@/lib/invoice-pdf";
 
-export const Route = createFileRoute("/_app/door")({ component: DoorPage });
+export const Route = createFileRoute("/_app/door")({
+  validateSearch: (search: Record<string, unknown>) => ({
+    returnTo: typeof search.returnTo === "string" ? search.returnTo : undefined,
+  }),
+  component: DoorPage,
+});
+
+async function findOrCreateDoorProduct() {
+  const { data: existing } = await supabase
+    .from("products")
+    .select("id,name,gst_rate,unit")
+    .eq("prefix", "DOOR")
+    .maybeSingle();
+  if (existing) return existing as { id: string; name: string; gst_rate: number; unit: string };
+  const { data: created, error } = await supabase
+    .from("products")
+    .insert({
+      name: "Door (Custom)", prefix: "DOOR", category: "door" as any,
+      unit: "pcs", gst_rate: 18, default_price: 0, active: true,
+    })
+    .select("id,name,gst_rate,unit")
+    .single();
+  if (error) throw error;
+  return created as { id: string; name: string; gst_rate: number; unit: string };
+}
 
 type Category = "general" | "vypaari";
 type DoorType = { id: string; name: string; rate: number; active: boolean };
@@ -105,6 +129,9 @@ async function ensureDefaultDoorTypes() {
 }
 
 function DoorPage() {
+  const search = Route.useSearch();
+  const isFromSale = search.returnTo === "sale";
+  const nav = useNavigate();
   const [tab, setTab] = useState<Category>("general");
   const [doorTypes, setDoorTypes] = useState<DoorType[]>([]);
   const [orders, setOrders] = useState<DoorOrder[]>([]);
@@ -137,9 +164,21 @@ function DoorPage() {
     <>
       <PageHeader
         title="Door"
-        subtitle="Record door orders. General builds a multi-line order priced per sqft; Vypaari uses the saved door-type rate."
+        subtitle={isFromSale
+          ? "Adding door(s) to current sale — fill details and tap 'Add to sale' to return."
+          : "Record door orders. General builds a multi-line order priced per sqft; Vypaari uses the saved door-type rate."}
       />
       <div className="px-8 pb-10 max-w-[1400px] mx-auto w-full">
+        {isFromSale && (
+          <div className="mb-4 flex items-center justify-between gap-3 rounded-lg border border-[#a78bfa] bg-[#a78bfa]/10 px-4 py-2.5 text-sm">
+            <div className="text-[#5b21b6] font-medium">
+              Door entry mode: lines will be added to the open sales bill (no separate door order created).
+            </div>
+            <Button variant="outline" size="sm" onClick={() => nav({ to: "/sales/new" })}>
+              Back to sale
+            </Button>
+          </div>
+        )}
         <Tabs value={tab} onValueChange={(v) => setTab(v as Category)}>
           <TabsList className="mb-5">
             <TabsTrigger value="general">General</TabsTrigger>
@@ -153,8 +192,9 @@ function DoorPage() {
               customers={customers}
               onCustomerCreated={(c) => setCustomers((p) => [...p, c].sort((a, b) => a.name.localeCompare(b.name)))}
               onSaved={reload}
+              isFromSale={isFromSale}
             />
-            <OrdersTable rows={filtered} loading={loading} />
+            {!isFromSale && <OrdersTable rows={filtered} loading={loading} />}
           </TabsContent>
 
           <TabsContent value="vypaari" className="space-y-5">
@@ -164,8 +204,9 @@ function DoorPage() {
               customers={customers}
               onCustomerCreated={(c) => setCustomers((p) => [...p, c].sort((a, b) => a.name.localeCompare(b.name)))}
               onSaved={reload}
+              isFromSale={isFromSale}
             />
-            <OrdersTable rows={filtered} loading={loading} />
+            {!isFromSale && <OrdersTable rows={filtered} loading={loading} />}
           </TabsContent>
         </Tabs>
       </div>
