@@ -3,7 +3,6 @@ import { useEffect, useMemo, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import { PageHeader } from "@/components/erp/PageHeader";
 import {
   Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
@@ -22,7 +21,7 @@ import { inr } from "@/lib/codes";
 import { toast } from "sonner";
 import { useAuth } from "@/lib/auth-store";
 import {
-  Plus, Undo2, Receipt, Wallet, TrendingDown, Calendar, Warehouse, History, Printer, Trash2,
+  Plus, Undo2, Receipt, Wallet, TrendingDown, Calendar, Warehouse, History, Printer,
 } from "lucide-react";
 
 export const Route = createFileRoute("/_app/sales-returns/")({ component: SalesReturns });
