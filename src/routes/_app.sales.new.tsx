@@ -85,7 +85,6 @@ function NewSale() {
     return products
       .filter(p =>
         p.name.toLowerCase().includes(q) ||
-        (p.hsn ?? "").toLowerCase().includes(q) ||
         p.prefix.toLowerCase().includes(q)
       )
       .slice(0, 8);
@@ -342,12 +341,11 @@ function NewSale() {
         {/* Google-Sheets-style grid */}
         <div className="bg-white border border-slate-300 rounded-md overflow-hidden shadow-sm">
           <div className="overflow-x-auto">
-            <table className="w-full border-collapse min-w-[920px] text-[13px] font-mono">
+            <table className="w-full border-collapse min-w-[830px] text-[13px] font-mono">
               <colgroup>
                 <col style={{ width: 40 }} />
                 <col />
-                <col style={{ width: 90 }} />
-                <col style={{ width: 90 }} />
+                <col style={{ width: 110 }} />
                 <col style={{ width: 110 }} />
                 <col style={{ width: 110 }} />
                 {f.gst_rate.visible && <col style={{ width: 70 }} />}
@@ -358,7 +356,6 @@ function NewSale() {
                 <tr className="bg-slate-100 text-[11px] uppercase tracking-wide text-slate-600 font-sans">
                   <th className="border border-slate-300 px-2 py-1.5 text-center font-semibold">#</th>
                   <th className="border border-slate-300 px-2 py-1.5 text-left font-semibold">Product</th>
-                  <th className="border border-slate-300 px-2 py-1.5 text-left font-semibold">HSN</th>
                   <th className="border border-slate-300 px-2 py-1.5 text-center font-semibold">Qty</th>
                   <th className="border border-slate-300 px-2 py-1.5 text-left font-semibold">Alt Unit</th>
                   <th className="border border-slate-300 px-2 py-1.5 text-right font-semibold">Rate</th>
