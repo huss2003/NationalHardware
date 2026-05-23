@@ -61,13 +61,13 @@ export async function mintReprintForSale(
   await supabase.from("item_history").insert([
     {
       item_id: newId,
-      event: "minted",
+      event: "restored" as const,
       actor_user_id: actorUserId ?? null,
-      notes: contextNote ?? `Reprint replacement for ${originalItemId}`,
+      notes: contextNote ?? `Reprint replacement sticker for ${originalItemId}`,
     },
     {
       item_id: originalItemId,
-      event: "reprinted",
+      event: "moved" as const,
       actor_user_id: actorUserId ?? null,
       notes: `Sticker reprinted as ${newId}`,
     },
@@ -117,11 +117,11 @@ export async function mintReplacementForPurchase(
     if (iErr) throw iErr;
     await supabase.from("item_history").insert({
       item_id: newId,
-      event: "minted",
+      event: "restored" as const,
       ref_table: returnId ? "purchase_returns" : null,
       ref_id: returnId ?? null,
       actor_user_id: actorUserId ?? null,
-      notes: `Replacement for ${originalItemId}`,
+      notes: `Replacement sticker for ${originalItemId}`,
     });
     out.push({ id: newId, name: p.name, qr_payload: qr });
   }
