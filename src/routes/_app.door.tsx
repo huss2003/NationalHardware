@@ -294,13 +294,15 @@ function focusNextOnEnter(
 }
 
 function GeneralOrderForm({
-  doorTypes, nextOrderNoHint, customers, onCustomerCreated, onSaved,
+  doorTypes, nextOrderNoHint, customers, onCustomerCreated, onSaved, isFromSale,
 }: {
   doorTypes: DoorType[]; nextOrderNoHint: string;
   customers: Customer[];
   onCustomerCreated: (c: Customer) => void;
   onSaved: () => void;
+  isFromSale?: boolean;
 }) {
+  const nav = useNavigate();
   const [orderNo, setOrderNo] = useState(nextOrderNoHint);
   const [customerId, setCustomerId] = useState("");
   const [customerName, setCustomerName] = useState("");
@@ -359,9 +361,39 @@ function GeneralOrderForm({
 
   const save = async () => {
     const finalCustomer = (customers.find((c) => c.id === customerId)?.name ?? customerName).trim();
-    if (!finalCustomer) return toast.error("Customer is required");
+    if (!isFromSale && !finalCustomer) return toast.error("Customer is required");
     if (lines.length === 0) return toast.error("Add at least one door");
     setBusy(true);
+
+    // From-sale mode: push lines back into sales/new via sessionStorage
+    if (isFromSale) {
+      try {
+        const doorProduct = await findOrCreateDoorProduct();
+        const saleLines = lines.map((l) => ({
+          product_id: doorProduct.id,
+          item_instance_id: null,
+          name: `Door — ${l.door_type_name || ""} ${l.door_taken_size || ""}${l.door_made ? ` (${l.door_made})` : ""}`.trim(),
+          qty: l.qty,
+          rate: l.qty > 0 ? Number(l.line_total) / l.qty : Number(l.line_total),
+          gst_rate: Number(doorProduct.gst_rate ?? 18),
+          hsn: null,
+          unit: doorProduct.unit ?? "pcs",
+          alt_unit: null,
+          alt_conversion: null,
+          is_lot: true,
+        }));
+        sessionStorage.setItem("pending_door_lines", JSON.stringify(saleLines));
+        setBusy(false);
+        toast.success(`Adding ${saleLines.length} door(s) to sale`);
+        nav({ to: "/sales/new" });
+        return;
+      } catch (e: any) {
+        setBusy(false);
+        toast.error(e?.message ?? "Failed to attach door to sale");
+        return;
+      }
+    }
+
     const { data: orderRow, error } = await supabase.from("door_orders").insert({
       order_no: orderNo,
       category: "general",
@@ -432,7 +464,7 @@ function GeneralOrderForm({
             <DoorOpen className="h-4 w-4" />
           </div>
           <div>
-            <div className="font-semibold text-base">New General door order</div>
+            <div className="font-semibold text-base">{isFromSale ? "Add door to sale (General)" : "New General door order"}</div>
             <div className="text-xs text-muted-foreground">
               Set order header, then add one or more doors below. Pricing uses sqft (larger of Party / Taken size).
             </div>
@@ -445,7 +477,7 @@ function GeneralOrderForm({
           <Field label="Date">
             <Input value={new Date().toLocaleDateString()} disabled />
           </Field>
-          <Field label="Customer / Name">
+          <Field label={isFromSale ? "Customer (optional — sale already has one)" : "Customer / Name"}>
             <div className="flex gap-2">
               <select
                 className="h-9 flex-1 rounded-md border border-input bg-background px-3 text-sm"
@@ -618,7 +650,7 @@ function GeneralOrderForm({
             <div className="flex gap-2 mt-3 justify-end">
               <Button variant="ghost" onClick={resetAll}>Reset</Button>
               <Button onClick={save} disabled={busy || lines.length === 0} className="gap-2">
-                <Plus className="h-4 w-4" /> {busy ? "Saving…" : "Save order"}
+                <Plus className="h-4 w-4" /> {busy ? "Saving…" : (isFromSale ? "Add to sale" : "Save order")}
               </Button>
             </div>
           </div>
