@@ -8,7 +8,7 @@ import { toast } from "sonner";
 import { inr } from "@/lib/codes";
 import {
   Trash2, ArrowLeft, Check, ScanLine,
-  Plus, Calendar, MessageCircle,
+  Plus, Calendar, MessageCircle, DoorOpen,
 } from "lucide-react";
 import { useUiConfig } from "@/lib/ui-config";
 // jspdf + jspdf-autotable (~250KB) loaded only when finalize() actually runs.
@@ -51,6 +51,40 @@ function NewSale() {
   const [activeSuggest, setActiveSuggest] = useState(0);
   const draftRef = useRef<HTMLInputElement>(null);
   const scanRef = useRef<HTMLInputElement>(null);
+
+  // Restore draft + pending door lines on mount (when returning from /door)
+  useEffect(() => {
+    try {
+      const draftRaw = sessionStorage.getItem("sale_draft");
+      const doorRaw = sessionStorage.getItem("pending_door_lines");
+      let restoredLines: Line[] | null = null;
+      if (draftRaw) {
+        const d = JSON.parse(draftRaw);
+        if (d.customerId) setCustomerId(d.customerId);
+        if (d.paymentMode) setPaymentMode(d.paymentMode);
+        if (typeof d.discount === "number") setDiscount(d.discount);
+        if (Array.isArray(d.lines)) restoredLines = d.lines;
+        sessionStorage.removeItem("sale_draft");
+      }
+      if (doorRaw) {
+        const doorLines: Line[] = JSON.parse(doorRaw);
+        restoredLines = [...(restoredLines ?? []), ...doorLines];
+        sessionStorage.removeItem("pending_door_lines");
+        toast.success(`${doorLines.length} door line(s) added to bill`);
+      }
+      if (restoredLines && restoredLines.length) setLines(restoredLines);
+    } catch (e) { console.error(e); }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  const goAddDoor = () => {
+    try {
+      sessionStorage.setItem("sale_draft", JSON.stringify({
+        customerId, paymentMode, discount, lines,
+      }));
+    } catch {}
+    nav({ to: "/door", search: { returnTo: "sale" } as any });
+  };
 
   useEffect(() => {
     supabase.from("customers").select("*").order("name").then(({ data }) => setCustomers(data ?? []));
@@ -325,6 +359,16 @@ function NewSale() {
             aria-label="Barcode scan input"
           />
           <span className="text-[10px] text-[#94a3b8] hidden md:inline">F2 = focus row · Enter = add</span>
+          <Button
+            type="button"
+            size="sm"
+            variant="outline"
+            onClick={goAddDoor}
+            className="h-8 gap-1.5 border-[#a78bfa] text-[#7c3aed] hover:bg-[#a78bfa]/10 shrink-0"
+          >
+            <DoorOpen className="h-3.5 w-3.5" />
+            <span className="text-xs font-semibold">Add Door</span>
+          </Button>
         </div>
 
         {warn && (
