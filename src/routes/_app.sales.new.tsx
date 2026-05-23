@@ -9,7 +9,7 @@ import { toast } from "sonner";
 import { inr } from "@/lib/codes";
 import {
   Trash2, ArrowLeft, Check, ScanLine,
-  Minus, Plus, Search, FileText, Calendar, MessageCircle,
+  Minus, Plus, Search, Calendar, MessageCircle,
 } from "lucide-react";
 import { useUiConfig } from "@/lib/ui-config";
 // jspdf + jspdf-autotable (~250KB) loaded only when finalize() actually runs.
