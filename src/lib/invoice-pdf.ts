@@ -191,6 +191,132 @@ export function buildReceiptPdf(input: ReceiptPdfInput): jsPDF {
 
 export function receiptFileName(no: string) { return `Receipt-${no}.pdf`; }
 
+export type DoorOrderPdfInput = {
+  shop: { shop_name?: string; address?: string | null; gstin?: string | null } | null;
+  order: {
+    order_no: string;
+    order_date: string;
+    category: string;
+    customer_name: string;
+    total: number;
+    notes?: string | null;
+  };
+  customer: { phone?: string | null; address?: string | null } | null;
+  items: Array<{
+    party_door_size?: string | null;
+    door_taken_size?: string | null;
+    door_type_name?: string | null;
+    door_made?: string | null;
+    front_mica?: string | null;
+    back_mica?: string | null;
+    billable_sqft?: number | null;
+    qty: number;
+    rate_per_sqft?: number | null;
+    mica_addon?: number | null;
+    line_total: number;
+  }>;
+};
+
+export function buildDoorOrderPdf(input: DoorOrderPdfInput): jsPDF {
+  const doc = new jsPDF({ unit: "pt", format: "a4" });
+  const W = doc.internal.pageSize.getWidth();
+  const shopName = input.shop?.shop_name ?? "National Hardware and Plywood";
+
+  doc.setFillColor(15, 23, 42);
+  doc.rect(0, 0, W, 90, "F");
+  doc.setTextColor(255);
+  doc.setFont("helvetica", "bold"); doc.setFontSize(20);
+  doc.text(shopName, 40, 38);
+  doc.setFont("helvetica", "normal"); doc.setFontSize(9);
+  let hy = 54;
+  if (input.shop?.address) { doc.text(input.shop.address, 40, hy); hy += 12; }
+  if (input.shop?.gstin) { doc.text(`GSTIN: ${input.shop.gstin}`, 40, hy); }
+
+  doc.setFont("helvetica", "bold"); doc.setFontSize(10);
+  doc.text(`DOOR ORDER · ${input.order.category.toUpperCase()}`, W - 40, 34, { align: "right" });
+  doc.setFontSize(16);
+  doc.text(input.order.order_no, W - 40, 54, { align: "right" });
+  doc.setFont("helvetica", "normal"); doc.setFontSize(9);
+  doc.text(new Date(input.order.order_date).toLocaleDateString(), W - 40, 70, { align: "right" });
+
+  doc.setTextColor(20);
+  let y = 118;
+  doc.setFillColor(245, 247, 250);
+  doc.rect(40, y - 12, (W - 80) / 2 - 8, 90, "F");
+  doc.setFont("helvetica", "bold"); doc.setFontSize(9); doc.setTextColor(100);
+  doc.text("CUSTOMER", 52, y); y += 14;
+  doc.setTextColor(20); doc.setFontSize(11);
+  doc.text(input.order.customer_name || "—", 52, y); y += 13;
+  doc.setFont("helvetica", "normal"); doc.setFontSize(9);
+  if (input.customer?.phone) { doc.text(`Phone: ${input.customer.phone}`, 52, y); y += 11; }
+  if (input.customer?.address) { doc.text(input.customer.address, 52, y, { maxWidth: (W - 80) / 2 - 24 }); }
+
+  const mx = W / 2 + 8;
+  let my = 118;
+  doc.setFillColor(245, 247, 250);
+  doc.rect(mx, my - 12, (W - 80) / 2, 90, "F");
+  doc.setFont("helvetica", "bold"); doc.setFontSize(9); doc.setTextColor(100);
+  doc.text("ORDER DETAILS", mx + 12, my); my += 14;
+  doc.setTextColor(20); doc.setFont("helvetica", "normal"); doc.setFontSize(9);
+  doc.text(`Date: ${new Date(input.order.order_date).toLocaleDateString()}`, mx + 12, my); my += 12;
+  doc.text(`Category: ${input.order.category}`, mx + 12, my); my += 12;
+  doc.text(`Order #: ${input.order.order_no}`, mx + 12, my);
+
+  autoTable(doc, {
+    startY: 230,
+    head: [["#", "Party Size", "Taken Size", "Type", "Made", "Mica (F/B)", "Sqft", "Qty", "Rate", "Total"]],
+    body: input.items.map((it, i) => [
+      String(i + 1),
+      it.party_door_size ?? "—",
+      it.door_taken_size ?? "—",
+      it.door_type_name ?? "—",
+      it.door_made ?? "—",
+      `${it.front_mica ?? "—"} / ${it.back_mica ?? "—"}`,
+      it.billable_sqft != null ? Number(it.billable_sqft).toFixed(2) : "—",
+      String(it.qty),
+      it.rate_per_sqft != null ? Number(it.rate_per_sqft).toFixed(2) : "—",
+      Number(it.line_total).toFixed(2),
+    ]),
+    styles: { fontSize: 8, cellPadding: 6, lineColor: [230, 230, 230], lineWidth: 0.5 },
+    headStyles: { fillColor: [15, 23, 42], textColor: 255, fontStyle: "bold" },
+    alternateRowStyles: { fillColor: [250, 251, 253] },
+    columnStyles: { 6: { halign: "right" }, 7: { halign: "right" }, 8: { halign: "right" }, 9: { halign: "right" } },
+    margin: { left: 40, right: 40 },
+  });
+
+  // @ts-expect-error - autotable adds lastAutoTable
+  const afterY = (doc.lastAutoTable?.finalY ?? 230) + 16;
+  const tw = 260;
+  const tx = W - 40 - tw + 14, vx = W - 50;
+  doc.setFillColor(248, 250, 252);
+  doc.rect(W - 40 - tw, afterY, tw, 60, "F");
+  doc.setFont("helvetica", "bold"); doc.setFontSize(12);
+  doc.setTextColor(20);
+  doc.text("Grand Total", tx, afterY + 36);
+  doc.text(Number(input.order.total).toFixed(2), vx, afterY + 36, { align: "right" });
+
+  if (input.order.notes) {
+    doc.setFont("helvetica", "normal"); doc.setFontSize(9); doc.setTextColor(80);
+    doc.text(`Notes: ${input.order.notes}`, 40, afterY + 36, { maxWidth: W - 80 - tw - 20 });
+  }
+
+  const ph = doc.internal.pageSize.getHeight();
+  doc.setDrawColor(220); doc.line(40, ph - 50, W - 40, ph - 50);
+  doc.setFontSize(8); doc.setTextColor(120);
+  doc.text(`Door order acknowledgement — ${shopName}.`, 40, ph - 32);
+  doc.text("System-generated document.", W - 40, ph - 32, { align: "right" });
+  return doc;
+}
+
+export function doorOrderFileName(orderNo: string) {
+  return `Door-${orderNo}.pdf`;
+}
+
+export function openPdfInNewTab(doc: jsPDF) {
+  const url = doc.output("bloburl");
+  window.open(url, "_blank");
+}
+
 /**
  * Uploads the PDF to the `invoices` bucket and opens WhatsApp with a deep
  * link. The user taps Send inside WhatsApp.
