@@ -15,8 +15,9 @@ import {
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { inr } from "@/lib/codes";
 import { toast } from "sonner";
-import { Plus, DoorOpen, Trash2 } from "lucide-react";
+import { Plus, DoorOpen, Trash2, FileText } from "lucide-react";
 import { QuickCreatePartyDialog } from "@/components/erp/QuickCreatePartyDialog";
+import { buildDoorOrderPdf, openPdfInNewTab } from "@/lib/invoice-pdf";
 
 export const Route = createFileRoute("/_app/door")({ component: DoorPage });
 
@@ -29,10 +30,57 @@ type DoorOrder = {
   back_mica: string | null; door_taken_size: string | null;
   door_type_id: string | null; door_type_name: string | null;
   rate: number; total: number;
+  notes?: string | null;
 };
 
 const DEFAULT_DOOR_TYPE_NAMES = ["F-Hard", "F-Pine", "WF-Pine", "WF-Hard"] as const;
 const DOOR_MADE_OPTIONS = ["S.D", "D.D", "J.D", "JDD", "PLY", "WINDOW"] as const;
+
+async function loadShopForPdf() {
+  const { data } = await supabase.from("app_settings")
+    .select("shop_name, address, gstin").eq("id", true).maybeSingle();
+  return (data as any) ?? null;
+}
+
+async function openDoorOrderPdf(order: DoorOrder) {
+  const [shopRes, itemsRes, custRes] = await Promise.all([
+    loadShopForPdf(),
+    order.category === "general"
+      ? (supabase as any).from("door_order_items").select("*").eq("order_id", order.id)
+      : Promise.resolve({ data: null }),
+    supabase.from("customers").select("phone,address").eq("name", order.customer_name).maybeSingle(),
+  ]);
+  const items =
+    order.category === "general" && itemsRes?.data?.length
+      ? itemsRes.data
+      : [{
+          party_door_size: order.party_door_size,
+          door_taken_size: order.door_taken_size,
+          door_type_name: order.door_type_name,
+          door_made: null,
+          front_mica: order.front_mica,
+          back_mica: order.back_mica,
+          billable_sqft: null,
+          qty: 1,
+          rate_per_sqft: Number(order.rate),
+          mica_addon: 0,
+          line_total: Number(order.total),
+        }];
+  const doc = buildDoorOrderPdf({
+    shop: shopRes,
+    order: {
+      order_no: order.order_no,
+      order_date: order.order_date,
+      category: order.category,
+      customer_name: order.customer_name,
+      total: Number(order.total),
+      notes: order.notes ?? null,
+    },
+    customer: (custRes.data as any) ?? null,
+    items,
+  });
+  openPdfInNewTab(doc);
+}
 
 function mergeDefaultDoorTypes(doorTypes: DoorType[]) {
   const existingNames = new Set(doorTypes.map((d) => d.name.toLowerCase()));
