@@ -51,7 +51,7 @@ function NewSale() {
   const [activeSuggest, setActiveSuggest] = useState(0);
   const draftRef = useRef<HTMLInputElement>(null);
   const scanRef = useRef<HTMLInputElement>(null);
-  const [draftRect, setDraftRect] = useState<{ left: number; top: number; width: number } | null>(null);
+  const [draftRect, setDraftRect] = useState<{ left: number; top: number; width: number; placement: "below" | "above"; maxHeight: number } | null>(null);
 
   useEffect(() => {
     if (!draftFocused) return;
@@ -59,7 +59,15 @@ function NewSale() {
       const el = draftRef.current;
       if (!el) return;
       const r = el.getBoundingClientRect();
-      setDraftRect({ left: r.left, top: r.bottom + 6, width: r.width });
+      const vh = window.innerHeight;
+      const spaceBelow = vh - r.bottom - 12;
+      const spaceAbove = r.top - 12;
+      const preferBelow = spaceBelow >= 240 || spaceBelow >= spaceAbove;
+      if (preferBelow) {
+        setDraftRect({ left: r.left, top: r.bottom + 6, width: r.width, placement: "below", maxHeight: Math.max(160, Math.min(320, spaceBelow)) });
+      } else {
+        setDraftRect({ left: r.left, top: Math.max(8, r.top - 6), width: r.width, placement: "above", maxHeight: Math.max(160, Math.min(320, spaceAbove)) });
+      }
     };
     update();
     window.addEventListener("scroll", update, true);
@@ -530,11 +538,13 @@ function NewSale() {
                     />
                     {draftFocused && draftSuggestions.length > 0 && (
                       <div
-                        className="fixed bg-white border border-slate-300 rounded-md shadow-2xl z-50 max-h-80 overflow-auto font-sans"
+                        className="fixed bg-white border border-slate-300 rounded-md shadow-2xl z-50 overflow-auto font-sans"
                         style={{
                           left: draftRect?.left ?? 0,
                           width: draftRect?.width ?? 300,
                           top: draftRect?.top ?? 0,
+                          transform: draftRect?.placement === "above" ? "translateY(-100%)" : undefined,
+                          maxHeight: draftRect?.maxHeight ?? 320,
                         }}
                       >
                         {draftSuggestions.map((p, idx) => (
