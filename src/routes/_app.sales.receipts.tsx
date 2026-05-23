@@ -11,7 +11,7 @@ import { PageHeader } from "@/components/erp/PageHeader";
 import { inr } from "@/lib/codes";
 import { useAuth } from "@/lib/auth-store";
 import { toast } from "sonner";
-import { ArrowLeft, Receipt as ReceiptIcon, Wallet, FileText, Check } from "lucide-react";
+import { ArrowLeft, Receipt as ReceiptIcon, Wallet, FileText, Check, MessageCircle } from "lucide-react";
 import { TableSkeleton } from "@/components/erp/Skeletons";
 // jspdf + jspdf-autotable (~250KB) loaded only when the user prints/downloads a receipt.
 import { Printer, Download } from "lucide-react";
@@ -25,6 +25,29 @@ type Receipt = {
   created_at: string; notes?: string | null;
   customers?: { name: string } | null;
 };
+
+async function generateReceiptArtifacts(r: Receipt, customer: Customer, shop: any) {
+  try {
+    const { buildReceiptPdf, receiptFileName, shareInvoiceOnWhatsApp } = await import("@/lib/invoice-pdf");
+    const pdf = buildReceiptPdf({ shop, receipt: r as any, customer: customer as any });
+    pdf.save(receiptFileName(r.receipt_no));
+    if (customer.phone) {
+      try {
+        await shareInvoiceOnWhatsApp({
+          pdf,
+          invoiceNo: `Receipt-${r.receipt_no}`,
+          phone: customer.phone,
+          shopName: shop?.shop_name ?? undefined,
+          total: Number(r.amount),
+        });
+      } catch {
+        toast.message("PDF downloaded. Use the WhatsApp button to share.");
+      }
+    }
+  } catch (e: any) {
+    toast.error(`PDF generation failed: ${e.message ?? e}`);
+  }
+}
 
 function ReceiptsPage() {
   const user = useAuth((s) => s.user);
@@ -69,6 +92,23 @@ function ReceiptsPage() {
     const pdf = await buildPdfFor(r);
     const { receiptFileName } = await import("@/lib/invoice-pdf");
     pdf.save(receiptFileName(r.receipt_no));
+  };
+  const whatsappReceipt = async (r: Receipt) => {
+    const cust = customers.find((c) => c.id === r.customer_id);
+    if (!cust?.phone) { toast.error("Customer has no phone number"); return; }
+    try {
+      const pdf = await buildPdfFor(r);
+      const { shareInvoiceOnWhatsApp } = await import("@/lib/invoice-pdf");
+      await shareInvoiceOnWhatsApp({
+        pdf,
+        invoiceNo: `Receipt-${r.receipt_no}`,
+        phone: cust.phone,
+        shopName: shop?.shop_name ?? undefined,
+        total: Number(r.amount),
+      });
+    } catch (e: any) {
+      toast.error(`WhatsApp share failed: ${e.message ?? e}`);
+    }
   };
   useEffect(() => { load(); }, []);
 
@@ -159,7 +199,7 @@ function ReceiptsPage() {
             )}
           </Card>
         ) : (
-          <GeneralEntryCard customers={customers} onSaved={load} userId={user?.id ?? ""} />
+          <GeneralEntryCard customers={customers} onSaved={load} userId={user?.id ?? ""} shop={shop} />
         )}
 
         {/* Recent receipts */}
@@ -198,6 +238,9 @@ function ReceiptsPage() {
                       <Button size="sm" variant="outline" className="gap-1 h-8" onClick={() => downloadReceipt(r)}>
                         <Download className="h-3.5 w-3.5" /> PDF
                       </Button>
+                      <Button size="sm" variant="outline" className="gap-1 h-8" onClick={() => whatsappReceipt(r)}>
+                        <MessageCircle className="h-3.5 w-3.5" /> WhatsApp
+                      </Button>
                     </div>
                   </td>
                 </tr>
@@ -216,6 +259,7 @@ function ReceiptsPage() {
           maxAmount={pending.find((p) => p.customer.id === openFor.id)?.due ?? 0}
           onClose={() => setOpenFor(null)}
           onSaved={() => { setOpenFor(null); load(); }}
+          shop={shop}
           userId={user?.id ?? ""}
         />
       )}
@@ -224,8 +268,8 @@ function ReceiptsPage() {
 }
 
 function CreditReceiptDialog({
-  customer, maxAmount, onClose, onSaved, userId,
-}: { customer: Customer; maxAmount: number; onClose: () => void; onSaved: () => void; userId: string }) {
+  customer, maxAmount, onClose, onSaved, userId, shop,
+}: { customer: Customer; maxAmount: number; onClose: () => void; onSaved: () => void; userId: string; shop: any }) {
   const [amount, setAmount] = useState<number>(maxAmount);
   const [mode, setMode] = useState("cash");
   const [notes, setNotes] = useState("");
@@ -236,16 +280,17 @@ function CreditReceiptDialog({
     setBusy(true);
     const { data: noData, error: noErr } = await supabase.rpc("next_receipt_no", { _customer_id: customer.id });
     if (noErr) { setBusy(false); toast.error(noErr.message); return; }
-    const { error } = await supabase.from("receipts").insert({
+    const { data: inserted, error } = await supabase.from("receipts").insert({
       receipt_no: noData as string,
       customer_id: customer.id,
       receipt_type: "credit",
       amount, mode, notes,
       created_by: userId || null,
-    });
+    }).select("*").single();
     setBusy(false);
     if (error) { toast.error(error.message); return; }
     toast.success(`Receipt ${noData} generated`);
+    await generateReceiptArtifacts(inserted as any, customer, shop);
     onSaved();
   };
 
@@ -287,7 +332,7 @@ function CreditReceiptDialog({
   );
 }
 
-function GeneralEntryCard({ customers, onSaved, userId }: { customers: Customer[]; onSaved: () => void; userId: string }) {
+function GeneralEntryCard({ customers, onSaved, userId, shop }: { customers: Customer[]; onSaved: () => void; userId: string; shop: any }) {
   const [customerId, setCustomerId] = useState("");
   const [amount, setAmount] = useState<number>(0);
   const [mode, setMode] = useState("cash");
@@ -300,16 +345,18 @@ function GeneralEntryCard({ customers, onSaved, userId }: { customers: Customer[
     setBusy(true);
     const { data: noData, error: noErr } = await supabase.rpc("next_receipt_no", { _customer_id: customerId });
     if (noErr) { setBusy(false); toast.error(noErr.message); return; }
-    const { error } = await supabase.from("receipts").insert({
+    const { data: inserted, error } = await supabase.from("receipts").insert({
       receipt_no: noData as string,
       customer_id: customerId,
       receipt_type: "general",
       amount, mode, notes,
       created_by: userId || null,
-    });
+    }).select("*").single();
     setBusy(false);
     if (error) { toast.error(error.message); return; }
     toast.success(`Receipt ${noData} generated`);
+    const cust = customers.find((c) => c.id === customerId);
+    if (cust) await generateReceiptArtifacts(inserted as any, cust, shop);
     setCustomerId(""); setAmount(0); setNotes("");
     onSaved();
   };
