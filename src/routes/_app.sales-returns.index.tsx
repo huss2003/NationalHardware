@@ -15,11 +15,14 @@ import {
 import { ScanInput } from "@/components/erp/ScanInput";
 import { ScanWarning, type ScanWarningKind } from "@/components/erp/ScanWarning";
 import { ReturnTimelineDialog } from "@/components/erp/ReturnTimelineDialog";
+import { ReprintLabelDialog } from "@/components/erp/ReprintLabelDialog";
+import { Checkbox } from "@/components/ui/checkbox";
+import { mintReprintForSale, type MintedSticker } from "@/lib/relabel";
 import { inr } from "@/lib/codes";
 import { toast } from "sonner";
 import { useAuth } from "@/lib/auth-store";
 import {
-  Plus, Undo2, Receipt, Wallet, TrendingDown, Calendar, Trash2, Warehouse, History,
+  Plus, Undo2, Receipt, Wallet, TrendingDown, Calendar, Warehouse, History, Printer,
 } from "lucide-react";
 
 export const Route = createFileRoute("/_app/sales-returns/")({ component: SalesReturns });
