@@ -150,7 +150,7 @@ function NewSale() {
     setLines(prev => [...prev, {
       product_id: p.id, item_instance_id: null, name: p.name,
       qty, rate: Number(p.default_price), gst_rate: Number(p.gst_rate),
-      hsn: p.hsn, alt_unit: p.alt_unit, alt_conversion: p.alt_conversion,
+      hsn: p.hsn, unit: p.unit ?? 'pcs', alt_unit: p.alt_unit, alt_conversion: p.alt_conversion,
       is_lot: true, max_qty: undefined,
     }]);
     setDraftQuery(""); setActiveSuggest(0);
