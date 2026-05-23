@@ -672,13 +672,15 @@ function GeneralOrderForm({
 
 /* ---------- Vypaari form (unchanged behavior) ---------- */
 function VypaariForm({
-  doorTypes, nextOrderNoHint, customers, onCustomerCreated, onSaved,
+  doorTypes, nextOrderNoHint, customers, onCustomerCreated, onSaved, isFromSale,
 }: {
   doorTypes: DoorType[]; nextOrderNoHint: string;
   customers: Customer[];
   onCustomerCreated: (c: Customer) => void;
   onSaved: () => void;
+  isFromSale?: boolean;
 }) {
+  const nav = useNavigate();
   const [orderNo, setOrderNo] = useState(nextOrderNoHint);
   const [customerId, setCustomerId] = useState("");
   const [createCustomerOpen, setCreateCustomerOpen] = useState(false);
@@ -705,10 +707,40 @@ function VypaariForm({
 
   const save = async () => {
     const customerName = (customers.find((c) => c.id === customerId)?.name ?? "").trim();
-    if (!customerName) { toast.error("Select a customer"); return; }
+    if (!isFromSale && !customerName) { toast.error("Select a customer"); return; }
     if (!doorTypeId) { toast.error("Select a door type"); return; }
     if (!selectedType) { toast.error("Door type rate missing"); return; }
     setBusy(true);
+
+    if (isFromSale) {
+      try {
+        const doorProduct = await findOrCreateDoorProduct();
+        const label = `Door — ${selectedType?.name ?? ""} ${takenSize || partySize || ""}`.trim();
+        const saleLine = {
+          product_id: doorProduct.id,
+          item_instance_id: null,
+          name: label,
+          qty,
+          rate,
+          gst_rate: Number(doorProduct.gst_rate ?? 18),
+          hsn: null,
+          unit: doorProduct.unit ?? "pcs",
+          alt_unit: null,
+          alt_conversion: null,
+          is_lot: true,
+        };
+        sessionStorage.setItem("pending_door_lines", JSON.stringify([saleLine]));
+        setBusy(false);
+        toast.success("Adding door to sale");
+        nav({ to: "/sales/new" });
+        return;
+      } catch (e: any) {
+        setBusy(false);
+        toast.error(e?.message ?? "Failed to attach door to sale");
+        return;
+      }
+    }
+
     const { error } = await supabase.from("door_orders").insert({
       order_no: orderNo,
       category: "vypaari",
@@ -821,7 +853,7 @@ function VypaariForm({
       <div className="flex justify-end gap-2 pt-1">
         <Button variant="ghost" onClick={reset}>Reset</Button>
         <Button onClick={save} disabled={busy} className="gap-2">
-          <Plus className="h-4 w-4" /> {busy ? "Saving…" : "Save order"}
+          <Plus className="h-4 w-4" /> {busy ? "Saving…" : (isFromSale ? "Add to sale" : "Save order")}
         </Button>
       </div>
       <QuickCreatePartyDialog
