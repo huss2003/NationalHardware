@@ -138,7 +138,7 @@ function NewSale() {
     setLines([...lines, {
       product_id: item.product_id, item_instance_id: item.id, name: item.products.name,
       qty: 1, rate: Number(item.products.default_price), gst_rate: Number(item.products.gst_rate),
-      hsn: item.products.hsn,
+      hsn: item.products.hsn, unit: (item.products as any).unit ?? 'pcs',
       alt_unit: (item.products as any).alt_unit ?? null,
       alt_conversion: (item.products as any).alt_conversion ?? null,
       is_lot: isLot, max_qty: maxQty,
