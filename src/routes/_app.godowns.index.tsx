@@ -238,6 +238,24 @@ function Godowns() {
           </Table>
         </Card>
       </div>
+      {stockIn && (
+        <GodownStockInDialog
+          open={!!stockIn}
+          onOpenChange={(v) => { if (!v) setStockIn(null); }}
+          godownId={stockIn.id}
+          godownName={stockIn.name}
+          onDone={reload}
+        />
+      )}
+      {stockOut && (
+        <GodownStockOutDialog
+          open={!!stockOut}
+          onOpenChange={(v) => { if (!v) setStockOut(null); }}
+          godownId={stockOut.id}
+          godownName={stockOut.name}
+          onDone={reload}
+        />
+      )}
     </>
   );
 }
