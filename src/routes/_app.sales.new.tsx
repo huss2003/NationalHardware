@@ -51,6 +51,24 @@ function NewSale() {
   const [activeSuggest, setActiveSuggest] = useState(0);
   const draftRef = useRef<HTMLInputElement>(null);
   const scanRef = useRef<HTMLInputElement>(null);
+  const [draftRect, setDraftRect] = useState<{ left: number; top: number; width: number } | null>(null);
+
+  useEffect(() => {
+    if (!draftFocused) return;
+    const update = () => {
+      const el = draftRef.current;
+      if (!el) return;
+      const r = el.getBoundingClientRect();
+      setDraftRect({ left: r.left, top: r.top, width: r.width });
+    };
+    update();
+    window.addEventListener("scroll", update, true);
+    window.addEventListener("resize", update);
+    return () => {
+      window.removeEventListener("scroll", update, true);
+      window.removeEventListener("resize", update);
+    };
+  }, [draftFocused, draftQuery]);
 
   // Restore draft + pending door lines on mount (when returning from /door)
   useEffect(() => {
@@ -511,7 +529,15 @@ function NewSale() {
                       aria-label="Add new line"
                     />
                     {draftFocused && draftSuggestions.length > 0 && (
-                      <div className="absolute left-0 right-0 bottom-full mb-1 bg-white border border-slate-300 rounded-md shadow-2xl z-30 max-h-80 overflow-auto font-sans">
+                      <div
+                        className="fixed bg-white border border-slate-300 rounded-md shadow-2xl z-50 max-h-80 overflow-auto font-sans"
+                        style={{
+                          left: draftRect?.left ?? 0,
+                          width: draftRect?.width ?? 300,
+                          top: (draftRect?.top ?? 0) - 8,
+                          transform: "translateY(-100%)",
+                        }}
+                      >
                         {draftSuggestions.map((p, idx) => (
                           <button
                             key={p.id}
@@ -570,41 +596,41 @@ function NewSale() {
 
       {/* Sticky Totals Bar */}
       <footer className="fixed bottom-3 left-3 right-3 md:left-6 md:right-6 z-20 bg-white border border-[#e8ecf1] rounded-2xl px-3 md:px-5 py-2.5 md:py-3 shadow-2xl shadow-slate-200/60">
-        <div className="max-w-7xl mx-auto flex flex-wrap items-center justify-between gap-x-5 gap-y-2">
-          <div className="flex flex-wrap items-center gap-x-5 gap-y-2">
-            <div>
+        <div className="max-w-7xl mx-auto flex items-center justify-between gap-3 flex-nowrap">
+          <div className="flex items-center gap-4 md:gap-6 min-w-0">
+            <div className="shrink-0">
               <p className="text-[9px] uppercase font-bold text-[#94a3b8] leading-tight">Subtotal</p>
               <p className="text-sm font-bold text-slate-800 tabular-nums leading-tight">{inr(subtotal)}</p>
             </div>
-            <div>
+            <div className="shrink-0">
               <p className="text-[9px] uppercase font-bold text-[#94a3b8] leading-tight">Tax (GST)</p>
               <p className="text-sm font-bold text-slate-800 tabular-nums leading-tight">{inr(tax)}</p>
             </div>
             {f.discount.visible && (
-              <div>
-                <p className="text-[9px] uppercase font-bold text-[#94a3b8] leading-tight">Discount (₹)</p>
+              <div className="shrink-0">
+                <p className="text-[9px] uppercase font-bold text-[#94a3b8] leading-tight">Discount</p>
                 <input
                   type="number"
                   value={discount}
                   onChange={(e) => setDiscount(Number(e.target.value))}
-                  className="w-16 border-b border-[#e8ecf1] focus:border-[#3b82f6] focus:outline-none text-sm font-bold tabular-nums text-slate-800 bg-transparent leading-tight"
+                  className="w-14 border-b border-[#e8ecf1] focus:border-[#3b82f6] focus:outline-none text-sm font-bold tabular-nums text-slate-800 bg-transparent leading-tight"
                   aria-label="Discount"
                 />
               </div>
             )}
           </div>
 
-          <div className="flex items-center gap-3 md:gap-4 ml-auto">
-            <div className="text-right">
+          <div className="flex items-center gap-2 md:gap-3 shrink-0">
+            <div className="text-right shrink-0">
               <p className="text-[9px] uppercase font-bold text-[#3b82f6] leading-tight">Grand Total</p>
-              <p className="text-lg md:text-xl font-bold text-slate-900 tabular-nums leading-tight">{inr(total)}</p>
+              <p className="text-base md:text-xl font-bold text-slate-900 tabular-nums leading-tight whitespace-nowrap">{inr(total)}</p>
             </div>
-            <div className="flex gap-2">
+            <div className="flex gap-1.5 shrink-0">
               <Button
                 type="button"
                 onClick={saveAndWhatsApp}
                 disabled={busy}
-                className="bg-[#25D366] hover:bg-[#20bd5c] text-white px-3 md:px-4 h-10 rounded-lg font-bold gap-1.5"
+                className="bg-[#25D366] hover:bg-[#20bd5c] text-white px-3 h-9 rounded-lg font-semibold gap-1.5 text-sm"
                 aria-label="Save and send WhatsApp"
               >
                 <MessageCircle className="h-4 w-4" />
@@ -614,10 +640,10 @@ function NewSale() {
                 type="button"
                 onClick={save}
                 disabled={busy}
-                className="bg-[#3b82f6] hover:bg-blue-600 text-white px-4 md:px-5 h-10 rounded-lg font-bold shadow-lg shadow-blue-500/20 gap-1.5"
+                className="bg-[#3b82f6] hover:bg-blue-600 text-white px-3 md:px-4 h-9 rounded-lg font-semibold shadow-lg shadow-blue-500/20 gap-1.5 text-sm"
               >
                 <Check className="h-4 w-4" />
-                {busy ? "Saving…" : <><span className="hidden sm:inline">Save Bill</span><span className="sm:hidden">Save</span></>}
+                {busy ? "Saving…" : <span>Save</span>}
               </Button>
             </div>
           </div>
