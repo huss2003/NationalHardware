@@ -51,6 +51,24 @@ function NewSale() {
   const [activeSuggest, setActiveSuggest] = useState(0);
   const draftRef = useRef<HTMLInputElement>(null);
   const scanRef = useRef<HTMLInputElement>(null);
+  const [draftRect, setDraftRect] = useState<{ left: number; top: number; width: number } | null>(null);
+
+  useEffect(() => {
+    if (!draftFocused) return;
+    const update = () => {
+      const el = draftRef.current;
+      if (!el) return;
+      const r = el.getBoundingClientRect();
+      setDraftRect({ left: r.left, top: r.top, width: r.width });
+    };
+    update();
+    window.addEventListener("scroll", update, true);
+    window.addEventListener("resize", update);
+    return () => {
+      window.removeEventListener("scroll", update, true);
+      window.removeEventListener("resize", update);
+    };
+  }, [draftFocused, draftQuery]);
 
   // Restore draft + pending door lines on mount (when returning from /door)
   useEffect(() => {
@@ -511,7 +529,15 @@ function NewSale() {
                       aria-label="Add new line"
                     />
                     {draftFocused && draftSuggestions.length > 0 && (
-                      <div className="absolute left-0 right-0 bottom-full mb-1 bg-white border border-slate-300 rounded-md shadow-2xl z-30 max-h-80 overflow-auto font-sans">
+                      <div
+                        className="fixed bg-white border border-slate-300 rounded-md shadow-2xl z-50 max-h-80 overflow-auto font-sans"
+                        style={{
+                          left: draftRect?.left ?? 0,
+                          width: draftRect?.width ?? 300,
+                          top: (draftRect?.top ?? 0) - 8,
+                          transform: "translateY(-100%)",
+                        }}
+                      >
                         {draftSuggestions.map((p, idx) => (
                           <button
                             key={p.id}
