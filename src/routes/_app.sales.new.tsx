@@ -175,7 +175,7 @@ function NewSale() {
     }
     setLines([...lines, {
       product_id: item.product_id, item_instance_id: item.id, name: item.products.name,
-      qty: 1, rate: Number(item.products.default_price), gst_rate: Number(item.products.gst_rate),
+      qty: 1, rate: Number(item.products.default_price), gst_rate: 0,
       hsn: item.products.hsn, unit: (item.products as any).unit ?? 'pcs',
       alt_unit: (item.products as any).alt_unit ?? null,
       alt_conversion: (item.products as any).alt_conversion ?? null,
@@ -187,7 +187,7 @@ function NewSale() {
   const addProductLine = (p: ProductRow, qty = 1) => {
     setLines(prev => [...prev, {
       product_id: p.id, item_instance_id: null, name: p.name,
-      qty, rate: Number(p.default_price), gst_rate: Number(p.gst_rate),
+      qty, rate: Number(p.default_price), gst_rate: 0,
       hsn: p.hsn, unit: p.unit ?? 'pcs', alt_unit: p.alt_unit, alt_conversion: p.alt_conversion,
       is_lot: true, max_qty: undefined,
     }]);
@@ -511,7 +511,7 @@ function NewSale() {
                       aria-label="Add new line"
                     />
                     {draftFocused && draftSuggestions.length > 0 && (
-                      <div className="absolute left-0 right-0 top-full mt-1 bg-white border border-slate-300 rounded-md shadow-xl z-30 max-h-72 overflow-auto font-sans">
+                      <div className="absolute left-0 right-0 bottom-full mb-1 bg-white border border-slate-300 rounded-md shadow-2xl z-30 max-h-80 overflow-auto font-sans">
                         {draftSuggestions.map((p, idx) => (
                           <button
                             key={p.id}
@@ -547,7 +547,7 @@ function NewSale() {
                 </tr>
 
                 {/* Filler empty rows so it looks like a sheet */}
-                {Array.from({ length: Math.max(0, 4 - lines.length) }).map((_, idx) => (
+                {Array.from({ length: Math.max(0, 7 - lines.length) }).map((_, idx) => (
                   <tr key={`filler-${idx}`} className="text-slate-300">
                     <td className="border border-slate-300 bg-slate-50 px-2 py-1.5 text-center text-[11px] font-sans">
                       {lines.length + 2 + idx}
@@ -569,42 +569,42 @@ function NewSale() {
       </div>
 
       {/* Sticky Totals Bar */}
-      <footer className="fixed bottom-3 left-3 right-3 md:left-6 md:right-6 z-20 bg-white border border-[#e8ecf1] rounded-2xl p-3 md:p-5 shadow-2xl shadow-slate-200/60">
-        <div className="max-w-7xl mx-auto flex flex-col md:flex-row md:items-center justify-between gap-3 md:gap-6">
-          <div className="flex flex-wrap gap-4 md:gap-7">
+      <footer className="fixed bottom-3 left-3 right-3 md:left-6 md:right-6 z-20 bg-white border border-[#e8ecf1] rounded-2xl px-3 md:px-5 py-2.5 md:py-3 shadow-2xl shadow-slate-200/60">
+        <div className="max-w-7xl mx-auto flex flex-wrap items-center justify-between gap-x-5 gap-y-2">
+          <div className="flex flex-wrap items-center gap-x-5 gap-y-2">
             <div>
-              <p className="text-[10px] uppercase font-bold text-[#94a3b8]">Subtotal</p>
-              <p className="text-sm md:text-base font-bold text-slate-800 tabular-nums">{inr(subtotal)}</p>
+              <p className="text-[9px] uppercase font-bold text-[#94a3b8] leading-tight">Subtotal</p>
+              <p className="text-sm font-bold text-slate-800 tabular-nums leading-tight">{inr(subtotal)}</p>
             </div>
             <div>
-              <p className="text-[10px] uppercase font-bold text-[#94a3b8]">Tax (GST)</p>
-              <p className="text-sm md:text-base font-bold text-slate-800 tabular-nums">{inr(tax)}</p>
+              <p className="text-[9px] uppercase font-bold text-[#94a3b8] leading-tight">Tax (GST)</p>
+              <p className="text-sm font-bold text-slate-800 tabular-nums leading-tight">{inr(tax)}</p>
             </div>
             {f.discount.visible && (
               <div>
-                <p className="text-[10px] uppercase font-bold text-[#94a3b8]">Discount (₹)</p>
+                <p className="text-[9px] uppercase font-bold text-[#94a3b8] leading-tight">Discount (₹)</p>
                 <input
                   type="number"
                   value={discount}
                   onChange={(e) => setDiscount(Number(e.target.value))}
-                  className="w-20 border-b border-[#e8ecf1] focus:border-[#3b82f6] focus:outline-none text-sm md:text-base font-bold tabular-nums text-slate-800 bg-transparent"
+                  className="w-16 border-b border-[#e8ecf1] focus:border-[#3b82f6] focus:outline-none text-sm font-bold tabular-nums text-slate-800 bg-transparent leading-tight"
                   aria-label="Discount"
                 />
               </div>
             )}
           </div>
 
-          <div className="flex items-center justify-between gap-3 md:gap-5">
+          <div className="flex items-center gap-3 md:gap-4 ml-auto">
             <div className="text-right">
-              <p className="text-[10px] uppercase font-bold text-[#3b82f6]">Grand Total</p>
-              <p className="text-xl md:text-3xl font-bold text-slate-900 tabular-nums">{inr(total)}</p>
+              <p className="text-[9px] uppercase font-bold text-[#3b82f6] leading-tight">Grand Total</p>
+              <p className="text-lg md:text-xl font-bold text-slate-900 tabular-nums leading-tight">{inr(total)}</p>
             </div>
             <div className="flex gap-2">
               <Button
                 type="button"
                 onClick={saveAndWhatsApp}
                 disabled={busy}
-                className="bg-[#25D366] hover:bg-[#20bd5c] text-white px-3 md:px-5 py-3 rounded-xl font-bold min-h-[44px] gap-2"
+                className="bg-[#25D366] hover:bg-[#20bd5c] text-white px-3 md:px-4 h-10 rounded-lg font-bold gap-1.5"
                 aria-label="Save and send WhatsApp"
               >
                 <MessageCircle className="h-4 w-4" />
@@ -614,7 +614,7 @@ function NewSale() {
                 type="button"
                 onClick={save}
                 disabled={busy}
-                className="bg-[#3b82f6] hover:bg-blue-600 text-white px-4 md:px-7 py-3 rounded-xl font-bold shadow-lg shadow-blue-500/20 min-h-[44px] gap-2"
+                className="bg-[#3b82f6] hover:bg-blue-600 text-white px-4 md:px-5 h-10 rounded-lg font-bold shadow-lg shadow-blue-500/20 gap-1.5"
               >
                 <Check className="h-4 w-4" />
                 {busy ? "Saving…" : <><span className="hidden sm:inline">Save Bill</span><span className="sm:hidden">Save</span></>}
