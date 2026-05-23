@@ -2,14 +2,13 @@ import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import { ScanInput } from "@/components/erp/ScanInput";
 import { useAuth } from "@/lib/auth-store";
 import { toast } from "sonner";
 import { inr } from "@/lib/codes";
 import {
   Trash2, ArrowLeft, Check, ScanLine,
-  Minus, Plus, Search, Calendar, MessageCircle,
+  Plus, Calendar, MessageCircle,
 } from "lucide-react";
 import { useUiConfig } from "@/lib/ui-config";
 // jspdf + jspdf-autotable (~250KB) loaded only when finalize() actually runs.
@@ -47,10 +46,11 @@ function NewSale() {
   const [busy, setBusy] = useState(false);
   const [createCustomerOpen, setCreateCustomerOpen] = useState(false);
   const [products, setProducts] = useState<ProductRow[]>([]);
-  const [query, setQuery] = useState("");
-  const [suggestOpen, setSuggestOpen] = useState(false);
-  const [pendingQty, setPendingQty] = useState(1);
-  const entryRef = useRef<HTMLInputElement>(null);
+  const [draftQuery, setDraftQuery] = useState("");
+  const [draftFocused, setDraftFocused] = useState(false);
+  const [activeSuggest, setActiveSuggest] = useState(0);
+  const draftRef = useRef<HTMLInputElement>(null);
+  const scanRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     supabase.from("customers").select("*").order("name").then(({ data }) => setCustomers(data ?? []));
@@ -72,14 +72,15 @@ function NewSale() {
   // Keyboard shortcut: F2 to focus entry
   useEffect(() => {
     const h = (e: KeyboardEvent) => {
-      if (e.key === "F2") { e.preventDefault(); entryRef.current?.focus(); }
+      if (e.key === "F2") { e.preventDefault(); draftRef.current?.focus(); }
+      if (e.key === "F3") { e.preventDefault(); scanRef.current?.focus(); }
     };
     window.addEventListener("keydown", h);
     return () => window.removeEventListener("keydown", h);
   }, []);
 
-  const suggestions = useMemo(() => {
-    const q = query.trim().toLowerCase();
+  const draftSuggestions = useMemo(() => {
+    const q = draftQuery.trim().toLowerCase();
     if (!q) return [];
     return products
       .filter(p =>
@@ -88,7 +89,7 @@ function NewSale() {
         p.prefix.toLowerCase().includes(q)
       )
       .slice(0, 8);
-  }, [products, query]);
+  }, [products, draftQuery]);
 
   const looksLikeCode = (s: string) => /-/.test(s) && /^[A-Za-z0-9-]+$/.test(s);
 
@@ -153,15 +154,16 @@ function NewSale() {
       hsn: p.hsn, alt_unit: p.alt_unit, alt_conversion: p.alt_conversion,
       is_lot: true, max_qty: undefined,
     }]);
-    setQuery(""); setSuggestOpen(false); setPendingQty(1);
-    toast.success(`Added ${p.name}`);
+    setDraftQuery(""); setActiveSuggest(0);
+    // refocus the draft row so user can keep typing next line (Sheets-like)
+    setTimeout(() => draftRef.current?.focus(), 0);
   };
 
-  const handleEntrySubmit = () => {
-    const s = query.trim();
+  const handleDraftCommit = () => {
+    const s = draftQuery.trim();
     if (!s) return;
-    if (looksLikeCode(s)) { onScan(s); setQuery(""); setSuggestOpen(false); return; }
-    if (suggestions.length > 0) addProductLine(suggestions[0], Math.max(1, pendingQty));
+    if (looksLikeCode(s)) { onScan(s); setDraftQuery(""); return; }
+    if (draftSuggestions.length > 0) addProductLine(draftSuggestions[activeSuggest] ?? draftSuggestions[0], 1);
     else toast.error("No matching product");
   };
 
@@ -307,74 +309,23 @@ function NewSale() {
           )}
         </header>
 
-        {/* Unified Item Entry */}
-        <div className="bg-[#3b82f6] rounded-xl p-1.5 shadow-lg shadow-blue-500/10">
-          <div className="bg-white rounded-[10px] p-2 flex flex-wrap md:flex-nowrap items-stretch gap-2 md:gap-3">
-            <div className="bg-[#fafbfc] p-2 rounded-lg text-[#3b82f6] grid place-items-center">
-              <ScanLine className="h-5 w-5" />
-            </div>
-            <div className="flex-1 min-w-[60%] relative">
-              <input
-                ref={entryRef}
-                type="text"
-                value={query}
-                onChange={(e) => { setQuery(e.target.value); setSuggestOpen(true); setWarn(null); }}
-                onFocus={() => query && setSuggestOpen(true)}
-                onBlur={() => setTimeout(() => setSuggestOpen(false), 150)}
-                onKeyDown={(e) => {
-                  if (e.key === "Enter") { e.preventDefault(); handleEntrySubmit(); }
-                  if (e.key === "Escape") setSuggestOpen(false);
-                }}
-                placeholder="Scan Barcode or Type Product Name (F2)"
-                className="w-full text-sm md:text-base py-2 px-1 focus:outline-none font-medium placeholder:text-[#94a3b8] bg-transparent min-h-[44px]"
-                aria-label="Scan barcode or search product"
-              />
-              {suggestOpen && suggestions.length > 0 && (
-                <div className="absolute left-0 right-0 top-full mt-2 bg-white border border-[#e8ecf1] rounded-lg shadow-xl z-30 max-h-72 overflow-auto">
-                  {suggestions.map((p) => (
-                    <button
-                      key={p.id}
-                      type="button"
-                      onMouseDown={(e) => { e.preventDefault(); addProductLine(p, Math.max(1, pendingQty)); }}
-                      className="w-full text-left px-3 py-2.5 hover:bg-[#fafbfc] border-b border-[#e8ecf1] last:border-b-0 flex items-center justify-between gap-2"
-                    >
-                      <div className="min-w-0">
-                        <div className="text-sm font-semibold text-slate-800 truncate">{p.name}</div>
-                        <div className="text-[11px] text-[#94a3b8]">
-                          {p.prefix}{p.hsn ? ` • HSN ${p.hsn}` : ""} • {p.gst_rate}% GST
-                        </div>
-                      </div>
-                      <div className="text-sm font-bold tabular-nums text-[#3b82f6] shrink-0">
-                        {inr(Number(p.default_price))}
-                      </div>
-                    </button>
-                  ))}
-                </div>
-              )}
-            </div>
-            <div className="flex items-center gap-2 px-3 py-1.5 bg-[#fafbfc] rounded-lg border border-[#e8ecf1] min-h-[44px]">
-              <span className="text-[10px] font-bold text-[#94a3b8] uppercase">Qty</span>
-              <input
-                type="number"
-                min={1}
-                value={pendingQty}
-                onChange={(e) => setPendingQty(Math.max(1, Number(e.target.value) || 1))}
-                className="w-12 text-center font-bold text-slate-800 bg-transparent focus:outline-none tabular-nums"
-                aria-label="Quantity for new line"
-              />
-            </div>
-            <Button
-              type="button"
-              onClick={handleEntrySubmit}
-              className="bg-[#3b82f6] hover:bg-blue-600 text-white px-5 py-2 rounded-lg font-bold text-sm min-h-[44px]"
-            >
-              ADD
-            </Button>
-          </div>
-          {/* Hidden scanner — auto-detects barcode wedge input across the screen */}
-          <div className="sr-only">
-            <ScanInput onScan={onScan} invalid={!!warn} />
-          </div>
+        {/* Compact scanner strip (barcode wedge) */}
+        <div className="flex items-center gap-2 bg-white border border-[#e8ecf1] rounded-lg px-3 py-2 shadow-sm">
+          <ScanLine className="h-4 w-4 text-[#3b82f6] shrink-0" />
+          <input
+            ref={scanRef}
+            type="text"
+            placeholder="Scan barcode here (F3) — or just start typing in the row below"
+            className="flex-1 bg-transparent text-sm focus:outline-none placeholder:text-[#94a3b8] font-mono"
+            onKeyDown={(e) => {
+              if (e.key === "Enter") {
+                const v = e.currentTarget.value.trim();
+                if (v) { onScan(v); e.currentTarget.value = ""; }
+              }
+            }}
+            aria-label="Barcode scan input"
+          />
+          <span className="text-[10px] text-[#94a3b8] hidden md:inline">F2 = focus row · Enter = add</span>
         </div>
 
         {warn && (
@@ -383,130 +334,187 @@ function NewSale() {
           </div>
         )}
 
-        {/* Items Table */}
-        <div className="bg-white border border-[#e8ecf1] rounded-xl overflow-hidden shadow-sm">
+        {/* Hidden auto-focus scanner (catches wedge input anywhere on page) */}
+        <div className="sr-only">
+          <ScanInput onScan={onScan} invalid={!!warn} />
+        </div>
+
+        {/* Google-Sheets-style grid */}
+        <div className="bg-white border border-slate-300 rounded-md overflow-hidden shadow-sm">
           <div className="overflow-x-auto">
-            <table className="w-full text-left border-collapse min-w-[860px]">
-              <thead className="bg-[#fafbfc] border-b border-[#e8ecf1]">
-                <tr className="text-[10px] uppercase tracking-widest text-[#94a3b8] font-bold">
-                  <th className="px-4 py-3 w-10">#</th>
-                  <th className="px-4 py-3">Product Description</th>
-                  <th className="px-3 py-3">HSN</th>
-                  <th className="px-3 py-3 text-center w-32">Qty</th>
-                  <th className="px-3 py-3">Alt Unit</th>
-                  <th className="px-3 py-3 text-right w-28">Rate</th>
-                  {f.gst_rate.visible && <th className="px-3 py-3 text-right w-20">GST %</th>}
-                  <th className="px-4 py-3 text-right w-32">Amount</th>
-                  <th className="px-2 py-3 w-10"></th>
+            <table className="w-full border-collapse min-w-[920px] text-[13px] font-mono">
+              <colgroup>
+                <col style={{ width: 40 }} />
+                <col />
+                <col style={{ width: 90 }} />
+                <col style={{ width: 90 }} />
+                <col style={{ width: 110 }} />
+                <col style={{ width: 110 }} />
+                {f.gst_rate.visible && <col style={{ width: 70 }} />}
+                <col style={{ width: 120 }} />
+                <col style={{ width: 36 }} />
+              </colgroup>
+              <thead>
+                <tr className="bg-slate-100 text-[11px] uppercase tracking-wide text-slate-600 font-sans">
+                  <th className="border border-slate-300 px-2 py-1.5 text-center font-semibold">#</th>
+                  <th className="border border-slate-300 px-2 py-1.5 text-left font-semibold">Product</th>
+                  <th className="border border-slate-300 px-2 py-1.5 text-left font-semibold">HSN</th>
+                  <th className="border border-slate-300 px-2 py-1.5 text-center font-semibold">Qty</th>
+                  <th className="border border-slate-300 px-2 py-1.5 text-left font-semibold">Alt Unit</th>
+                  <th className="border border-slate-300 px-2 py-1.5 text-right font-semibold">Rate</th>
+                  {f.gst_rate.visible && <th className="border border-slate-300 px-2 py-1.5 text-right font-semibold">GST%</th>}
+                  <th className="border border-slate-300 px-2 py-1.5 text-right font-semibold">Amount</th>
+                  <th className="border border-slate-300 px-1 py-1.5"></th>
                 </tr>
               </thead>
-              <tbody className="text-sm tabular-nums">
-                {lines.length === 0 ? (
-                  <tr>
-                    <td colSpan={f.gst_rate.visible ? 9 : 8} className="px-4 py-16 text-center">
-                      <Search className="h-6 w-6 text-[#94a3b8] mx-auto mb-2" />
-                      <div className="text-sm font-semibold text-slate-700">No items yet</div>
-                      <div className="text-xs text-[#94a3b8] mt-1">Scan a barcode or type a product name above.</div>
+              <tbody className="tabular-nums">
+                {lines.map((l, i) => (
+                  <tr key={i} className="hover:bg-[#fafbfc] group">
+                    <td className="border border-slate-300 bg-slate-50 px-2 py-0 text-center text-slate-500 text-[11px] font-sans">{i + 1}</td>
+                    <td className="border border-slate-300 px-2 py-1">
+                      <div className="text-slate-800 truncate">{l.name}</div>
+                      {l.item_instance_id && (
+                        <div className="text-[10px] text-slate-400 truncate">{l.item_instance_id}</div>
+                      )}
                     </td>
-                  </tr>
-                ) : (
-                  lines.map((l, i) => (
-                    <tr
-                      key={i}
-                      className={`border-b border-[#e8ecf1] hover:bg-[#fafbfc]/50 group ${i % 2 === 1 ? "bg-[#fafbfc]/30" : ""}`}
-                    >
-                      <td className="px-4 py-3 text-[#94a3b8]">{String(i + 1).padStart(2, "0")}</td>
-                      <td className="px-4 py-3">
-                        <div className="font-bold text-slate-800">{l.name}</div>
-                        {l.item_instance_id && (
-                          <div className="font-mono text-[10px] text-[#94a3b8] truncate max-w-[260px]">{l.item_instance_id}</div>
-                        )}
-                      </td>
-                      <td className="px-3 py-3 text-slate-500 text-xs">{l.hsn ?? "—"}</td>
-                      <td className="px-3 py-3">
-                        {l.is_lot ? (
-                          <div className="flex items-center justify-center gap-1">
-                            <button
-                              type="button"
-                              aria-label="Decrease quantity"
-                              className="w-7 h-7 border border-[#e8ecf1] rounded flex items-center justify-center hover:bg-white text-[#94a3b8]"
-                              onClick={() => upd(i, { qty: Math.max(1, l.qty - 1) })}
-                            >
-                              <Minus className="h-3 w-3" />
-                            </button>
-                            <input
-                              type="number"
-                              value={l.qty}
-                              onChange={(e) => {
-                                const v = Math.max(1, Number(e.target.value));
-                                upd(i, { qty: l.max_qty != null ? Math.min(v, l.max_qty) : v });
-                              }}
-                              className="w-10 text-center font-bold bg-transparent focus:outline-none tabular-nums"
-                              aria-label={`Quantity for ${l.name}`}
-                            />
-                            <button
-                              type="button"
-                              aria-label="Increase quantity"
-                              className="w-7 h-7 border border-[#e8ecf1] rounded flex items-center justify-center hover:bg-white text-[#3b82f6]"
-                              onClick={() => {
-                                const nx = l.qty + 1;
-                                if (l.max_qty != null && nx > l.max_qty) {
-                                  toast.error(`Only ${l.max_qty} in stock`); return;
-                                }
-                                upd(i, { qty: nx });
-                              }}
-                            >
-                              <Plus className="h-3 w-3" />
-                            </button>
-                          </div>
-                        ) : (
-                          <div className="text-center text-slate-500 text-xs">1</div>
-                        )}
-                      </td>
-                      <td className="px-3 py-3 text-xs">
-                        {l.alt_unit && l.alt_conversion ? (
-                          <span className="text-slate-700 font-medium">
-                            {(l.qty * Number(l.alt_conversion)).toLocaleString("en-IN", { maximumFractionDigits: 3 })}{" "}
-                            <span className="text-[#94a3b8] font-normal">{l.alt_unit}</span>
-                          </span>
-                        ) : (
-                          <span className="text-[#94a3b8]">—</span>
-                        )}
-                      </td>
-                      <td className="px-3 py-3">
-                        <Input
-                          className="h-8 text-right tabular-nums"
+                    <td className="border border-slate-300 px-2 py-0 text-slate-600 text-[12px]">{l.hsn ?? ""}</td>
+                    <td className="border border-slate-300 px-0 py-0">
+                      <input
+                        type="number"
+                        min={1}
+                        value={l.qty}
+                        onChange={(e) => {
+                          const v = Math.max(1, Number(e.target.value));
+                          upd(i, { qty: l.max_qty != null ? Math.min(v, l.max_qty) : v });
+                        }}
+                        disabled={!l.is_lot}
+                        className="w-full h-full px-2 py-1.5 text-center bg-transparent focus:outline-none focus:bg-blue-50 focus:ring-2 focus:ring-inset focus:ring-[#3b82f6] disabled:text-slate-500"
+                        aria-label={`Quantity for ${l.name}`}
+                      />
+                    </td>
+                    <td className="border border-slate-300 px-2 py-0 text-[12px] text-slate-600">
+                      {l.alt_unit && l.alt_conversion
+                        ? `${(l.qty * Number(l.alt_conversion)).toLocaleString("en-IN", { maximumFractionDigits: 3 })} ${l.alt_unit}`
+                        : ""}
+                    </td>
+                    <td className="border border-slate-300 px-0 py-0">
+                      <input
+                        type="number"
+                        value={l.rate}
+                        onChange={(e) => upd(i, { rate: Number(e.target.value) })}
+                        className="w-full h-full px-2 py-1.5 text-right bg-transparent focus:outline-none focus:bg-blue-50 focus:ring-2 focus:ring-inset focus:ring-[#3b82f6]"
+                        aria-label={`Rate for ${l.name}`}
+                      />
+                    </td>
+                    {f.gst_rate.visible && (
+                      <td className="border border-slate-300 px-0 py-0">
+                        <input
                           type="number"
-                          value={l.rate}
-                          onChange={(e) => upd(i, { rate: Number(e.target.value) })}
-                          aria-label={`Rate for ${l.name}`}
+                          value={l.gst_rate}
+                          onChange={(e) => upd(i, { gst_rate: Number(e.target.value) })}
+                          className="w-full h-full px-2 py-1.5 text-right bg-transparent focus:outline-none focus:bg-blue-50 focus:ring-2 focus:ring-inset focus:ring-[#3b82f6]"
+                          aria-label={`GST rate for ${l.name}`}
                         />
                       </td>
-                      {f.gst_rate.visible && (
-                        <td className="px-3 py-3">
-                          <Input
-                            className="h-8 text-right tabular-nums"
-                            type="number"
-                            value={l.gst_rate}
-                            onChange={(e) => upd(i, { gst_rate: Number(e.target.value) })}
-                            aria-label={`GST rate for ${l.name}`}
-                          />
-                        </td>
-                      )}
-                      <td className="px-4 py-3 text-right font-bold text-slate-800">{inr(l.qty * l.rate)}</td>
-                      <td className="px-2 py-3 text-right">
-                        <button
-                          type="button"
-                          aria-label={`Remove ${l.name}`}
-                          onClick={() => rm(i)}
-                          className="text-[#94a3b8] hover:text-red-500 transition-opacity md:opacity-0 md:group-hover:opacity-100 p-1"
-                        >
-                          <Trash2 className="h-4 w-4" />
-                        </button>
-                      </td>
-                    </tr>
-                  ))
-                )}
+                    )}
+                    <td className="border border-slate-300 px-2 py-1.5 text-right font-semibold text-slate-800 bg-slate-50/60">
+                      {inr(l.qty * l.rate)}
+                    </td>
+                    <td className="border border-slate-300 px-1 py-0 text-center">
+                      <button
+                        type="button"
+                        aria-label={`Remove ${l.name}`}
+                        onClick={() => rm(i)}
+                        className="text-slate-400 hover:text-red-500 p-1 md:opacity-0 md:group-hover:opacity-100"
+                      >
+                        <Trash2 className="h-3.5 w-3.5" />
+                      </button>
+                    </td>
+                  </tr>
+                ))}
+
+                {/* Always-present draft row (Google Sheets style) */}
+                <tr className="bg-blue-50/30">
+                  <td className="border border-slate-300 bg-slate-50 px-2 py-0 text-center text-slate-400 text-[11px] font-sans">
+                    {lines.length + 1}
+                  </td>
+                  <td className="border border-slate-300 px-0 py-0 relative">
+                    <input
+                      ref={draftRef}
+                      type="text"
+                      value={draftQuery}
+                      onChange={(e) => { setDraftQuery(e.target.value); setActiveSuggest(0); setWarn(null); }}
+                      onFocus={() => setDraftFocused(true)}
+                      onBlur={() => setTimeout(() => setDraftFocused(false), 150)}
+                      onKeyDown={(e) => {
+                        if (e.key === "Enter" || e.key === "Tab") {
+                          if (draftQuery.trim()) { e.preventDefault(); handleDraftCommit(); }
+                        } else if (e.key === "ArrowDown") {
+                          e.preventDefault();
+                          setActiveSuggest((n) => Math.min(n + 1, draftSuggestions.length - 1));
+                        } else if (e.key === "ArrowUp") {
+                          e.preventDefault();
+                          setActiveSuggest((n) => Math.max(0, n - 1));
+                        } else if (e.key === "Escape") {
+                          setDraftQuery("");
+                        }
+                      }}
+                      placeholder="Scan barcode or type product name…"
+                      className="w-full h-full px-2 py-1.5 bg-transparent focus:outline-none focus:bg-white focus:ring-2 focus:ring-inset focus:ring-[#3b82f6] placeholder:text-slate-400 font-sans"
+                      aria-label="Add new line"
+                    />
+                    {draftFocused && draftSuggestions.length > 0 && (
+                      <div className="absolute left-0 right-0 top-full mt-1 bg-white border border-slate-300 rounded-md shadow-xl z-30 max-h-72 overflow-auto font-sans">
+                        {draftSuggestions.map((p, idx) => (
+                          <button
+                            key={p.id}
+                            type="button"
+                            onMouseDown={(e) => { e.preventDefault(); addProductLine(p, 1); }}
+                            className={`w-full text-left px-3 py-2 border-b border-slate-100 last:border-0 flex items-center justify-between gap-2 ${
+                              idx === activeSuggest ? "bg-[#3b82f6]/10" : "hover:bg-slate-50"
+                            }`}
+                          >
+                            <div className="min-w-0">
+                              <div className="text-sm font-semibold text-slate-800 truncate">{p.name}</div>
+                              <div className="text-[11px] text-slate-500">
+                                {p.prefix}{p.hsn ? ` · HSN ${p.hsn}` : ""} · {p.gst_rate}% GST · {p.unit}
+                              </div>
+                            </div>
+                            <div className="text-sm font-bold tabular-nums text-[#3b82f6] shrink-0">
+                              {inr(Number(p.default_price))}
+                            </div>
+                          </button>
+                        ))}
+                      </div>
+                    )}
+                  </td>
+                  <td className="border border-slate-300 px-2 py-1.5 text-slate-300">—</td>
+                  <td className="border border-slate-300 px-2 py-1.5 text-center text-slate-300">1</td>
+                  <td className="border border-slate-300 px-2 py-1.5 text-slate-300">—</td>
+                  <td className="border border-slate-300 px-2 py-1.5 text-right text-slate-300">0.00</td>
+                  {f.gst_rate.visible && <td className="border border-slate-300 px-2 py-1.5 text-right text-slate-300">0</td>}
+                  <td className="border border-slate-300 px-2 py-1.5 text-right text-slate-300">0.00</td>
+                  <td className="border border-slate-300 px-1 py-1.5 text-center">
+                    <Plus className="h-3.5 w-3.5 text-slate-400 mx-auto" />
+                  </td>
+                </tr>
+
+                {/* Filler empty rows so it looks like a sheet */}
+                {Array.from({ length: Math.max(0, 4 - lines.length) }).map((_, idx) => (
+                  <tr key={`filler-${idx}`} className="text-slate-300">
+                    <td className="border border-slate-300 bg-slate-50 px-2 py-1.5 text-center text-[11px] font-sans">
+                      {lines.length + 2 + idx}
+                    </td>
+                    <td className="border border-slate-300 px-2 py-1.5"></td>
+                    <td className="border border-slate-300 px-2 py-1.5"></td>
+                    <td className="border border-slate-300 px-2 py-1.5"></td>
+                    <td className="border border-slate-300 px-2 py-1.5"></td>
+                    <td className="border border-slate-300 px-2 py-1.5"></td>
+                    {f.gst_rate.visible && <td className="border border-slate-300 px-2 py-1.5"></td>}
+                    <td className="border border-slate-300 px-2 py-1.5"></td>
+                    <td className="border border-slate-300 px-1 py-1.5"></td>
+                  </tr>
+                ))}
               </tbody>
             </table>
           </div>
