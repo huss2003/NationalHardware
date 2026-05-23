@@ -362,6 +362,22 @@ function GeneralOrderForm({
     }
     setBusy(false);
     toast.success(`Order ${orderNo} saved (${lines.length} doors)`);
+    try {
+      const shop = await loadShopForPdf();
+      const cust = await supabase.from("customers").select("phone,address")
+        .eq("name", finalCustomer).maybeSingle();
+      const doc = buildDoorOrderPdf({
+        shop,
+        order: {
+          order_no: orderNo, order_date: new Date().toISOString(),
+          category: "general", customer_name: finalCustomer,
+          total: grandTotal, notes: notes || null,
+        },
+        customer: (cust.data as any) ?? null,
+        items: lines,
+      });
+      openPdfInNewTab(doc);
+    } catch (e) { console.error(e); }
     resetAll();
     onSaved();
   };
