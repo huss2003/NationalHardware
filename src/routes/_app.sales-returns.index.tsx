@@ -175,6 +175,7 @@ function NewSalesReturnDialog({
   const [reprintBusy, setReprintBusy] = useState<string | null>(null);
   const [reprintItems, setReprintItems] = useState<MintedSticker[]>([]);
   const [reprintOpen, setReprintOpen] = useState(false);
+  const [savedAndPendingClose, setSavedAndPendingClose] = useState(false);
   const [reason, setReason] = useState("");
   const [refundMode, setRefundMode] = useState("cash");
   const [scanError, setScanError] = useState<{ kind: ScanWarningKind; msg: string; code?: string } | null>(null);
@@ -484,7 +485,13 @@ function NewSalesReturnDialog({
       </DialogFooter>
       <ReprintLabelDialog
         open={reprintOpen}
-        onOpenChange={setReprintOpen}
+        onOpenChange={(v) => {
+          setReprintOpen(v);
+          if (!v && savedAndPendingClose) {
+            setSavedAndPendingClose(false);
+            onSaved();
+          }
+        }}
         items={reprintItems}
         title="Reprint stickers"
       />
