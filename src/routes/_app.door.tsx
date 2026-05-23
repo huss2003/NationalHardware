@@ -315,6 +315,20 @@ function GeneralOrderForm({
 
   useEffect(() => { setOrderNo(nextOrderNoHint); }, [nextOrderNoHint]);
 
+  // Prefill from sales draft when entered via "Add Door" on the sale screen.
+  useEffect(() => {
+    if (!isFromSale) return;
+    try {
+      const raw = sessionStorage.getItem("sale_draft");
+      if (!raw) return;
+      const d = JSON.parse(raw);
+      if (d.invoiceNo) setOrderNo(d.invoiceNo);
+      if (d.customerId) setCustomerId(d.customerId);
+      else if (d.customerName) setCustomerName(d.customerName);
+    } catch {}
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isFromSale]);
+
   const partyParsed = parseInchSize(draft.party_door_size);
   const takenParsed = parseInchSize(draft.door_taken_size);
   const partySqft = partyParsed ? toSqft(partyParsed.l, partyParsed.w) : 0;
