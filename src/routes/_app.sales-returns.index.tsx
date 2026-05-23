@@ -175,6 +175,7 @@ function NewSalesReturnDialog({
   const [reprintBusy, setReprintBusy] = useState<string | null>(null);
   const [reprintItems, setReprintItems] = useState<MintedSticker[]>([]);
   const [reprintOpen, setReprintOpen] = useState(false);
+  const [savedAndPendingClose, setSavedAndPendingClose] = useState(false);
   const [reason, setReason] = useState("");
   const [refundMode, setRefundMode] = useState("cash");
   const [scanError, setScanError] = useState<{ kind: ScanWarningKind; msg: string; code?: string } | null>(null);
@@ -201,9 +202,9 @@ function NewSalesReturnDialog({
     (async () => {
       const { data } = await supabase
         .from("sales_items")
-        .select("item_instance_id, product_id, qty, rate, gst_rate, products(name), item_instances(status)")
+        .select("id, item_instance_id, product_id, qty, rate, gst_rate, products(name), item_instances(status)")
         .eq("sale_id", saleId);
-      setSaleLines((data ?? []).filter((d: any) => d.item_instance_id));
+      setSaleLines(data ?? []);
     })();
   }, [saleId]);
 
@@ -234,8 +235,9 @@ function NewSalesReturnDialog({
   };
 
   const cart = useMemo(() => saleLines
-    .filter((l: any) => selected.has(l.item_instance_id))
+    .filter((l: any) => selected.has(l.item_instance_id ?? `line:${l.id}`))
     .map((l: any) => ({
+      row_key: (l.item_instance_id ?? `line:${l.id}`) as string,
       item_instance_id: l.item_instance_id as string,
       product_id: l.product_id as string,
       product_name: l.products?.name ?? "Item",
@@ -263,11 +265,15 @@ function NewSalesReturnDialog({
   };
 
   const reprintAllSelected = async () => {
-    if (cart.length === 0) return;
+    const withInstance = cart.filter((c) => c.item_instance_id);
+    if (withInstance.length === 0) {
+      toast.info("No scannable items to reprint in this selection.");
+      return;
+    }
     setBusy(true);
     try {
       const minted: MintedSticker[] = [];
-      for (const c of cart) {
+      for (const c of withInstance) {
         minted.push(await mintReprintForSale(c.item_instance_id, userId, `Bulk reprint via sales return`));
       }
       setReprintItems(minted);
@@ -313,6 +319,7 @@ function NewSalesReturnDialog({
 
     // Update inventory & write history
     for (const c of cart) {
+      if (!c.item_instance_id) continue;
       const update: any = { status: "returned" };
       if (godownId) update.godown_id = godownId;
       await supabase.from("item_instances").update(update).eq("id", c.item_instance_id);
@@ -339,13 +346,33 @@ function NewSalesReturnDialog({
 
     setBusy(false);
     toast.success(`Return ${returnNo} recorded with ${cart.length} item(s)`);
-    onSaved();
+
+    // Auto-mint replacement stickers for scannable items so user can reprint right away
+    const withInstance = cart.filter((c) => c.item_instance_id);
+    if (withInstance.length > 0) {
+      try {
+        const minted: MintedSticker[] = [];
+        for (const c of withInstance) {
+          minted.push(await mintReprintForSale(c.item_instance_id, userId, `Reprint after return ${returnNo}`));
+        }
+        setReprintItems(minted);
+        setSavedAndPendingClose(true);
+        setReprintOpen(true);
+      } catch (e: any) {
+        toast.error(e.message ?? "Reprint failed");
+        onSaved();
+      }
+    } else {
+      onSaved();
+    }
   };
 
-  const eligibleCount = saleLines.filter((l: any) => l.item_instances?.status === "sold").length;
+  const isEligible = (l: any) => !l.item_instance_id || l.item_instances?.status === "sold";
+  const rowKey = (l: any) => (l.item_instance_id ?? `line:${l.id}`) as string;
+  const eligibleCount = saleLines.filter(isEligible).length;
   const allEligibleSelected = eligibleCount > 0 && saleLines
-    .filter((l: any) => l.item_instances?.status === "sold")
-    .every((l: any) => selected.has(l.item_instance_id));
+    .filter(isEligible)
+    .every((l: any) => selected.has(rowKey(l)));
 
   return (
     <DialogContent className="sm:max-w-[860px] max-h-[90vh] overflow-y-auto">
@@ -402,7 +429,7 @@ function NewSalesReturnDialog({
                   if (allEligibleSelected) return new Set();
                   const next = new Set(prev);
                   saleLines.forEach((l: any) => {
-                    if (l.item_instances?.status === "sold") next.add(l.item_instance_id);
+                    if (isEligible(l)) next.add(rowKey(l));
                   });
                   return next;
                 });
@@ -458,7 +485,13 @@ function NewSalesReturnDialog({
       </DialogFooter>
       <ReprintLabelDialog
         open={reprintOpen}
-        onOpenChange={setReprintOpen}
+        onOpenChange={(v) => {
+          setReprintOpen(v);
+          if (!v && savedAndPendingClose) {
+            setSavedAndPendingClose(false);
+            onSaved();
+          }
+        }}
         items={reprintItems}
         title="Reprint stickers"
       />
@@ -501,36 +534,41 @@ function InvoiceItemsPicker({
         </TableHeader>
         <TableBody>
           {lines.map((l: any) => {
-            const id = l.item_instance_id as string;
-            const status = l.item_instances?.status ?? "—";
-            const eligible = status === "sold";
-            const isChecked = selected.has(id);
+            const instId = l.item_instance_id as string | null;
+            const key = (instId ?? `line:${l.id}`) as string;
+            const status = instId ? (l.item_instances?.status ?? "—") : "no sticker";
+            const eligible = !instId || l.item_instances?.status === "sold";
+            const isChecked = selected.has(key);
             return (
-              <TableRow key={id} className={!eligible ? "opacity-50" : ""}>
+              <TableRow key={key} className={!eligible ? "opacity-50" : ""}>
                 <TableCell className="pl-3">
                   <Checkbox
                     checked={isChecked}
                     disabled={!eligible}
-                    onCheckedChange={() => eligible && onToggle(id)}
+                    onCheckedChange={() => eligible && onToggle(key)}
                   />
                 </TableCell>
-                <TableCell className="font-mono text-xs">{id}</TableCell>
+                <TableCell className="font-mono text-xs">{instId ?? <span className="text-muted-foreground italic">no sticker</span>}</TableCell>
                 <TableCell>{l.products?.name ?? "Item"}</TableCell>
                 <TableCell><span className="text-[11px] uppercase tracking-wider text-muted-foreground">{status}</span></TableCell>
                 <TableCell className="text-right tabular-nums">{inr(l.rate)}</TableCell>
                 <TableCell className="text-right pr-3">
-                  <Button
-                    type="button"
-                    variant="ghost"
-                    size="sm"
-                    className="h-8 gap-1.5"
-                    disabled={!isChecked || reprintBusy === id}
-                    onClick={() => onReprint(id)}
-                    title={isChecked ? "Mint a new sequential sticker" : "Tick the row first"}
-                  >
-                    <Printer className="h-3.5 w-3.5" />
-                    {reprintBusy === id ? "…" : "Reprint"}
-                  </Button>
+                  {instId ? (
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="sm"
+                      className="h-8 gap-1.5"
+                      disabled={!isChecked || reprintBusy === instId}
+                      onClick={() => onReprint(instId)}
+                      title={isChecked ? "Mint a new sequential sticker" : "Tick the row first"}
+                    >
+                      <Printer className="h-3.5 w-3.5" />
+                      {reprintBusy === instId ? "…" : "Reprint"}
+                    </Button>
+                  ) : (
+                    <span className="text-[11px] text-muted-foreground">—</span>
+                  )}
                 </TableCell>
               </TableRow>
             );
