@@ -382,6 +382,37 @@ function NewSale() {
               </div>
             )}
           </div>
+          <div className="mt-3 flex items-center gap-2 flex-wrap">
+            <label className="text-[10px] uppercase tracking-wider text-[#94a3b8] font-bold flex items-center gap-1">
+              <Warehouse className="h-3 w-3" /> Stock source
+            </label>
+            <button
+              type="button"
+              onClick={() => setSourceGodownId("")}
+              className={`px-3 h-7 text-xs font-bold rounded-md border transition-all ${
+                sourceGodownId === ""
+                  ? "bg-[#3b82f6] text-white border-[#3b82f6]"
+                  : "bg-white text-slate-600 border-[#e8ecf1] hover:bg-slate-50"
+              }`}
+            >
+              Shop
+            </button>
+            <select
+              value={sourceGodownId}
+              onChange={(e) => setSourceGodownId(e.target.value)}
+              className={`h-7 px-2 text-xs font-bold rounded-md border ${
+                sourceGodownId
+                  ? "bg-[#3b82f6] text-white border-[#3b82f6]"
+                  : "bg-white text-slate-600 border-[#e8ecf1]"
+              }`}
+            >
+              <option value="" className="bg-white text-slate-800">— Godown —</option>
+              {godowns.map((g) => (
+                <option key={g.id} value={g.id} className="bg-white text-slate-800">{g.name}</option>
+              ))}
+            </select>
+            <span className="text-[10px] text-[#94a3b8]">Scans must come from the selected location.</span>
+          </div>
           {customerState && (
             <div className="mt-3 text-[11px] text-[#94a3b8]">
               GST State: <span className="text-slate-600 font-medium">{customerState}</span>
