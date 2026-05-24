@@ -1,53 +1,54 @@
-## Goal
+# Add alternate unit (sqft) to New Product dialog
 
-Replace the current "pick a role" fake login with real Supabase email+password auth, then remove every `anon` policy so the scan findings are resolved without breaking the app.
+Apply only to the **Plywood** and **Door** categories in `NewProductDialog` (`src/routes/_app.inventory.index.tsx`). Hardware / Mica / Others stay unchanged.
 
-## What changes for users
+## Units
 
-- The login screen becomes an **email + password** form (with a "Create account" toggle).
-- The first user to sign up is automatically made **admin**; everyone else is `billing` (already wired by the existing `handle_new_user` trigger).
-- After the migration, **existing users must create an account** — the old "Admin / Employee" buttons go away. The localStorage role is replaced by the Supabase session.
-- All app screens require sign-in; visiting any `/something` while signed out bounces to `/login`.
+- **Plywood** — main unit = **Feet** (Length, Breadth in ft), alternate = **Square Feet**.
+  Formula: `sqft = L_ft × B_ft` (and reverse).
+- **Door** — main unit = **Inches** (Length, Breadth in inches), alternate = **Square Feet**.
+  Formula: `sqft = L_in × B_in ÷ 144` (and reverse).
 
-## Steps
+These match the existing formulas already shown on the product detail page (`_app.inventory.$productId.tsx`).
 
-### 1. Auth UI (frontend)
-- Rewrite `src/routes/login.tsx` as a real Supabase email/password sign-in + sign-up form, with `emailRedirectTo: window.location.origin`.
-- Replace `src/lib/auth-store.ts` with a Supabase session-backed store:
-  - subscribe to `onAuthStateChange` (set listener BEFORE `getSession`)
-  - expose `user`, `ready`, `role` (read from `user_roles` for the signed-in user)
-  - `logout()` calls `supabase.auth.signOut()`
-- Add an `_authenticated` layout route OR add a `beforeLoad` guard in `_app.tsx` that redirects to `/login` when no session. Use the existing `_app` shell.
-- Update `AppSidebar` "Signed in as …" + sign-out button to use the new store.
-- Disable email confirmation in Supabase Auth settings so signup works instantly (user can re-enable later).
+## Dialog changes
 
-### 2. Lock down RLS (database migration)
-Drop every `anon` policy and rely on the existing `authenticated` policies. Specifically:
-- `customers`, `suppliers`, `sales`, `sales_items`, `sales_returns`, `sales_return_items`, `purchases`, `purchase_items`, `purchase_returns`, `purchase_return_items`, `receipts`, `item_instances`, `item_history`, `shop_users`, `recycle_bin`, `audit_log`, `alerts`, `id_sequences`, `customer_receipt_seq`, `godowns`, `door_orders`, `door_order_items`, `door_types`, `app_settings`, `products` — drop all `... anon ...` policies.
-- Replace `public read customers` / `public write customers` / etc. (which target `{anon,authenticated}`) with `authenticated`-only equivalents.
-- `audit_log`: keep `authenticated` SELECT + INSERT only — no UPDATE/DELETE for anyone.
-- `recycle_bin`: keep admin-only UPDATE/DELETE; SELECT for `authenticated`; INSERT for `authenticated`.
-- `shop_users`: SELECT for `authenticated`; manage limited to admins (already in place via `admin manage shop_users`).
-- `app_settings`: SELECT for `authenticated` only (drop `anon read app_settings`).
-- Storage buckets `bill-images` / `invoices`: already authenticated-only — leave as-is.
+Replace the current "Length / Breadth" two-field grid with a three-field block:
 
-### 3. Postgres extension warning
-- Move `pg_trgm` from `public` schema to `extensions` schema (the linter warning).
+```text
+[ Length ({unit}) ]  [ Breadth ({unit}) ]
+[ Area (sqft) — alternate unit ]
+```
 
-### 4. Validation
-- Sign up first account → becomes admin → confirm all screens (dashboard, sales/new, purchases/new, godowns, inventory) load and writes succeed.
-- Sign out → bounced to `/login`. Direct URL access while signed out → `/login`.
-- Re-run the security scan; remaining items get triaged.
+Behavior (two-way live sync, no submit needed):
 
-## Technical notes
+1. Editing **Length** or **Breadth** → recompute **Area** instantly using the category formula.
+2. Editing **Area** directly → recompute **Breadth** from `Area / Length` (reverse formula, doors multiply by 144 first). If Length is empty/zero, leave Breadth untouched and just store the entered Area.
+3. The unit label next to Length/Breadth switches with category (`ft` for plywood, `in` for door).
+4. Door area formula in the preview line becomes `L × B ÷ 144`; plywood stays `L × B`.
 
-- All Supabase reads in components already use the browser client (`supabase` from `@/integrations/supabase/client`), so once a real session exists, RLS will accept them as `authenticated` — no per-query code changes needed.
-- Server functions are not currently used for these reads; we do NOT need to introduce `requireSupabaseAuth` for the lockdown to work. The browser client carries the user's JWT directly.
-- The existing `user_roles` + `has_role()` + `handle_new_user()` trigger already wires "first signup = admin"; nothing new needed there.
-- Files touched: `src/routes/login.tsx`, `src/lib/auth-store.ts`, `src/routes/_app.tsx`, `src/routes/__root.tsx` (invalidate on auth change), `src/components/layout/AppSidebar.tsx`. Plus one DB migration.
+Use a small `lastEdited` ref/state (`"dim" | "area"`) to avoid feedback loops between the two effects.
+
+## Pricing
+
+- Price input stays **₹ per sqft** for both Plywood and Door (already the case).
+- `unitPrice = pricePerSqft × areaSqft` — unchanged.
+
+## Persistence
+
+When inserting `item_instances` for Plywood/Door:
+- `length_value`, `width_value` → store in their **native unit** (ft for ply, in for door).
+- `dimension_unit` → `"ft"` for plywood, `"in"` for door (currently hard-coded to `"ft"`).
+- `area_sqft` → always the computed/entered sqft value.
+- `qr_payload`: keep `length_ft`/`width_ft` for plywood; for door switch to `length_in`/`width_in` plus `area_sqft`.
+- `sizeLabel`: `"LxB ft"` for plywood, `"LxB in"` for door.
+
+## Validation
+
+- Require either (Length AND Breadth) OR a non-zero Area before submit.
+- Require `pricePerSqft > 0`.
 
 ## Out of scope
 
-- Password reset flow (can add `/reset-password` later if you want).
-- Google/social login.
-- Migrating the existing `shop_users` PIN table — left in place but no longer used for login. We can delete it in a follow-up.
+- Hardware/Mica/Others input (unchanged single Size field, price per pc).
+- Existing inventory rows / DB schema — no migration needed; `dimension_unit` column already supports `"in"`.
