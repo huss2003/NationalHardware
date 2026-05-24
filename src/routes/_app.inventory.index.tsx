@@ -612,7 +612,7 @@ function NewProductDialog({ onCreated }: { onCreated: () => void }) {
             <select
               className="h-10 rounded-md border bg-background px-3 w-full text-sm"
               value={category}
-              onChange={(e) => setCategory(e.target.value as NewCat)}
+              onChange={(e) => { setCategory(e.target.value as NewCat); setSubcategory(null); }}
             >
               <option value="plywood">Plywood</option>
               <option value="hardware">Hardware</option>
@@ -620,6 +620,31 @@ function NewProductDialog({ onCreated }: { onCreated: () => void }) {
               <option value="mica">Mica</option>
               <option value="other">Others</option>
             </select>
+          </div>
+          <div>
+            <Label className="text-xs">Sub-Category</Label>
+            <SubCategoryPicker
+              value={subcategory}
+              onChange={(s) => {
+                setSubcategory(s);
+                if (s) {
+                  if (hasDimensions(category) && s.default_price_per_sqft && !pricePerSqft) {
+                    setPricePerSqft(Number(s.default_price_per_sqft));
+                  }
+                  if (!hasDimensions(category) && s.default_price_per_pc && !pricePerPc) {
+                    setPricePerPc(Number(s.default_price_per_pc));
+                  }
+                }
+              }}
+              category={category}
+            />
+            <p className="text-[10px] text-muted-foreground mt-1">
+              e.g. "18MM 8*4 LC" — items like Blackhud / Comet / Velocity live under this sub-category.
+            </p>
+          </div>
+          <div>
+            <Label className="text-xs">Item / Brand Name</Label>
+            <Input placeholder="e.g. Blackhud, Comet, Velocity…" value={name} onChange={(e) => setName(e.target.value)} />
           </div>
 
           {hasDimensions(category) ? (
