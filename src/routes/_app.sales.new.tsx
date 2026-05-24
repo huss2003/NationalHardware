@@ -460,6 +460,30 @@ function NewSale() {
           </div>
         )}
 
+        {/* Sub-category → Item picker */}
+        <div className="bg-white border border-[#e8ecf1] rounded-lg px-3 py-3 shadow-sm grid grid-cols-1 md:grid-cols-2 gap-3">
+          <div>
+            <label className="text-[10px] uppercase tracking-wider text-[#94a3b8] font-bold block mb-1">
+              Sub-category
+            </label>
+            <SubCategoryPicker
+              value={pickerSub}
+              onChange={setPickerSub}
+              allowCreate={false}
+              placeholder="Type sub-category (18MM 8*4 LC)…"
+            />
+          </div>
+          <div>
+            <label className="text-[10px] uppercase tracking-wider text-[#94a3b8] font-bold block mb-1">
+              Item
+            </label>
+            <ItemBySubCategoryPicker
+              subcategoryId={pickerSub?.id ?? null}
+              onPick={(p) => addProductLine(p as any, 1)}
+            />
+          </div>
+        </div>
+
         {/* Hidden auto-focus scanner (catches wedge input anywhere on page) */}
         <div className="sr-only">
           <ScanInput onScan={onScan} invalid={!!warn} />
