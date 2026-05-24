@@ -8,7 +8,7 @@ import { PageHeader } from "@/components/erp/PageHeader";
 import { useAuth } from "@/lib/auth-store";
 import {
   Trash2, Plus, Minus, ArrowLeft, Building2, FileText, Calendar,
-  Receipt, Upload, Package, ImageIcon, Check,
+  Receipt, Upload, Package, ImageIcon, Check, Warehouse,
 } from "lucide-react";
 import { toast } from "sonner";
 import { inr } from "@/lib/codes";
@@ -30,6 +30,8 @@ function NewPurchase() {
   const user = useAuth((s) => s.user);
   const [suppliers, setSuppliers] = useState<any[]>([]);
   const [products, setProducts] = useState<any[]>([]);
+  const [godowns, setGodowns] = useState<{ id: string; name: string }[]>([]);
+  const [stockGodownId, setStockGodownId] = useState<string>(""); // "" = shop floor
   const [supplierId, setSupplierId] = useState("");
   const [supplierName, setSupplierName] = useState("");
   const [supplierFocus, setSupplierFocus] = useState(false);
@@ -49,12 +51,14 @@ function NewPurchase() {
 
   useEffect(() => {
     (async () => {
-      const [s, p] = await Promise.all([
+      const [s, p, g] = await Promise.all([
         supabase.from("suppliers").select("*").order("name"),
         supabase.from("products").select("*").eq("active", true).order("name"),
+        supabase.from("godowns").select("id, name").eq("active", true).order("name"),
       ]);
       setSuppliers(s.data ?? []);
       setProducts(p.data ?? []);
+      setGodowns((g.data ?? []) as any);
     })();
   }, []);
 
@@ -196,6 +200,14 @@ function NewPurchase() {
           _actor_user_id: user?.id ?? "",
         });
         if (mErr) throw mErr;
+        if (stockGodownId) {
+          // Assign freshly minted units to the chosen godown
+          await supabase
+            .from("item_instances")
+            .update({ godown_id: stockGodownId, updated_at: new Date().toISOString() })
+            .eq("source_purchase_item_id", pi.id)
+            .is("godown_id", null);
+        }
       }
       toast.success("Purchase saved & units minted");
       nav({ to: "/purchases/$id", params: { id: pur.id } });
@@ -321,6 +333,41 @@ function NewPurchase() {
                       </button>
                     ))}
                   </div>
+                </div>
+                <div className="md:col-span-2">
+                  <FieldLabel icon={Warehouse}>Stock into</FieldLabel>
+                  <div className="grid grid-cols-2 gap-2">
+                    <button
+                      type="button"
+                      onClick={() => setStockGodownId("")}
+                      className={`h-10 rounded-md text-sm font-semibold border transition-colors ${
+                        stockGodownId === ""
+                          ? "bg-primary text-primary-foreground border-primary"
+                          : "bg-background text-foreground border-input hover:bg-muted"
+                      }`}
+                    >
+                      Shop floor
+                    </button>
+                    <select
+                      className={`h-10 rounded-md border px-3 text-sm font-medium ${
+                        stockGodownId
+                          ? "bg-primary text-primary-foreground border-primary"
+                          : "bg-background border-input"
+                      }`}
+                      value={stockGodownId}
+                      onChange={(e) => setStockGodownId(e.target.value)}
+                    >
+                      <option value="">— Pick a godown —</option>
+                      {godowns.map((g) => (
+                        <option key={g.id} value={g.id} className="bg-background text-foreground">
+                          {g.name}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                  <p className="text-[11px] text-muted-foreground mt-1.5">
+                    Newly minted units will be placed in the selected location.
+                  </p>
                 </div>
               </div>
             </Card>

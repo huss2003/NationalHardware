@@ -119,47 +119,81 @@ async function allocId(prefix: string): Promise<string> {
   return data as string;
 }
 
-/** Stock Out → Shop floor (godown_id = null). Mints fresh stickers for unique units. */
+/** Stock Out → Shop floor (godown_id = null). No new stickers — existing barcode follows the item. */
 export async function moveOutToShop(
   units: SelectedUnit[],
   actorUserId: string | null | undefined,
-): Promise<MintedSticker[]> {
-  const stickers: MintedSticker[] = [];
+): Promise<void> {
   for (const u of units) {
     if (u.is_lot) {
       const take = Math.max(1, u.takeQty ?? 1);
       if (take > u.qty_on_hand) throw new Error(`Not enough lot stock on ${u.id}`);
-      const newQty = u.qty_on_hand - take;
-      const { error } = await supabase
-        .from("item_instances")
-        .update({ qty_on_hand: newQty, godown_id: null, updated_at: new Date().toISOString() })
-        .eq("id", u.id);
-      if (error) throw error;
-      // Note: this moves the lot row itself out. If you want to split, add a sibling row instead.
+      const remaining = u.qty_on_hand - take;
+
+      if (remaining === 0) {
+        // Move the whole lot row to shop
+        const { error } = await supabase
+          .from("item_instances")
+          .update({ godown_id: null, updated_at: new Date().toISOString() })
+          .eq("id", u.id);
+        if (error) throw error;
+      } else {
+        // Decrement the godown lot
+        const { error } = await supabase
+          .from("item_instances")
+          .update({ qty_on_hand: remaining, updated_at: new Date().toISOString() })
+          .eq("id", u.id);
+        if (error) throw error;
+        // Find or create a shop-side lot row for this product
+        const { data: shopLot } = await supabase
+          .from("item_instances")
+          .select("id, qty_on_hand")
+          .eq("product_id", u.product_id)
+          .eq("is_lot", true)
+          .eq("status", "available")
+          .is("godown_id", null)
+          .limit(1)
+          .maybeSingle();
+        if (shopLot) {
+          await supabase
+            .from("item_instances")
+            .update({ qty_on_hand: Number(shopLot.qty_on_hand) + take, updated_at: new Date().toISOString() })
+            .eq("id", shopLot.id);
+        } else {
+          // Mirror the existing lot's barcode/qr to a new shop row
+          const { data: src } = await supabase
+            .from("item_instances")
+            .select("id, qr_payload, barcode_payload, cost_price, product_id, products(prefix, name)")
+            .eq("id", u.id).single();
+          // Allocate a fresh ID for the shop lot so it doesn't collide
+          const prefix = String(((src as any)?.products?.prefix ?? "")).toUpperCase();
+          const { data: newId } = await supabase.rpc("next_item_id", { _prefix: prefix });
+          const id = String(newId);
+          await supabase.from("item_instances").insert({
+            id, product_id: u.product_id, status: "available", cost_price: Number(src?.cost_price ?? 0),
+            barcode_payload: id, qr_payload: { id, name: (src as any)?.products?.name ?? u.productName, lot: true },
+            is_lot: true, qty_on_hand: take, godown_id: null,
+          });
+        }
+      }
       await supabase.from("item_history").insert({
         item_id: u.id, event: "moved" as const,
         actor_user_id: actorUserId ?? null,
         notes: `Stock out to shop, qty ${take}`,
       });
-      stickers.push({ id: u.id, name: u.productName ?? u.id, qr_payload: { id: u.id, name: u.productName, lot: true } });
     } else {
       const { error } = await supabase
         .from("item_instances")
         .update({ godown_id: null, updated_at: new Date().toISOString() })
         .eq("id", u.id);
       if (error) throw error;
-      const minted = await mintReprintForSale(u.id, actorUserId ?? null, "Stock out to shop");
-      // Original stays available; mark moved via history only
       await supabase.from("item_history").insert({
         item_id: u.id, event: "moved" as const,
         actor_user_id: actorUserId ?? null,
-        notes: `Stock out to shop, reprinted as ${minted.id}`,
+        notes: "Stock out to shop",
       });
-      // Set original to moved status: keep available but null godown. We DO mint a new sticker per spec.
-      stickers.push(minted);
     }
   }
-  return stickers;
 }
 
 /** Stock Out → attach to existing sales bill. Mints fresh stickers and marks original sold. */
