@@ -74,7 +74,7 @@ export function AppSidebar() {
             <div className="text-xs uppercase opacity-70">{user.role}</div>
           </div>
         )}
-        <Button variant="secondary" className="w-full" onClick={logout}>Switch user</Button>
+        <Button variant="secondary" className="w-full" onClick={logout}>Sign out</Button>
       </div>
     </aside>
   );
