@@ -1,4 +1,6 @@
 import { create } from "zustand";
+import { supabase } from "@/integrations/supabase/client";
+import type { User } from "@supabase/supabase-js";
 
 export type ShopRole = "admin" | "employee";
 export interface ActiveUser {
@@ -15,52 +17,52 @@ interface AuthState {
   logout: () => void;
 }
 
-const STORAGE_KEY = "selected_role_user";
-
-const DEFAULT_USER: ActiveUser = {
-  id: "00000000-0000-0000-0000-000000000002",
-  name: "Employee",
-  role: "employee",
-};
-
-function loadFromStorage(): ActiveUser | null {
-  if (typeof window === "undefined") return null;
-  try {
-    const raw = localStorage.getItem(STORAGE_KEY);
-    if (!raw) return null;
-    const u = JSON.parse(raw);
-    if (u && (u.role === "admin" || u.role === "employee")) return u;
-  } catch {}
-  return null;
-}
-
 export const useAuth = create<AuthState>()((set) => ({
   user: null,
   ready: false,
-  setUser: (user) => {
-    if (typeof window !== "undefined") {
-      if (user) localStorage.setItem(STORAGE_KEY, JSON.stringify(user));
-      else localStorage.removeItem(STORAGE_KEY);
-    }
-    set({ user });
-  },
+  setUser: (user) => set({ user }),
   setReady: (ready) => set({ ready }),
   logout: () => {
-    if (typeof window !== "undefined") localStorage.removeItem(STORAGE_KEY);
+    void supabase.auth.signOut();
     set({ user: null });
   },
 }));
 
-export function initAuthListener() {
-  if (typeof window === "undefined") return;
-  let u = loadFromStorage();
-  if (!u) {
-    u = DEFAULT_USER;
-    try {
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(u));
-    } catch {}
+async function hydrate(supaUser: User | null) {
+  if (!supaUser) {
+    useAuth.setState({ user: null, ready: true });
+    return;
   }
-  useAuth.setState({ user: u, ready: true });
+  // Look up admin role; everyone else is treated as employee in this UI.
+  let role: ShopRole = "employee";
+  try {
+    const { data } = await supabase
+      .from("user_roles")
+      .select("role")
+      .eq("user_id", supaUser.id);
+    if (data?.some((r) => r.role === "admin")) role = "admin";
+  } catch {}
+  const name =
+    (supaUser.user_metadata?.display_name as string | undefined) ||
+    supaUser.email?.split("@")[0] ||
+    "User";
+  useAuth.setState({
+    user: { id: supaUser.id, name, role },
+    ready: true,
+  });
+}
+
+let listenerInited = false;
+export function initAuthListener() {
+  if (typeof window === "undefined" || listenerInited) return;
+  listenerInited = true;
+  // Listener FIRST so we don't miss the initial event.
+  supabase.auth.onAuthStateChange((_event, session) => {
+    void hydrate(session?.user ?? null);
+  });
+  supabase.auth.getSession().then(({ data }) => {
+    void hydrate(data.session?.user ?? null);
+  });
 }
 
 export async function ensureDeviceSession() {

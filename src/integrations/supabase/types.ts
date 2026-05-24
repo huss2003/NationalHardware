@@ -1269,8 +1269,6 @@ export type Database = {
         }
         Returns: boolean
       }
-      show_limit: { Args: never; Returns: number }
-      show_trgm: { Args: { "": string }; Returns: string[] }
       soft_delete_invoice: {
         Args: { _actor_user_id: string; _reason: string; _sale_id: string }
         Returns: undefined
