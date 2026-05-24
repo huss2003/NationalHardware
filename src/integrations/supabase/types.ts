@@ -1301,7 +1301,7 @@ export type Database = {
         | "returned"
         | "reserved"
       payment_mode: "cash" | "credit" | "upi" | "card"
-      product_category: "plywood" | "hardware" | "door" | "other"
+      product_category: "plywood" | "hardware" | "door" | "other" | "mica"
       production_status: "open" | "in_progress" | "completed" | "cancelled"
       user_role: "admin" | "billing" | "store" | "production"
     }
@@ -1452,7 +1452,7 @@ export const Constants = {
         "reserved",
       ],
       payment_mode: ["cash", "credit", "upi", "card"],
-      product_category: ["plywood", "hardware", "door", "other"],
+      product_category: ["plywood", "hardware", "door", "other", "mica"],
       production_status: ["open", "in_progress", "completed", "cancelled"],
       user_role: ["admin", "billing", "store", "production"],
     },
