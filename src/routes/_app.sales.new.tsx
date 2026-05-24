@@ -14,7 +14,6 @@ import { useUiConfig } from "@/lib/ui-config";
 // jspdf + jspdf-autotable (~250KB) loaded only when finalize() actually runs.
 import { ScanWarning, type ScanWarningKind } from "@/components/erp/ScanWarning";
 import { QuickCreatePartyDialog } from "@/components/erp/QuickCreatePartyDialog";
-import { SubCategoryPicker, ItemBySubCategoryPicker, type SubCategory } from "@/components/erp/SubCategoryPicker";
 
 export const Route = createFileRoute("/_app/sales/new")({ component: NewSale });
 
@@ -30,6 +29,7 @@ type ProductRow = {
   id: string; name: string; prefix: string; hsn: string | null;
   default_price: number; gst_rate: number; unit: string;
   alt_unit: string | null; alt_conversion: number | null;
+  subcategory_id: string | null;
 };
 
 function NewSale() {
@@ -50,7 +50,8 @@ function NewSale() {
   const [busy, setBusy] = useState(false);
   const [createCustomerOpen, setCreateCustomerOpen] = useState(false);
   const [products, setProducts] = useState<ProductRow[]>([]);
-  const [pickerSub, setPickerSub] = useState<SubCategory | null>(null);
+  const [subcats, setSubcats] = useState<{ id: string; name: string; category: string }[]>([]);
+  const [draftSub, setDraftSub] = useState<{ id: string; name: string; category: string } | null>(null);
   const [draftQuery, setDraftQuery] = useState("");
   const [draftFocused, setDraftFocused] = useState(false);
   const [activeSuggest, setActiveSuggest] = useState(0);
@@ -126,7 +127,7 @@ function NewSale() {
     supabase.from("godowns").select("id, name").eq("active", true).order("name")
       .then(({ data }) => setGodowns((data ?? []) as any));
     supabase.from("products")
-      .select("id,name,prefix,hsn,default_price,gst_rate,unit,alt_unit,alt_conversion")
+      .select("id,name,prefix,hsn,default_price,gst_rate,unit,alt_unit,alt_conversion,subcategory_id")
       .eq("active", true)
       .order("name")
       .then(({ data }) => {
@@ -134,6 +135,11 @@ function NewSale() {
         setProducts(rows);
         setKnownPrefixes(Array.from(new Set(rows.map(p => p.prefix).filter(Boolean))));
       });
+    supabase.from("product_subcategories")
+      .select("id,name,category")
+      .eq("active", true)
+      .order("name")
+      .then(({ data }) => setSubcats((data ?? []) as any));
   }, []);
   useEffect(() => {
     const c = customers.find((x) => x.id === customerId);
@@ -150,16 +156,19 @@ function NewSale() {
     return () => window.removeEventListener("keydown", h);
   }, []);
 
-  const draftSuggestions = useMemo(() => {
+  // Stage A: when no sub picked → suggest sub-categories. Stage B: suggest items in chosen sub.
+  const draftSuggestions = useMemo<any[]>(() => {
     const q = draftQuery.trim().toLowerCase();
-    if (!q) return [];
-    return products
-      .filter(p =>
-        p.name.toLowerCase().includes(q) ||
-        p.prefix.toLowerCase().includes(q)
-      )
-      .slice(0, 8);
-  }, [products, draftQuery]);
+    if (!draftSub) {
+      if (!q) return subcats.slice(0, 8);
+      return subcats.filter((s) => s.name.toLowerCase().includes(q)).slice(0, 8);
+    }
+    const pool = products.filter((p) => p.subcategory_id === draftSub.id);
+    if (!q) return pool.slice(0, 10);
+    return pool.filter((p) =>
+      p.name.toLowerCase().includes(q) || p.prefix.toLowerCase().includes(q),
+    ).slice(0, 10);
+  }, [products, subcats, draftSub, draftQuery]);
 
   const looksLikeCode = (s: string) => /-/.test(s) && /^[A-Za-z0-9-]+$/.test(s);
 
@@ -244,12 +253,24 @@ function NewSale() {
     setTimeout(() => draftRef.current?.focus(), 0);
   };
 
+  const pickDraftSub = (s: any) => {
+    setDraftSub(s); setDraftQuery(""); setActiveSuggest(0);
+    setTimeout(() => draftRef.current?.focus(), 0);
+  };
+
   const handleDraftCommit = () => {
     const s = draftQuery.trim();
-    if (!s) return;
-    if (looksLikeCode(s)) { onScan(s); setDraftQuery(""); return; }
-    if (draftSuggestions.length > 0) addProductLine(draftSuggestions[activeSuggest] ?? draftSuggestions[0], 1);
-    else toast.error("No matching product");
+    if (s && looksLikeCode(s)) { onScan(s); setDraftQuery(""); return; }
+    const pick = draftSuggestions[activeSuggest] ?? draftSuggestions[0];
+    if (!pick) { toast.error(draftSub ? "No matching item" : "No matching sub-category"); return; }
+    if (!draftSub) pickDraftSub(pick);
+    else addProductLine(pick as ProductRow, 1);
+  };
+
+  // reset draft sub when a line is added
+  const addAndReset = (p: ProductRow) => {
+    addProductLine(p, 1);
+    setDraftSub(null);
   };
 
   const rm = (i: number) => setLines(lines.filter((_, idx) => idx !== i));
@@ -460,30 +481,6 @@ function NewSale() {
           </div>
         )}
 
-        {/* Sub-category → Item picker */}
-        <div className="bg-white border border-[#e8ecf1] rounded-lg px-3 py-3 shadow-sm grid grid-cols-1 md:grid-cols-2 gap-3">
-          <div>
-            <label className="text-[10px] uppercase tracking-wider text-[#94a3b8] font-bold block mb-1">
-              Sub-category
-            </label>
-            <SubCategoryPicker
-              value={pickerSub}
-              onChange={setPickerSub}
-              allowCreate={false}
-              placeholder="Type sub-category (18MM 8*4 LC)…"
-            />
-          </div>
-          <div>
-            <label className="text-[10px] uppercase tracking-wider text-[#94a3b8] font-bold block mb-1">
-              Item
-            </label>
-            <ItemBySubCategoryPicker
-              subcategoryId={pickerSub?.id ?? null}
-              onPick={(p) => addProductLine(p as any, 1)}
-            />
-          </div>
-        </div>
-
         {/* Hidden auto-focus scanner (catches wedge input anywhere on page) */}
         <div className="sr-only">
           <ScanInput onScan={onScan} invalid={!!warn} />
@@ -619,7 +616,9 @@ function NewSale() {
                       onBlur={() => setTimeout(() => setDraftFocused(false), 150)}
                       onKeyDown={(e) => {
                         if (e.key === "Enter" || e.key === "Tab") {
-                          if (draftQuery.trim()) { e.preventDefault(); handleDraftCommit(); }
+                          if (draftQuery.trim() || draftSuggestions.length > 0) {
+                            e.preventDefault(); handleDraftCommit();
+                          }
                         } else if (e.key === "ArrowDown") {
                           e.preventDefault();
                           setActiveSuggest((n) => Math.min(n + 1, draftSuggestions.length - 1));
@@ -627,13 +626,21 @@ function NewSale() {
                           e.preventDefault();
                           setActiveSuggest((n) => Math.max(0, n - 1));
                         } else if (e.key === "Escape") {
-                          setDraftQuery("");
+                          setDraftQuery(""); setDraftSub(null);
+                        } else if (e.key === "Backspace" && !draftQuery && draftSub) {
+                          e.preventDefault(); setDraftSub(null);
                         }
                       }}
-                      placeholder="Scan barcode or type product name…"
+                      placeholder={draftSub ? `Pick item in ${draftSub.name}…` : "Scan barcode or type sub-category…"}
                       className="w-full h-full px-2 py-1.5 bg-transparent focus:outline-none focus:bg-white focus:ring-2 focus:ring-inset focus:ring-[#3b82f6] placeholder:text-slate-400 font-sans"
                       aria-label="Add new line"
                     />
+                    {draftSub && (
+                      <div className="absolute left-1.5 top-0.5 flex items-center gap-1 text-[10px] font-bold uppercase bg-[#3b82f6]/10 text-[#3b82f6] px-1.5 py-0.5 rounded">
+                        {draftSub.name}
+                        <button type="button" className="ml-0.5 hover:text-red-500" onMouseDown={(e) => { e.preventDefault(); setDraftSub(null); }}>×</button>
+                      </div>
+                    )}
                     {draftFocused && draftSuggestions.length > 0 && (
                       <div
                         className="fixed bg-white border border-slate-300 rounded-md shadow-2xl z-50 overflow-auto font-sans"
@@ -645,11 +652,21 @@ function NewSale() {
                           maxHeight: draftRect?.maxHeight ?? 320,
                         }}
                       >
-                        {draftSuggestions.map((p, idx) => (
+                        <div className="px-3 py-1.5 text-[10px] font-bold uppercase tracking-wider text-slate-500 bg-slate-50 border-b border-slate-200 flex items-center justify-between">
+                          <span>{draftSub ? `Items in ${draftSub.name}` : "Sub-categories"}</span>
+                          {draftSub && (
+                            <button type="button" onMouseDown={(e) => { e.preventDefault(); setDraftSub(null); }} className="text-[#3b82f6] hover:underline normal-case font-semibold">← back</button>
+                          )}
+                        </div>
+                        {draftSuggestions.map((p: any, idx: number) => (
                           <button
                             key={p.id}
                             type="button"
-                            onMouseDown={(e) => { e.preventDefault(); addProductLine(p, 1); }}
+                            onMouseDown={(e) => {
+                              e.preventDefault();
+                              if (!draftSub) pickDraftSub(p);
+                              else addAndReset(p as ProductRow);
+                            }}
                             className={`w-full text-left px-3 py-2 border-b border-slate-100 last:border-0 flex items-center justify-between gap-2 ${
                               idx === activeSuggest ? "bg-[#3b82f6]/10" : "hover:bg-slate-50"
                             }`}
@@ -657,12 +674,16 @@ function NewSale() {
                             <div className="min-w-0">
                               <div className="text-sm font-semibold text-slate-800 truncate">{p.name}</div>
                               <div className="text-[11px] text-slate-500">
-                                {p.prefix} · {p.gst_rate}% GST · {p.unit}{p.alt_unit ? ` / ${p.alt_unit}` : ""}
+                                {draftSub
+                                  ? `${p.prefix} · ${p.gst_rate}% GST · ${p.unit}${p.alt_unit ? ` / ${p.alt_unit}` : ""}`
+                                  : <span className="uppercase">{p.category}</span>}
                               </div>
                             </div>
-                            <div className="text-sm font-bold tabular-nums text-[#3b82f6] shrink-0">
-                              {inr(Number(p.default_price))}
-                            </div>
+                            {draftSub && (
+                              <div className="text-sm font-bold tabular-nums text-[#3b82f6] shrink-0">
+                                {inr(Number(p.default_price))}
+                              </div>
+                            )}
                           </button>
                         ))}
                       </div>

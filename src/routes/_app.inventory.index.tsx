@@ -8,7 +8,7 @@ import { PageHeader } from "@/components/erp/PageHeader";
 import {
   Plus, Package, Search, SlidersHorizontal,
   ArrowDownToLine, ArrowUpFromLine, History,
-  ArrowUp, ArrowDown, ChevronsUpDown,
+  ArrowUp, ArrowDown, ChevronsUpDown, ChevronRight, ChevronDown,
 } from "lucide-react";
 import { useNavigate } from "@tanstack/react-router";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
@@ -26,6 +26,8 @@ export const Route = createFileRoute("/_app/inventory/")({ component: Inventory 
 
 function Inventory() {
   const [products, setProducts] = useState<any[]>([]);
+  const [subcats, setSubcats] = useState<any[]>([]);
+  const [expanded, setExpanded] = useState<Set<string>>(new Set());
   const [counts, setCounts] = useState<Record<string, number>>({});
   const [loading, setLoading] = useState(true);
   const [q, setQ] = useState("");
@@ -42,15 +44,17 @@ function Inventory() {
 
   const load = async () => {
     setLoading(true);
-    const [prodsRes, stockRes] = await Promise.all([
+    const [prodsRes, stockRes, subRes] = await Promise.all([
       supabase.from("products").select("*").eq("active", true).order("name"),
       supabase.rpc("stock_by_product"),
+      supabase.from("product_subcategories").select("*").eq("active", true).order("category").order("name"),
     ]);
     const c: Record<string, number> = {};
     (stockRes.data ?? []).forEach((r: any) => {
       c[r.product_id] = Number(r.available_qty) || 0;
     });
     setProducts(prodsRes.data ?? []);
+    setSubcats(subRes.data ?? []);
     setCounts(c);
     setLoading(false);
   };
@@ -101,6 +105,33 @@ function Inventory() {
   const toggleSort = (key: SortKey) => {
     if (sortKey === key) setSortDir(sortDir === "asc" ? "desc" : "asc");
     else { setSortKey(key); setSortDir("asc"); }
+  };
+
+  // Group sorted products by sub-category. "Uncategorized" bucket for null.
+  const grouped = useMemo(() => {
+    const subMap = new Map<string, any>(subcats.map((s) => [s.id, s]));
+    const buckets = new Map<string, { id: string; name: string; category: string; items: any[] }>();
+    for (const p of sorted) {
+      const sid = p.subcategory_id ?? "__uncat__";
+      if (!buckets.has(sid)) {
+        const meta = sid === "__uncat__"
+          ? { id: "__uncat__", name: "Uncategorized", category: "—" }
+          : { id: sid, name: subMap.get(sid)?.name ?? "Unknown sub-category", category: subMap.get(sid)?.category ?? "—" };
+        buckets.set(sid, { ...meta, items: [] });
+      }
+      buckets.get(sid)!.items.push(p);
+    }
+    return Array.from(buckets.values()).sort((a, b) =>
+      a.id === "__uncat__" ? 1 : b.id === "__uncat__" ? -1 :
+      (a.category + a.name).localeCompare(b.category + b.name),
+    );
+  }, [sorted, subcats]);
+
+  const searching = q.trim().length > 0 || category !== "all" || stockStatus !== "all";
+  const toggleGroup = (id: string) => {
+    const s = new Set(expanded);
+    s.has(id) ? s.delete(id) : s.add(id);
+    setExpanded(s);
   };
 
   const openHistory = async (p: any) => {
@@ -212,7 +243,31 @@ function Inventory() {
                   </TableCell>
                 </TableRow>
               )}
-              {!loading && sorted.map((p) => {
+              {!loading && grouped.flatMap((g) => {
+                const isOpen = expanded.has(g.id) || searching;
+                const totalStock = g.items.reduce((a, p) => a + (counts[p.id] ?? 0), 0);
+                const header = (
+                  <TableRow
+                    key={`grp-${g.id}`}
+                    className="bg-muted/40 hover:bg-muted/60 cursor-pointer"
+                    onClick={() => toggleGroup(g.id)}
+                  >
+                    <TableCell colSpan={7} className="py-2.5 pl-4">
+                      <div className="flex items-center gap-2">
+                        {isOpen ? <ChevronDown className="h-4 w-4 text-muted-foreground" /> : <ChevronRight className="h-4 w-4 text-muted-foreground" />}
+                        {g.category !== "—" && (
+                          <Badge variant="outline" className="capitalize text-[10px] font-semibold">{g.category}</Badge>
+                        )}
+                        <span className="font-semibold text-foreground">{g.name}</span>
+                        <span className="text-xs text-muted-foreground ml-1">
+                          {g.items.length} item{g.items.length === 1 ? "" : "s"} · {totalStock} in stock
+                        </span>
+                      </div>
+                    </TableCell>
+                  </TableRow>
+                );
+                if (!isOpen) return [header];
+                const rows = g.items.map((p) => {
                 const count = counts[p.id] ?? 0;
                 const cap = Math.max(count, p.reorder_level * 4, 50);
                 const pct = Math.min(100, Math.round((count / cap) * 100));
@@ -325,8 +380,10 @@ function Inventory() {
                     </TableCell>
                   </TableRow>
                 );
+                });
+                return [header, ...rows];
               })}
-              {!loading && sorted.length === 0 && (
+              {!loading && grouped.length === 0 && (
                 <TableRow>
                   <TableCell colSpan={7} className="text-center py-12 text-muted-foreground">
                     No products match these filters.
