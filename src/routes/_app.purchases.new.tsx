@@ -23,6 +23,7 @@ type Line = {
   qty: number;
   rate: number;
   gst_rate: number;
+  godown_id: string | null;
 };
 
 function NewPurchase() {
@@ -121,6 +122,7 @@ function NewPurchase() {
         qty: 1,
         rate: Number(p.default_cost),
         gst_rate: Number(p.gst_rate),
+        godown_id: stockGodownId || null,
       },
     ]);
   };
@@ -200,11 +202,11 @@ function NewPurchase() {
           _actor_user_id: user?.id ?? "",
         });
         if (mErr) throw mErr;
-        if (stockGodownId) {
-          // Assign freshly minted units to the chosen godown
+        if (l.godown_id) {
+          // Assign freshly minted units to the line's chosen godown
           await supabase
             .from("item_instances")
-            .update({ godown_id: stockGodownId, updated_at: new Date().toISOString() })
+            .update({ godown_id: l.godown_id, updated_at: new Date().toISOString() })
             .eq("source_purchase_item_id", pi.id)
             .is("godown_id", null);
         }
@@ -418,6 +420,7 @@ function NewPurchase() {
                         {billType === "gst" && (
                           <th className="text-left font-medium py-2 px-3 w-20">GST</th>
                         )}
+                        <th className="text-left font-medium py-2 px-3 w-40">Stock into</th>
                         <th className="text-right font-medium py-2 px-3 w-28">Total</th>
                         <th className="w-8"></th>
                       </tr>
@@ -482,6 +485,18 @@ function NewPurchase() {
                               </select>
                             </td>
                           )}
+                          <td className="py-3 px-3">
+                            <select
+                              className="h-8 w-full rounded-md border border-input bg-background px-2 text-sm"
+                              value={l.godown_id ?? ""}
+                              onChange={(e) => upd(i, { godown_id: e.target.value || null })}
+                            >
+                              <option value="">Shop floor</option>
+                              {godowns.map((g) => (
+                                <option key={g.id} value={g.id}>{g.name}</option>
+                              ))}
+                            </select>
+                          </td>
                           <td className="py-3 px-3 text-right font-semibold tabular-nums">
                             {inr(l.qty * l.rate)}
                           </td>

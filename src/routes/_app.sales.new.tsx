@@ -22,6 +22,7 @@ type Line = {
   qty: number; rate: number; gst_rate: number; hsn?: string | null;
   unit?: string | null; alt_unit?: string | null; alt_conversion?: number | null;
   is_lot?: boolean; max_qty?: number;
+  source_godown_id?: string | null;
 };
 
 type ProductRow = {
@@ -223,6 +224,7 @@ function NewSale() {
       alt_unit: (item.products as any).alt_unit ?? null,
       alt_conversion: (item.products as any).alt_conversion ?? null,
       is_lot: isLot, max_qty: maxQty,
+      source_godown_id: (item as any).godown_id ?? null,
     }]);
     toast.success(`Added ${item.id}`);
   };
@@ -233,6 +235,7 @@ function NewSale() {
       qty, rate: Number(p.default_price), gst_rate: 0,
       hsn: p.hsn, unit: p.unit ?? 'pcs', alt_unit: p.alt_unit, alt_conversion: p.alt_conversion,
       is_lot: true, max_qty: undefined,
+      source_godown_id: sourceGodownId || null,
     }]);
     setDraftQuery(""); setActiveSuggest(0);
     // refocus the draft row so user can keep typing next line (Sheets-like)
@@ -471,6 +474,7 @@ function NewSale() {
                 <col style={{ width: 110 }} />
                 <col style={{ width: 110 }} />
                 {f.gst_rate.visible && <col style={{ width: 70 }} />}
+                <col style={{ width: 130 }} />
                 <col style={{ width: 120 }} />
                 <col style={{ width: 36 }} />
               </colgroup>
@@ -482,6 +486,7 @@ function NewSale() {
                   <th className="border border-slate-300 px-2 py-1.5 text-left font-semibold">Alt Unit</th>
                   <th className="border border-slate-300 px-2 py-1.5 text-right font-semibold">Rate</th>
                   {f.gst_rate.visible && <th className="border border-slate-300 px-2 py-1.5 text-right font-semibold">GST%</th>}
+                  <th className="border border-slate-300 px-2 py-1.5 text-left font-semibold">Source</th>
                   <th className="border border-slate-300 px-2 py-1.5 text-right font-semibold">Amount</th>
                   <th className="border border-slate-300 px-1 py-1.5"></th>
                 </tr>
@@ -538,6 +543,25 @@ function NewSale() {
                         />
                       </td>
                     )}
+                    <td className="border border-slate-300 px-0 py-0">
+                      {l.item_instance_id ? (
+                        <div className="px-2 py-1.5 text-[11px] text-slate-600 font-sans truncate">
+                          {godowns.find((g) => g.id === l.source_godown_id)?.name ?? "Shop"}
+                        </div>
+                      ) : (
+                        <select
+                          value={l.source_godown_id ?? ""}
+                          onChange={(e) => upd(i, { source_godown_id: e.target.value || null })}
+                          className="w-full h-full px-1 py-1.5 text-[12px] bg-transparent focus:outline-none focus:bg-blue-50 focus:ring-2 focus:ring-inset focus:ring-[#3b82f6] font-sans"
+                          aria-label={`Source for ${l.name}`}
+                        >
+                          <option value="">Shop</option>
+                          {godowns.map((g) => (
+                            <option key={g.id} value={g.id}>{g.name}</option>
+                          ))}
+                        </select>
+                      )}
+                    </td>
                     <td className="border border-slate-300 px-2 py-1.5 text-right font-semibold text-slate-800 bg-slate-50/60">
                       {inr(l.qty * l.rate)}
                     </td>
@@ -623,6 +647,7 @@ function NewSale() {
                   <td className="border border-slate-300 px-2 py-1.5 text-slate-300">—</td>
                   <td className="border border-slate-300 px-2 py-1.5 text-right text-slate-300">0.00</td>
                   {f.gst_rate.visible && <td className="border border-slate-300 px-2 py-1.5 text-right text-slate-300">0</td>}
+                  <td className="border border-slate-300 px-2 py-1.5 text-[11px] text-slate-300 font-sans">—</td>
                   <td className="border border-slate-300 px-2 py-1.5 text-right text-slate-300">0.00</td>
                   <td className="border border-slate-300 px-1 py-1.5 text-center">
                     <Plus className="h-3.5 w-3.5 text-slate-400 mx-auto" />
@@ -641,6 +666,7 @@ function NewSale() {
                     <td className="border border-slate-300 px-2 py-1.5"></td>
                     <td className="border border-slate-300 px-2 py-1.5"></td>
                     {f.gst_rate.visible && <td className="border border-slate-300 px-2 py-1.5"></td>}
+                    <td className="border border-slate-300 px-2 py-1.5"></td>
                     <td className="border border-slate-300 px-2 py-1.5"></td>
                     <td className="border border-slate-300 px-1 py-1.5"></td>
                   </tr>

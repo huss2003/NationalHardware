@@ -15,7 +15,7 @@ import {
 import { inr } from "@/lib/codes";
 import { toast } from "sonner";
 import {
-  Plus, Warehouse, Boxes, MapPin, Building2, Package,
+  Plus, Warehouse, Boxes, Package,
 } from "lucide-react";
 import { ArrowDownToLine, ArrowUpFromLine } from "lucide-react";
 import { GodownStockInDialog } from "@/components/erp/GodownStockInDialog";
@@ -141,63 +141,28 @@ function Godowns() {
             label="Stock Value" value={inr(totals.totalValue)} hint="Across all godowns" />
         </div>
 
-        {/* Godown cards */}
-        <div>
-          <h2 className="text-lg font-semibold tracking-tight mb-3">Locations</h2>
-          {loading && godowns.length === 0 ? (
-            <div className="grid gap-4 grid-cols-1 md:grid-cols-2 lg:grid-cols-3">
-              {[0,1,2].map((i) => (
-                <Card key={i} className="p-5 h-32 animate-pulse" />
-              ))}
-            </div>
-          ) : (
-            <div className="grid gap-4 grid-cols-1 md:grid-cols-2 lg:grid-cols-3">
-              <GodownTile
-                name="All Locations" code="ALL"
-                active={selectedId === "all"}
-                count={instances.length}
-                value={totals.totalValue}
-                onClick={() => setSelectedId("all")}
-              />
+        {/* Stock table */}
+        <Card className="overflow-hidden">
+          <div className="flex flex-wrap items-center justify-between gap-3 px-5 pt-5 pb-3">
+            <h2 className="text-lg font-semibold tracking-tight">Stock by location</h2>
+            <select
+              className="h-9 rounded-md border border-input bg-background px-3 text-sm font-medium min-w-[220px]"
+              value={selectedId}
+              onChange={(e) => setSelectedId(e.target.value)}
+            >
+              <option value="all">All Locations ({instances.length})</option>
               {godowns.map((g) => {
                 const stats = byGodown.get(g.id) ?? { count: 0, value: 0 };
                 return (
-                  <GodownTile
-                    key={g.id}
-                    name={g.name} code={g.code ?? "—"}
-                    manager={g.manager_name ?? undefined}
-                    address={g.address ?? undefined}
-                    active={selectedId === g.id}
-                    count={stats.count}
-                    value={stats.value}
-                    onClick={() => setSelectedId(g.id)}
-                  />
+                  <option key={g.id} value={g.id}>
+                    {g.name} ({stats.count})
+                  </option>
                 );
               })}
               {(byGodown.get("_none")?.count ?? 0) > 0 && (
-                <GodownTile
-                  name="Unassigned" code="—"
-                  active={selectedId === "_none"}
-                  count={byGodown.get("_none")?.count ?? 0}
-                  value={byGodown.get("_none")?.value ?? 0}
-                  onClick={() => setSelectedId("_none")}
-                />
+                <option value="_none">Unassigned ({byGodown.get("_none")?.count ?? 0})</option>
               )}
-            </div>
-          )}
-        </div>
-
-        {/* Stock table */}
-        <Card className="overflow-hidden">
-          <div className="flex items-center justify-between px-5 pt-5 pb-3">
-            <h2 className="text-lg font-semibold tracking-tight">
-              Stock in{" "}
-              {selectedId === "all"
-                ? "All Locations"
-                : selectedId === "_none"
-                ? "Unassigned"
-                : godowns.find((g) => g.id === selectedId)?.name}
-            </h2>
+            </select>
           </div>
           <Table>
             <TableHeader>
@@ -257,57 +222,6 @@ function Godowns() {
         />
       )}
     </>
-  );
-}
-
-function GodownTile({
-  name, code, manager, address, active, count, value, onClick,
-}: {
-  name: string; code: string; manager?: string; address?: string;
-  active?: boolean; count: number; value: number; onClick: () => void;
-}) {
-  return (
-    <button
-      type="button"
-      onClick={onClick}
-      className={`text-left rounded-2xl border bg-card transition-all hover:shadow-sm ${
-        active
-          ? "border-primary ring-1 ring-primary/30 shadow-sm"
-          : "border-border/60"
-      }`}
-    >
-      <div className="p-5">
-        <div className="flex items-start justify-between mb-3">
-          <div className="h-9 w-9 rounded-lg bg-primary/10 text-primary grid place-items-center">
-            <Warehouse className="h-4 w-4" />
-          </div>
-          <span className="text-[11px] font-semibold tracking-wider uppercase text-muted-foreground">
-            {code}
-          </span>
-        </div>
-        <div className="text-base font-semibold text-foreground truncate">{name}</div>
-        {manager && (
-          <div className="text-xs text-muted-foreground mt-1 flex items-center gap-1">
-            <Building2 className="h-3 w-3" /> {manager}
-          </div>
-        )}
-        {address && (
-          <div className="text-xs text-muted-foreground mt-0.5 flex items-center gap-1 truncate">
-            <MapPin className="h-3 w-3 shrink-0" /> <span className="truncate">{address}</span>
-          </div>
-        )}
-        <div className="grid grid-cols-2 gap-3 mt-4 pt-4 border-t border-border/60">
-          <div>
-            <div className="text-[11px] text-muted-foreground uppercase tracking-wider">Units</div>
-            <div className="text-lg font-semibold tabular-nums">{count}</div>
-          </div>
-          <div>
-            <div className="text-[11px] text-muted-foreground uppercase tracking-wider">Value</div>
-            <div className="text-lg font-semibold tabular-nums">{inr(value)}</div>
-          </div>
-        </div>
-      </div>
-    </button>
   );
 }
 
