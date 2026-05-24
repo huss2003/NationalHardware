@@ -647,6 +647,7 @@ function NewSale() {
                   <td className="border border-slate-300 px-2 py-1.5 text-slate-300">—</td>
                   <td className="border border-slate-300 px-2 py-1.5 text-right text-slate-300">0.00</td>
                   {f.gst_rate.visible && <td className="border border-slate-300 px-2 py-1.5 text-right text-slate-300">0</td>}
+                  <td className="border border-slate-300 px-2 py-1.5 text-[11px] text-slate-300 font-sans">—</td>
                   <td className="border border-slate-300 px-2 py-1.5 text-right text-slate-300">0.00</td>
                   <td className="border border-slate-300 px-1 py-1.5 text-center">
                     <Plus className="h-3.5 w-3.5 text-slate-400 mx-auto" />
@@ -665,6 +666,7 @@ function NewSale() {
                     <td className="border border-slate-300 px-2 py-1.5"></td>
                     <td className="border border-slate-300 px-2 py-1.5"></td>
                     {f.gst_rate.visible && <td className="border border-slate-300 px-2 py-1.5"></td>}
+                    <td className="border border-slate-300 px-2 py-1.5"></td>
                     <td className="border border-slate-300 px-2 py-1.5"></td>
                     <td className="border border-slate-300 px-1 py-1.5"></td>
                   </tr>
