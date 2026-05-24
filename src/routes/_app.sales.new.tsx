@@ -22,6 +22,7 @@ type Line = {
   qty: number; rate: number; gst_rate: number; hsn?: string | null;
   unit?: string | null; alt_unit?: string | null; alt_conversion?: number | null;
   is_lot?: boolean; max_qty?: number;
+  source_godown_id?: string | null;
 };
 
 type ProductRow = {
@@ -223,6 +224,7 @@ function NewSale() {
       alt_unit: (item.products as any).alt_unit ?? null,
       alt_conversion: (item.products as any).alt_conversion ?? null,
       is_lot: isLot, max_qty: maxQty,
+      source_godown_id: (item as any).godown_id ?? null,
     }]);
     toast.success(`Added ${item.id}`);
   };
@@ -233,6 +235,7 @@ function NewSale() {
       qty, rate: Number(p.default_price), gst_rate: 0,
       hsn: p.hsn, unit: p.unit ?? 'pcs', alt_unit: p.alt_unit, alt_conversion: p.alt_conversion,
       is_lot: true, max_qty: undefined,
+      source_godown_id: sourceGodownId || null,
     }]);
     setDraftQuery(""); setActiveSuggest(0);
     // refocus the draft row so user can keep typing next line (Sheets-like)
