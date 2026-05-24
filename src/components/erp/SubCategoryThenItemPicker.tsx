@@ -3,6 +3,7 @@ import { Input } from "@/components/ui/input";
 import { supabase } from "@/integrations/supabase/client";
 import { ChevronLeft, Layers, Plus } from "lucide-react";
 import { toast } from "sonner";
+import { NewProductDialog } from "@/components/erp/NewProductDialog";
 
 /**
  * Two-stage typeahead: first suggests sub-categories, then suggests items
@@ -27,6 +28,8 @@ export function SubCategoryThenItemPicker({
   const [focus, setFocus] = useState(false);
   const [active, setActive] = useState(0);
   const [creating, setCreating] = useState(false);
+  const [createOpen, setCreateOpen] = useState(false);
+  const [subFull, setSubFull] = useState<any | null>(null);
   const boxRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
 
@@ -38,6 +41,18 @@ export function SubCategoryThenItemPicker({
       .order("name")
       .then(({ data }) => setSubs(data ?? []));
   }, []);
+
+  // Fetch the full sub-category row (with dimension_label & default prices)
+  // whenever a sub is selected, so we can pass it to NewProductDialog.
+  useEffect(() => {
+    if (!sub) { setSubFull(null); return; }
+    supabase
+      .from("product_subcategories")
+      .select("id,name,category,dimension_label,default_price_per_pc,default_price_per_sqft")
+      .eq("id", sub.id)
+      .maybeSingle()
+      .then(({ data }) => setSubFull(data ?? sub));
+  }, [sub]);
 
   useEffect(() => {
     if (!sub) { setItems([]); return; }
@@ -99,46 +114,17 @@ export function SubCategoryThenItemPicker({
     if (!sub) return;
     const name = query.trim();
     if (!name) return toast.error("Type an item name first");
-    setCreating(true);
-    try {
-      const { data: subFull } = await supabase
-        .from("product_subcategories")
-        .select("default_price_per_pc,default_price_per_sqft,category")
-        .eq("id", sub.id)
-        .maybeSingle();
-      const cat = (subFull?.category ?? sub.category) as string;
-      const prefix =
-        cat === "plywood" ? "PLY" :
-        cat === "hardware" ? "HDR" :
-        cat === "door" ? "DOR" :
-        cat === "mica" ? "MIC" : "OTH";
-      const unit = cat === "plywood" || cat === "door" ? "sheet" : "pcs";
-      const price = Number(subFull?.default_price_per_pc ?? subFull?.default_price_per_sqft ?? 0);
-      const { data: prod, error } = await supabase
-        .from("products")
-        .insert({
-          name,
-          category: cat as any,
-          prefix,
-          unit,
-          default_cost: price,
-          default_price: price,
-          gst_rate: 18,
-          reorder_level: 5,
-          subcategory_id: sub.id,
-        } as any)
-        .select()
-        .single();
-      if (error) throw error;
-      toast.success(`Item "${name}" created`);
+    setFocus(false);
+    setCreateOpen(true);
+  };
+
+  const handleCreated = (prod?: any) => {
+    setCreateOpen(false);
+    if (prod) {
       setItems((prev) => [...prev, prod].sort((a, b) => a.name.localeCompare(b.name)));
       onPickItem(prod);
       reset();
       setTimeout(() => inputRef.current?.focus(), 0);
-    } catch (e: any) {
-      toast.error(e.message ?? "Failed to create item");
-    } finally {
-      setCreating(false);
     }
   };
 
@@ -177,7 +163,7 @@ export function SubCategoryThenItemPicker({
           <button
             type="button"
             onClick={quickCreateItem}
-            disabled={creating || !query.trim() || !!exactItemMatch}
+            disabled={creating || !!exactItemMatch}
             className="shrink-0 inline-flex items-center gap-1 text-xs font-semibold px-2 py-1 rounded bg-primary text-primary-foreground disabled:opacity-40 disabled:cursor-not-allowed hover:opacity-90"
             title="Add this as a new item in this sub-category"
           >
@@ -185,6 +171,20 @@ export function SubCategoryThenItemPicker({
           </button>
         )}
       </div>
+      {sub && (
+        <NewProductDialog
+          open={createOpen}
+          onOpenChange={setCreateOpen}
+          trigger={null}
+          onCreated={handleCreated}
+          defaults={{
+            category: (subFull?.category ?? sub.category) as any,
+            subcategory: (subFull ?? sub) as any,
+            size: subFull?.dimension_label ?? sub.name,
+            name: query.trim(),
+          }}
+        />
+      )}
       {focus && suggestions.length > 0 && (
         <div className="absolute z-30 mt-1 w-full bg-popover border border-border/60 rounded-lg shadow-lg max-h-72 overflow-auto">
           {!sub && (
