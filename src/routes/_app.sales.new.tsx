@@ -14,7 +14,6 @@ import { useUiConfig } from "@/lib/ui-config";
 // jspdf + jspdf-autotable (~250KB) loaded only when finalize() actually runs.
 import { ScanWarning, type ScanWarningKind } from "@/components/erp/ScanWarning";
 import { QuickCreatePartyDialog } from "@/components/erp/QuickCreatePartyDialog";
-import { SubCategoryPicker, ItemBySubCategoryPicker, type SubCategory } from "@/components/erp/SubCategoryPicker";
 
 export const Route = createFileRoute("/_app/sales/new")({ component: NewSale });
 
@@ -30,6 +29,7 @@ type ProductRow = {
   id: string; name: string; prefix: string; hsn: string | null;
   default_price: number; gst_rate: number; unit: string;
   alt_unit: string | null; alt_conversion: number | null;
+  subcategory_id: string | null;
 };
 
 function NewSale() {
@@ -50,7 +50,8 @@ function NewSale() {
   const [busy, setBusy] = useState(false);
   const [createCustomerOpen, setCreateCustomerOpen] = useState(false);
   const [products, setProducts] = useState<ProductRow[]>([]);
-  const [pickerSub, setPickerSub] = useState<SubCategory | null>(null);
+  const [subcats, setSubcats] = useState<{ id: string; name: string; category: string }[]>([]);
+  const [draftSub, setDraftSub] = useState<{ id: string; name: string; category: string } | null>(null);
   const [draftQuery, setDraftQuery] = useState("");
   const [draftFocused, setDraftFocused] = useState(false);
   const [activeSuggest, setActiveSuggest] = useState(0);
@@ -126,7 +127,7 @@ function NewSale() {
     supabase.from("godowns").select("id, name").eq("active", true).order("name")
       .then(({ data }) => setGodowns((data ?? []) as any));
     supabase.from("products")
-      .select("id,name,prefix,hsn,default_price,gst_rate,unit,alt_unit,alt_conversion")
+      .select("id,name,prefix,hsn,default_price,gst_rate,unit,alt_unit,alt_conversion,subcategory_id")
       .eq("active", true)
       .order("name")
       .then(({ data }) => {
@@ -134,6 +135,11 @@ function NewSale() {
         setProducts(rows);
         setKnownPrefixes(Array.from(new Set(rows.map(p => p.prefix).filter(Boolean))));
       });
+    supabase.from("product_subcategories")
+      .select("id,name,category")
+      .eq("active", true)
+      .order("name")
+      .then(({ data }) => setSubcats((data ?? []) as any));
   }, []);
   useEffect(() => {
     const c = customers.find((x) => x.id === customerId);
@@ -150,16 +156,19 @@ function NewSale() {
     return () => window.removeEventListener("keydown", h);
   }, []);
 
-  const draftSuggestions = useMemo(() => {
+  // Stage A: when no sub picked → suggest sub-categories. Stage B: suggest items in chosen sub.
+  const draftSuggestions = useMemo<any[]>(() => {
     const q = draftQuery.trim().toLowerCase();
-    if (!q) return [];
-    return products
-      .filter(p =>
-        p.name.toLowerCase().includes(q) ||
-        p.prefix.toLowerCase().includes(q)
-      )
-      .slice(0, 8);
-  }, [products, draftQuery]);
+    if (!draftSub) {
+      if (!q) return subcats.slice(0, 8);
+      return subcats.filter((s) => s.name.toLowerCase().includes(q)).slice(0, 8);
+    }
+    const pool = products.filter((p) => p.subcategory_id === draftSub.id);
+    if (!q) return pool.slice(0, 10);
+    return pool.filter((p) =>
+      p.name.toLowerCase().includes(q) || p.prefix.toLowerCase().includes(q),
+    ).slice(0, 10);
+  }, [products, subcats, draftSub, draftQuery]);
 
   const looksLikeCode = (s: string) => /-/.test(s) && /^[A-Za-z0-9-]+$/.test(s);
 
@@ -244,12 +253,24 @@ function NewSale() {
     setTimeout(() => draftRef.current?.focus(), 0);
   };
 
+  const pickDraftSub = (s: any) => {
+    setDraftSub(s); setDraftQuery(""); setActiveSuggest(0);
+    setTimeout(() => draftRef.current?.focus(), 0);
+  };
+
   const handleDraftCommit = () => {
     const s = draftQuery.trim();
-    if (!s) return;
-    if (looksLikeCode(s)) { onScan(s); setDraftQuery(""); return; }
-    if (draftSuggestions.length > 0) addProductLine(draftSuggestions[activeSuggest] ?? draftSuggestions[0], 1);
-    else toast.error("No matching product");
+    if (s && looksLikeCode(s)) { onScan(s); setDraftQuery(""); return; }
+    const pick = draftSuggestions[activeSuggest] ?? draftSuggestions[0];
+    if (!pick) { toast.error(draftSub ? "No matching item" : "No matching sub-category"); return; }
+    if (!draftSub) pickDraftSub(pick);
+    else addProductLine(pick as ProductRow, 1);
+  };
+
+  // reset draft sub when a line is added
+  const addAndReset = (p: ProductRow) => {
+    addProductLine(p, 1);
+    setDraftSub(null);
   };
 
   const rm = (i: number) => setLines(lines.filter((_, idx) => idx !== i));
@@ -459,30 +480,6 @@ function NewSale() {
             <ScanWarning kind={warn.kind} message={warn.msg} code={warn.code} />
           </div>
         )}
-
-        {/* Sub-category → Item picker */}
-        <div className="bg-white border border-[#e8ecf1] rounded-lg px-3 py-3 shadow-sm grid grid-cols-1 md:grid-cols-2 gap-3">
-          <div>
-            <label className="text-[10px] uppercase tracking-wider text-[#94a3b8] font-bold block mb-1">
-              Sub-category
-            </label>
-            <SubCategoryPicker
-              value={pickerSub}
-              onChange={setPickerSub}
-              allowCreate={false}
-              placeholder="Type sub-category (18MM 8*4 LC)…"
-            />
-          </div>
-          <div>
-            <label className="text-[10px] uppercase tracking-wider text-[#94a3b8] font-bold block mb-1">
-              Item
-            </label>
-            <ItemBySubCategoryPicker
-              subcategoryId={pickerSub?.id ?? null}
-              onPick={(p) => addProductLine(p as any, 1)}
-            />
-          </div>
-        </div>
 
         {/* Hidden auto-focus scanner (catches wedge input anywhere on page) */}
         <div className="sr-only">
