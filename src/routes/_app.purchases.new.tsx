@@ -334,6 +334,41 @@ function NewPurchase() {
                     ))}
                   </div>
                 </div>
+                <div className="md:col-span-2">
+                  <FieldLabel icon={Warehouse}>Stock into</FieldLabel>
+                  <div className="grid grid-cols-2 gap-2">
+                    <button
+                      type="button"
+                      onClick={() => setStockGodownId("")}
+                      className={`h-10 rounded-md text-sm font-semibold border transition-colors ${
+                        stockGodownId === ""
+                          ? "bg-primary text-primary-foreground border-primary"
+                          : "bg-background text-foreground border-input hover:bg-muted"
+                      }`}
+                    >
+                      Shop floor
+                    </button>
+                    <select
+                      className={`h-10 rounded-md border px-3 text-sm font-medium ${
+                        stockGodownId
+                          ? "bg-primary text-primary-foreground border-primary"
+                          : "bg-background border-input"
+                      }`}
+                      value={stockGodownId}
+                      onChange={(e) => setStockGodownId(e.target.value)}
+                    >
+                      <option value="">— Pick a godown —</option>
+                      {godowns.map((g) => (
+                        <option key={g.id} value={g.id} className="bg-background text-foreground">
+                          {g.name}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                  <p className="text-[11px] text-muted-foreground mt-1.5">
+                    Newly minted units will be placed in the selected location.
+                  </p>
+                </div>
               </div>
             </Card>
 
