@@ -112,8 +112,6 @@ export function SubCategoryThenItemPicker({
 
   const quickCreateItem = async () => {
     if (!sub) return;
-    const name = query.trim();
-    if (!name) return toast.error("Type an item name first");
     setFocus(false);
     setCreateOpen(true);
   };
