@@ -426,6 +426,7 @@ function NewProductDialog({ onCreated }: { onCreated: () => void }) {
   const [category, setCategory] = useState<NewCat>("plywood");
   const [length, setLength] = useState<number>(0);
   const [width, setWidth] = useState<number>(0);
+  const [areaInput, setAreaInput] = useState<number>(0);
   const [size, setSize] = useState("");
   const [pricePerSqft, setPricePerSqft] = useState<number>(0);
   const [pricePerPc, setPricePerPc] = useState<number>(0);
@@ -433,10 +434,17 @@ function NewProductDialog({ onCreated }: { onCreated: () => void }) {
   const [qrUrl, setQrUrl] = useState<string>("");
   const [busy, setBusy] = useState(false);
 
+  const dimUnit: "ft" | "in" = category === "door" ? "in" : "ft";
+  const toSqft = (l: number, w: number) =>
+    category === "door" ? (l * w) / 144 : l * w;
+
+  const computedArea = hasDimensions(category) && length && width ? toSqft(length, width) : 0;
+  const areaSqft = hasDimensions(category)
+    ? (computedArea > 0 ? computedArea : Number(areaInput || 0))
+    : 0;
   const sizeLabel = hasDimensions(category)
-    ? (length && width ? `${length}x${width} ft` : "")
+    ? (length && width ? `${length}x${width} ${dimUnit}` : (areaSqft ? `${areaSqft.toFixed(2)} sqft` : ""))
     : size;
-  const areaSqft = hasDimensions(category) ? Number(length || 0) * Number(width || 0) : 0;
   const unitPrice = hasDimensions(category)
     ? Number(pricePerSqft || 0) * areaSqft
     : Number(pricePerPc || 0);
@@ -455,13 +463,30 @@ function NewProductDialog({ onCreated }: { onCreated: () => void }) {
 
   const reset = () => {
     setName(""); setCategory("plywood"); setLength(0); setWidth(0);
-    setSize(""); setPricePerSqft(0); setPricePerPc(0); setQty(1); setQrUrl("");
+    setAreaInput(0); setSize(""); setPricePerSqft(0); setPricePerPc(0); setQty(1); setQrUrl("");
+  };
+
+  // When length/width change, sync the area input field to the computed value.
+  useEffect(() => {
+    if (hasDimensions(category) && length && width) {
+      setAreaInput(Number(toSqft(length, width).toFixed(4)));
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [length, width, category]);
+
+  // When user edits Area directly, recompute Breadth from Length (reverse formula).
+  const onAreaChange = (val: number) => {
+    setAreaInput(val);
+    if (length > 0 && val > 0) {
+      const newW = category === "door" ? (val * 144) / length : val / length;
+      setWidth(Number(newW.toFixed(4)));
+    }
   };
 
   const submit = async () => {
     if (!name.trim()) return toast.error("Name is required");
     if (hasDimensions(category)) {
-      if (!length || !width) return toast.error("Length and width are required");
+      if (!areaSqft) return toast.error("Enter length & breadth or area (sqft)");
       if (!pricePerSqft) return toast.error("Price per sqft is required");
     } else {
       if (!size.trim()) return toast.error("Size is required");
@@ -521,8 +546,13 @@ function NewProductDialog({ onCreated }: { onCreated: () => void }) {
           const newId = nid as unknown as string;
           const qr: any = { id: newId, name: name.trim(), category, size: sizeLabel, status: "available" };
           if (hasDimensions(category)) {
-            qr.length_ft = Number(length);
-            qr.width_ft = Number(width);
+            if (category === "door") {
+              qr.length_in = Number(length) || null;
+              qr.width_in = Number(width) || null;
+            } else {
+              qr.length_ft = Number(length) || null;
+              qr.width_ft = Number(width) || null;
+            }
             qr.area_sqft = Number(areaSqft.toFixed(2));
           }
           const { error: iErr } = await supabase.from("item_instances").insert({
@@ -534,10 +564,10 @@ function NewProductDialog({ onCreated }: { onCreated: () => void }) {
             qr_payload: qr,
             is_lot: false,
             qty_on_hand: 1,
-            length_value: hasDimensions(category) ? Number(length) : null,
-            width_value: hasDimensions(category) ? Number(width) : null,
+            length_value: hasDimensions(category) ? (Number(length) || null) : null,
+            width_value: hasDimensions(category) ? (Number(width) || null) : null,
             area_sqft: hasDimensions(category) ? Number(areaSqft.toFixed(2)) : null,
-            dimension_unit: hasDimensions(category) ? "ft" : null,
+            dimension_unit: hasDimensions(category) ? dimUnit : null,
           } as any);
           if (iErr) throw iErr;
           await supabase.from("item_history").insert({
@@ -584,24 +614,39 @@ function NewProductDialog({ onCreated }: { onCreated: () => void }) {
           </div>
 
           {hasDimensions(category) ? (
-            <div className="grid grid-cols-2 gap-3">
-              <div>
-                <Label className="text-xs">Length (ft)</Label>
-                <Input
-                  type="number" min={0} step="0.01"
-                  value={length || ""}
-                  onChange={(e) => setLength(Number(e.target.value))}
-                />
+            <>
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <Label className="text-xs">Length ({dimUnit})</Label>
+                  <Input
+                    type="number" min={0} step="0.01"
+                    value={length || ""}
+                    onChange={(e) => setLength(Number(e.target.value))}
+                  />
+                </div>
+                <div>
+                  <Label className="text-xs">Breadth ({dimUnit})</Label>
+                  <Input
+                    type="number" min={0} step="0.01"
+                    value={width || ""}
+                    onChange={(e) => setWidth(Number(e.target.value))}
+                  />
+                </div>
               </div>
               <div>
-                <Label className="text-xs">Breadth (ft)</Label>
+                <Label className="text-xs">
+                  Area (sqft) — alternate unit
+                  <span className="ml-1 text-muted-foreground font-normal">
+                    {category === "door" ? "(L × B ÷ 144)" : "(L × B)"}
+                  </span>
+                </Label>
                 <Input
                   type="number" min={0} step="0.01"
-                  value={width || ""}
-                  onChange={(e) => setWidth(Number(e.target.value))}
+                  value={areaInput || ""}
+                  onChange={(e) => onAreaChange(Number(e.target.value))}
                 />
               </div>
-            </div>
+            </>
           ) : (
             <div>
               <Label className="text-xs">Size</Label>
