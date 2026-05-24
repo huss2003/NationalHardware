@@ -16,7 +16,8 @@ import { toast } from "sonner";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Badge } from "@/components/ui/badge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { inr } from "@/lib/codes";
+import { inr, makeQrDataUrl } from "@/lib/codes";
+import { Label } from "@/components/ui/label";
 import { TableSkeleton } from "@/components/erp/Skeletons";
 
 export const Route = createFileRoute("/_app/inventory/")({ component: Inventory });
