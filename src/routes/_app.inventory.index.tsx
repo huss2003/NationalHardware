@@ -19,6 +19,8 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { inr, makeQrDataUrl } from "@/lib/codes";
 import { Label } from "@/components/ui/label";
 import { TableSkeleton } from "@/components/erp/Skeletons";
+import { SubCategoryPicker, type SubCategory } from "@/components/erp/SubCategoryPicker";
+import { Layers } from "lucide-react";
 
 export const Route = createFileRoute("/_app/inventory/")({ component: Inventory });
 
@@ -142,6 +144,9 @@ function Inventory() {
         actions={
           <>
             <Button asChild variant="outline"><Link to="/inventory/scan">Scan unit</Link></Button>
+            <Button asChild variant="outline" className="gap-1">
+              <Link to="/inventory/subcategories"><Layers className="h-4 w-4" /> Sub-categories</Link>
+            </Button>
             <NewProductDialog onCreated={load} />
           </>
         }
