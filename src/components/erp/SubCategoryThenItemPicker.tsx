@@ -1,7 +1,8 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Input } from "@/components/ui/input";
 import { supabase } from "@/integrations/supabase/client";
-import { ChevronLeft, Layers } from "lucide-react";
+import { ChevronLeft, Layers, Plus } from "lucide-react";
+import { toast } from "sonner";
 
 /**
  * Two-stage typeahead: first suggests sub-categories, then suggests items
@@ -25,6 +26,7 @@ export function SubCategoryThenItemPicker({
   const [query, setQuery] = useState("");
   const [focus, setFocus] = useState(false);
   const [active, setActive] = useState(0);
+  const [creating, setCreating] = useState(false);
   const boxRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
 
@@ -86,6 +88,60 @@ export function SubCategoryThenItemPicker({
     }
   };
 
+  const exactItemMatch = useMemo(() => {
+    if (!sub) return null;
+    const q = query.trim().toLowerCase();
+    if (!q) return null;
+    return items.find((p) => p.name.toLowerCase() === q) ?? null;
+  }, [sub, items, query]);
+
+  const quickCreateItem = async () => {
+    if (!sub) return;
+    const name = query.trim();
+    if (!name) return toast.error("Type an item name first");
+    setCreating(true);
+    try {
+      const { data: subFull } = await supabase
+        .from("product_subcategories")
+        .select("default_price_per_pc,default_price_per_sqft,category")
+        .eq("id", sub.id)
+        .maybeSingle();
+      const cat = (subFull?.category ?? sub.category) as string;
+      const prefix =
+        cat === "plywood" ? "PLY" :
+        cat === "hardware" ? "HDR" :
+        cat === "door" ? "DOR" :
+        cat === "mica" ? "MIC" : "OTH";
+      const unit = cat === "plywood" || cat === "door" ? "sheet" : "pcs";
+      const price = Number(subFull?.default_price_per_pc ?? subFull?.default_price_per_sqft ?? 0);
+      const { data: prod, error } = await supabase
+        .from("products")
+        .insert({
+          name,
+          category: cat as any,
+          prefix,
+          unit,
+          default_cost: price,
+          default_price: price,
+          gst_rate: 18,
+          reorder_level: 5,
+          subcategory_id: sub.id,
+        } as any)
+        .select()
+        .single();
+      if (error) throw error;
+      toast.success(`Item "${name}" created`);
+      setItems((prev) => [...prev, prod].sort((a, b) => a.name.localeCompare(b.name)));
+      onPickItem(prod);
+      reset();
+      setTimeout(() => inputRef.current?.focus(), 0);
+    } catch (e: any) {
+      toast.error(e.message ?? "Failed to create item");
+    } finally {
+      setCreating(false);
+    }
+  };
+
   return (
     <div className={`relative ${className ?? ""}`} ref={boxRef}>
       <div className="flex items-center gap-1.5 rounded-md border border-input bg-background h-10 px-2">
@@ -117,6 +173,17 @@ export function SubCategoryThenItemPicker({
             else if (e.key === "Backspace" && !query && sub) { e.preventDefault(); reset(); }
           }}
         />
+        {sub && (
+          <button
+            type="button"
+            onClick={quickCreateItem}
+            disabled={creating || !query.trim() || !!exactItemMatch}
+            className="shrink-0 inline-flex items-center gap-1 text-xs font-semibold px-2 py-1 rounded bg-primary text-primary-foreground disabled:opacity-40 disabled:cursor-not-allowed hover:opacity-90"
+            title="Add this as a new item in this sub-category"
+          >
+            <Plus className="h-3 w-3" /> Add item
+          </button>
+        )}
       </div>
       {focus && suggestions.length > 0 && (
         <div className="absolute z-30 mt-1 w-full bg-popover border border-border/60 rounded-lg shadow-lg max-h-72 overflow-auto">
@@ -151,11 +218,35 @@ export function SubCategoryThenItemPicker({
               )}
             </button>
           ))}
+          {sub && query.trim() && !exactItemMatch && (
+            <button
+              type="button"
+              disabled={creating}
+              onMouseDown={(e) => e.preventDefault()}
+              onClick={quickCreateItem}
+              className="w-full text-left px-3 py-2 text-sm font-semibold text-primary border-t border-border/60 flex items-center gap-1 hover:bg-muted"
+            >
+              <Plus className="h-4 w-4" /> {creating ? "Creating…" : `Create item "${query.trim()}" in ${sub.name}`}
+            </button>
+          )}
         </div>
       )}
       {focus && sub && suggestions.length === 0 && (
-        <div className="absolute z-30 mt-1 w-full bg-popover border border-border/60 rounded-lg shadow-lg p-3 text-xs text-muted-foreground">
-          No items in this sub-category. Add one from Inventory → New product.
+        <div className="absolute z-30 mt-1 w-full bg-popover border border-border/60 rounded-lg shadow-lg">
+          <div className="p-3 text-xs text-muted-foreground">
+            No items in <span className="font-medium text-foreground">{sub.name}</span>{query.trim() ? " match." : " yet."}
+          </div>
+          {query.trim() && (
+            <button
+              type="button"
+              disabled={creating}
+              onMouseDown={(e) => e.preventDefault()}
+              onClick={quickCreateItem}
+              className="w-full text-left px-3 py-2 text-sm font-semibold text-primary border-t border-border/60 flex items-center gap-1 hover:bg-muted"
+            >
+              <Plus className="h-4 w-4" /> {creating ? "Creating…" : `Create item "${query.trim()}" in ${sub.name}`}
+            </button>
+          )}
         </div>
       )}
     </div>
