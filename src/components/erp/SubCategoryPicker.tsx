@@ -171,9 +171,9 @@ export function ItemBySubCategoryPicker({
     }
     supabase
       .from("products")
-      .select("id,name,prefix,default_price,gst_rate,unit,alt_unit,alt_conversion,hsn,category")
+      .select("id,name,prefix,default_price,default_cost,gst_rate,unit,alt_unit,alt_conversion,hsn,category")
       .eq("active", true)
-      .eq("subcategory_id", subcategoryId)
+      .eq("subcategory_id" as any, subcategoryId)
       .order("name")
       .then(({ data }) => setItems(data ?? []));
   }, [subcategoryId]);
