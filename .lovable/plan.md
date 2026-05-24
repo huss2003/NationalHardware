@@ -1,54 +1,80 @@
-# Add alternate unit (sqft) to New Product dialog
+# Category → Sub-Category → Item hierarchy
 
-Apply only to the **Plywood** and **Door** categories in `NewProductDialog` (`src/routes/_app.inventory.index.tsx`). Hardware / Mica / Others stay unchanged.
-
-## Units
-
-- **Plywood** — main unit = **Feet** (Length, Breadth in ft), alternate = **Square Feet**.
-  Formula: `sqft = L_ft × B_ft` (and reverse).
-- **Door** — main unit = **Inches** (Length, Breadth in inches), alternate = **Square Feet**.
-  Formula: `sqft = L_in × B_in ÷ 144` (and reverse).
-
-These match the existing formulas already shown on the product detail page (`_app.inventory.$productId.tsx`).
-
-## Dialog changes
-
-Replace the current "Length / Breadth" two-field grid with a three-field block:
+Today the app has a fixed `category` enum (plywood / door / hardware / mica / others) on `products`, and every "item" in inventory is actually a product. The request is to add a real **3-level hierarchy** so the user can group products like:
 
 ```text
-[ Length ({unit}) ]  [ Breadth ({unit}) ]
-[ Area (sqft) — alternate unit ]
+Plywood  (Category)
+  └── 18MM 8x4 LC  (Sub-Category)
+        ├── Blackhud
+        ├── Comet
+        ├── Kisan
+        ├── Platinium
+        ├── Rocktouch
+        ├── Salimar
+        ├── Supreme Go
+        └── VELOCITY
 ```
 
-Behavior (two-way live sync, no submit needed):
+…and have Purchase/Sales bill rows first suggest sub-categories, then suggest items inside the chosen sub-category.
 
-1. Editing **Length** or **Breadth** → recompute **Area** instantly using the category formula.
-2. Editing **Area** directly → recompute **Breadth** from `Area / Length` (reverse formula, doors multiply by 144 first). If Length is empty/zero, leave Breadth untouched and just store the entered Area.
-3. The unit label next to Length/Breadth switches with category (`ft` for plywood, `in` for door).
-4. Door area formula in the preview line becomes `L × B ÷ 144`; plywood stays `L × B`.
+## Data model (new tables)
 
-Use a small `lastEdited` ref/state (`"dim" | "area"`) to avoid feedback loops between the two effects.
+1. `product_subcategories`
+   - `id uuid pk`
+   - `category product_category not null` (reuses existing enum: plywood / door / hardware / mica / others)
+   - `name text not null` (e.g. `"18MM 8*4 LC"`)
+   - `dimension_label text` (free text shown in suggestions, optional)
+   - `default_price_per_sqft numeric`, `default_price_per_pc numeric` (optional defaults pushed into new items)
+   - `active bool default true`, timestamps
+   - unique (`category`, `lower(name)`)
 
-## Pricing
+2. Add `subcategory_id uuid` (nullable, FK-by-convention to `product_subcategories.id`) on **`products`**.
+   - Existing products stay as-is (NULL sub-category = "Uncategorized"). No data migration needed.
+   - When a sub-category is chosen on the New Product dialog, its `category` is auto-filled and locked, and `default_price_*` prefill the price field.
 
-- Price input stays **₹ per sqft** for both Plywood and Door (already the case).
-- `unitPrice = pricePerSqft × areaSqft` — unchanged.
+3. RLS: same `auth read/write/update/delete` policies as the rest of the app.
 
-## Persistence
+No changes to `item_instances` — products are still the "item brand" level; instances remain individual stickers / lots.
 
-When inserting `item_instances` for Plywood/Door:
-- `length_value`, `width_value` → store in their **native unit** (ft for ply, in for door).
-- `dimension_unit` → `"ft"` for plywood, `"in"` for door (currently hard-coded to `"ft"`).
-- `area_sqft` → always the computed/entered sqft value.
-- `qr_payload`: keep `length_ft`/`width_ft` for plywood; for door switch to `length_in`/`width_in` plus `area_sqft`.
-- `sizeLabel`: `"LxB ft"` for plywood, `"LxB in"` for door.
+## UI changes
 
-## Validation
+### A. Inventory → "Sub-Categories" management
+- New tab/page `src/routes/_app.inventory.subcategories.tsx` listing sub-categories grouped by category, with **Add Sub-Category** dialog (fields: Category dropdown, Name, optional default price). Edit / deactivate inline.
 
-- Require either (Length AND Breadth) OR a non-zero Area before submit.
-- Require `pricePerSqft > 0`.
+### B. New Product dialog (`_app.inventory.index.tsx`, existing `NewProductDialog`)
+- Replace the bare Category select with a two-step block:
+  1. **Category** select (existing 5 values).
+  2. **Sub-Category** combobox filtered by chosen category, with an inline "+ Create new" option that opens a sub-dialog and inserts into `product_subcategories`.
+- "Name" field becomes the **item brand name** (Blackhud, Comet…). Tooltip: "Brand / item name under this sub-category."
+- Persist `subcategory_id` on the product. Everything else (sizes, QR, pricing, dim-unit logic, sqft conversion, PCS to add) stays exactly as built.
+
+### C. Inventory list
+- Add a third grouping level: Category → Sub-Category → Products. Use a collapsible tree (Sub-Category rows show product count + total qty). Search box filters across all three levels.
+
+### D. Purchases bill (`_app.purchases.new.tsx`) and Sales bill (`_app.sales.new.tsx`)
+Each line row currently has a single product picker. Replace with a **two-step picker**:
+1. First input suggests **Sub-Categories** (typeahead over `product_subcategories.name`, optionally scoped by Category chip).
+2. Once a sub-category is chosen, the second input suggests **Items (products)** whose `subcategory_id` matches — typeahead on product name. Selecting an item fills rate from the existing product/instance defaults.
+- A small "Change sub-category" link resets the row to step 1.
+- For backwards compatibility, products without a sub-category appear under a synthetic "Uncategorized" group so existing flows keep working.
+
+### E. Scan flow
+Scanning a barcode/QR continues to resolve directly to a product/instance — no change.
+
+## Implementation order
+1. **Migration**: create `product_subcategories`, add `subcategory_id` to `products`, RLS policies.
+2. Sub-category management page + reusable `<SubCategoryCombobox>` component (used by New Product, Purchases, Sales).
+3. Wire into New Product dialog (keep all current size/QR/pricing logic intact).
+4. Wire into Purchases new bill and Sales new bill rows.
+5. Inventory list grouping update.
+
+## Technical notes
+- New combobox lives in `src/components/erp/SubCategoryCombobox.tsx` and `ItemPicker.tsx` (item-by-subcategory). Both use shadcn `Command` + `Popover`.
+- Suggestions query: `supabase.from("product_subcategories").select("id,name,category").eq("active", true).ilike("name", `%${q}%`).limit(20)`. Items: `.from("products").select("id,name,default_price,unit").eq("subcategory_id", subId).ilike("name", `%${q}%`)`.
+- No changes to `item_instances`, sales/purchases tables, or invoicing math.
 
 ## Out of scope
+- Migrating existing products into sub-categories (user can re-assign manually from inventory list, or leave under Uncategorized).
+- Per-sub-category QR templates (uses existing per-item QR).
 
-- Hardware/Mica/Others input (unchanged single Size field, price per pc).
-- Existing inventory rows / DB schema — no migration needed; `dimension_unit` column already supports `"in"`.
+Confirm and I'll run the migration and ship the UI.
