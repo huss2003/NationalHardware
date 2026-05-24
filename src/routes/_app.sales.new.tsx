@@ -474,6 +474,7 @@ function NewSale() {
                 <col style={{ width: 110 }} />
                 <col style={{ width: 110 }} />
                 {f.gst_rate.visible && <col style={{ width: 70 }} />}
+                <col style={{ width: 130 }} />
                 <col style={{ width: 120 }} />
                 <col style={{ width: 36 }} />
               </colgroup>
@@ -485,6 +486,7 @@ function NewSale() {
                   <th className="border border-slate-300 px-2 py-1.5 text-left font-semibold">Alt Unit</th>
                   <th className="border border-slate-300 px-2 py-1.5 text-right font-semibold">Rate</th>
                   {f.gst_rate.visible && <th className="border border-slate-300 px-2 py-1.5 text-right font-semibold">GST%</th>}
+                  <th className="border border-slate-300 px-2 py-1.5 text-left font-semibold">Source</th>
                   <th className="border border-slate-300 px-2 py-1.5 text-right font-semibold">Amount</th>
                   <th className="border border-slate-300 px-1 py-1.5"></th>
                 </tr>
