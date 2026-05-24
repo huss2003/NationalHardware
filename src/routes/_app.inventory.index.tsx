@@ -604,10 +604,6 @@ function NewProductDialog({ onCreated }: { onCreated: () => void }) {
         <DialogHeader><DialogTitle>New product</DialogTitle></DialogHeader>
         <div className="space-y-3 max-h-[70vh] overflow-y-auto pr-1">
           <div>
-            <Label className="text-xs">Name</Label>
-            <Input placeholder="e.g. Century Sainik MR" value={name} onChange={(e) => setName(e.target.value)} />
-          </div>
-          <div>
             <Label className="text-xs">Category</Label>
             <select
               className="h-10 rounded-md border bg-background px-3 w-full text-sm"
