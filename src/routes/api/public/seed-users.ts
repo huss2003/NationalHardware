@@ -1,7 +1,8 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { supabaseAdmin } from "@/integrations/supabase/client.server";
 
-const USERS = [
+type SeedUser = { email: string; password: string; name: string; admin?: boolean };
+const USERS: SeedUser[] = [
   { email: "Admin@gmail.com", password: "PASS001", name: "Admin", admin: true },
   { email: "Altaf@gmail.com", password: "PASS002", name: "Altaf" },
   { email: "Naeem@gmail.com", password: "PASS003", name: "Naeem" },
@@ -9,7 +10,7 @@ const USERS = [
   { email: "Ayais@gmail.com", password: "PASS005", name: "Ayais" },
   { email: "Talib@gmail.com", password: "PASS006", name: "Talib" },
   { email: "Taiyeb@gmail.com", password: "PASS007", name: "Taiyeb" },
-] as const;
+];
 
 export const Route = createFileRoute("/api/public/seed-users")({
   server: {
