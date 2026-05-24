@@ -543,6 +543,25 @@ function NewSale() {
                         />
                       </td>
                     )}
+                    <td className="border border-slate-300 px-0 py-0">
+                      {l.item_instance_id ? (
+                        <div className="px-2 py-1.5 text-[11px] text-slate-600 font-sans truncate">
+                          {godowns.find((g) => g.id === l.source_godown_id)?.name ?? "Shop"}
+                        </div>
+                      ) : (
+                        <select
+                          value={l.source_godown_id ?? ""}
+                          onChange={(e) => upd(i, { source_godown_id: e.target.value || null })}
+                          className="w-full h-full px-1 py-1.5 text-[12px] bg-transparent focus:outline-none focus:bg-blue-50 focus:ring-2 focus:ring-inset focus:ring-[#3b82f6] font-sans"
+                          aria-label={`Source for ${l.name}`}
+                        >
+                          <option value="">Shop</option>
+                          {godowns.map((g) => (
+                            <option key={g.id} value={g.id}>{g.name}</option>
+                          ))}
+                        </select>
+                      )}
+                    </td>
                     <td className="border border-slate-300 px-2 py-1.5 text-right font-semibold text-slate-800 bg-slate-50/60">
                       {inr(l.qty * l.rate)}
                     </td>
