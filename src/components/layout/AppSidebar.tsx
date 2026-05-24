@@ -5,6 +5,7 @@ import {
   Undo2, RotateCcw, Warehouse,
   DoorOpen,
   BookOpen,
+  Layers,
 } from "lucide-react";
 import { useAuth } from "@/lib/auth-store";
 import { Button } from "@/components/ui/button";
@@ -13,6 +14,7 @@ import { useUiConfig } from "@/lib/ui-config";
 const items = [
   { key: "dashboard",  to: "/dashboard",       label: "Dashboard",  icon: LayoutDashboard },
   { key: "inventory",  to: "/inventory",       label: "Inventory",  icon: Boxes },
+  { key: "subcategories", to: "/inventory/subcategories", label: "Sub-Categories", icon: Layers },
   { key: "scan",       to: "/inventory/scan",  label: "Scan",       icon: ScanLine },
   { key: "purchases",  to: "/purchases",       label: "Purchases",  icon: ShoppingCart },
   { key: "purchase_returns", to: "/purchase-returns", label: "Purchase Returns", icon: RotateCcw },
