@@ -13,7 +13,7 @@ import {
 import { toast } from "sonner";
 import { inr } from "@/lib/codes";
 import { QuickCreatePartyDialog } from "@/components/erp/QuickCreatePartyDialog";
-import { SubCategoryPicker, ItemBySubCategoryPicker, type SubCategory } from "@/components/erp/SubCategoryPicker";
+import { SubCategoryThenItemPicker } from "@/components/erp/SubCategoryThenItemPicker";
 
 export const Route = createFileRoute("/_app/purchases/new")({ component: NewPurchase });
 
@@ -43,8 +43,6 @@ function NewPurchase() {
   const [billDate, setBillDate] = useState(new Date().toISOString().slice(0, 10));
   const [discount, setDiscount] = useState(0);
   const [lines, setLines] = useState<Line[]>([]);
-  const [productPick, setProductPick] = useState("");
-  const [pickerSub, setPickerSub] = useState<SubCategory | null>(null);
   const [busy, setBusy] = useState(false);
   const [notes, setNotes] = useState("");
   const [billFile, setBillFile] = useState<File | null>(null);
@@ -382,42 +380,14 @@ function NewPurchase() {
                 <SectionHeader
                   icon={Package}
                   title="Line Items"
-                  description="Add products, quantities, and unit prices."
+                  description="Pick a sub-category, then choose an item."
                 />
-                <select
-                  className="h-10 rounded-md border border-input bg-background px-3 text-sm font-medium"
-                  value={productPick}
-                  onChange={(e) => {
-                    const p = products.find((x) => x.id === e.target.value);
-                    if (p) addProduct(p);
-                    setProductPick("");
-                  }}
-                >
-                  <option value="">+ Add item…</option>
-                  {products.map((p) => (
-                    <option key={p.id} value={p.id}>
-                      {p.name}
-                    </option>
-                  ))}
-                </select>
               </div>
-              <div className="mt-4 grid grid-cols-1 md:grid-cols-2 gap-3">
-                <div>
-                  <FieldLabel>Sub-category</FieldLabel>
-                  <SubCategoryPicker
-                    value={pickerSub}
-                    onChange={setPickerSub}
-                    allowCreate={false}
-                    placeholder="Type sub-category (18MM 8*4 LC)…"
-                  />
-                </div>
-                <div>
-                  <FieldLabel>Item</FieldLabel>
-                  <ItemBySubCategoryPicker
-                    subcategoryId={pickerSub?.id ?? null}
-                    onPick={(p) => { addProduct(p); }}
-                  />
-                </div>
+              <div className="mt-4">
+                <SubCategoryThenItemPicker
+                  onPickItem={(p) => addProduct(p)}
+                  placeholder="Type sub-category (18MM 8*4 LC), then pick item…"
+                />
               </div>
 
               <div className="mt-5 overflow-x-auto">
