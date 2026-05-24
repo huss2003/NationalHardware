@@ -19,6 +19,8 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { inr, makeQrDataUrl } from "@/lib/codes";
 import { Label } from "@/components/ui/label";
 import { TableSkeleton } from "@/components/erp/Skeletons";
+import { SubCategoryPicker, type SubCategory } from "@/components/erp/SubCategoryPicker";
+import { Layers } from "lucide-react";
 
 export const Route = createFileRoute("/_app/inventory/")({ component: Inventory });
 
@@ -142,6 +144,9 @@ function Inventory() {
         actions={
           <>
             <Button asChild variant="outline"><Link to="/inventory/scan">Scan unit</Link></Button>
+            <Button asChild variant="outline" className="gap-1">
+              <Link to="/inventory/subcategories"><Layers className="h-4 w-4" /> Sub-categories</Link>
+            </Button>
             <NewProductDialog onCreated={load} />
           </>
         }
@@ -424,6 +429,7 @@ function NewProductDialog({ onCreated }: { onCreated: () => void }) {
   const [open, setOpen] = useState(false);
   const [name, setName] = useState("");
   const [category, setCategory] = useState<NewCat>("plywood");
+  const [subcategory, setSubcategory] = useState<SubCategory | null>(null);
   const [length, setLength] = useState<number>(0);
   const [width, setWidth] = useState<number>(0);
   const [areaInput, setAreaInput] = useState<number>(0);
@@ -464,6 +470,7 @@ function NewProductDialog({ onCreated }: { onCreated: () => void }) {
   const reset = () => {
     setName(""); setCategory("plywood"); setLength(0); setWidth(0);
     setAreaInput(0); setSize(""); setPricePerSqft(0); setPricePerPc(0); setQty(1); setQrUrl("");
+    setSubcategory(null);
   };
 
   // When length/width change, sync the area input field to the computed value.
@@ -485,6 +492,7 @@ function NewProductDialog({ onCreated }: { onCreated: () => void }) {
 
   const submit = async () => {
     if (!name.trim()) return toast.error("Name is required");
+    if (!subcategory) return toast.error("Sub-category is required");
     if (hasDimensions(category)) {
       if (!areaSqft) return toast.error("Enter length & breadth or area (sqft)");
       if (!pricePerSqft) return toast.error("Price per sqft is required");
@@ -510,6 +518,7 @@ function NewProductDialog({ onCreated }: { onCreated: () => void }) {
           default_price: unitPrice,
           gst_rate: 18,
           reorder_level: 5,
+          subcategory_id: subcategory.id,
         } as any)
         .select()
         .single();
@@ -595,15 +604,11 @@ function NewProductDialog({ onCreated }: { onCreated: () => void }) {
         <DialogHeader><DialogTitle>New product</DialogTitle></DialogHeader>
         <div className="space-y-3 max-h-[70vh] overflow-y-auto pr-1">
           <div>
-            <Label className="text-xs">Name</Label>
-            <Input placeholder="e.g. Century Sainik MR" value={name} onChange={(e) => setName(e.target.value)} />
-          </div>
-          <div>
             <Label className="text-xs">Category</Label>
             <select
               className="h-10 rounded-md border bg-background px-3 w-full text-sm"
               value={category}
-              onChange={(e) => setCategory(e.target.value as NewCat)}
+              onChange={(e) => { setCategory(e.target.value as NewCat); setSubcategory(null); }}
             >
               <option value="plywood">Plywood</option>
               <option value="hardware">Hardware</option>
@@ -611,6 +616,31 @@ function NewProductDialog({ onCreated }: { onCreated: () => void }) {
               <option value="mica">Mica</option>
               <option value="other">Others</option>
             </select>
+          </div>
+          <div>
+            <Label className="text-xs">Sub-Category</Label>
+            <SubCategoryPicker
+              value={subcategory}
+              onChange={(s) => {
+                setSubcategory(s);
+                if (s) {
+                  if (hasDimensions(category) && s.default_price_per_sqft && !pricePerSqft) {
+                    setPricePerSqft(Number(s.default_price_per_sqft));
+                  }
+                  if (!hasDimensions(category) && s.default_price_per_pc && !pricePerPc) {
+                    setPricePerPc(Number(s.default_price_per_pc));
+                  }
+                }
+              }}
+              category={category}
+            />
+            <p className="text-[10px] text-muted-foreground mt-1">
+              e.g. "18MM 8*4 LC" — items like Blackhud / Comet / Velocity live under this sub-category.
+            </p>
+          </div>
+          <div>
+            <Label className="text-xs">Item / Brand Name</Label>
+            <Input placeholder="e.g. Blackhud, Comet, Velocity…" value={name} onChange={(e) => setName(e.target.value)} />
           </div>
 
           {hasDimensions(category) ? (

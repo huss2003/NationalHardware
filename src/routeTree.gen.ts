@@ -30,6 +30,7 @@ import { Route as AppSalesNewRouteImport } from './routes/_app.sales.new'
 import { Route as AppSalesIdRouteImport } from './routes/_app.sales.$id'
 import { Route as AppPurchasesNewRouteImport } from './routes/_app.purchases.new'
 import { Route as AppPurchasesIdRouteImport } from './routes/_app.purchases.$id'
+import { Route as AppInventorySubcategoriesRouteImport } from './routes/_app.inventory.subcategories'
 import { Route as AppInventoryScanRouteImport } from './routes/_app.inventory.scan'
 import { Route as AppInventoryProductIdRouteImport } from './routes/_app.inventory.$productId'
 
@@ -137,6 +138,12 @@ const AppPurchasesIdRoute = AppPurchasesIdRouteImport.update({
   path: '/purchases/$id',
   getParentRoute: () => AppRoute,
 } as any)
+const AppInventorySubcategoriesRoute =
+  AppInventorySubcategoriesRouteImport.update({
+    id: '/inventory/subcategories',
+    path: '/inventory/subcategories',
+    getParentRoute: () => AppRoute,
+  } as any)
 const AppInventoryScanRoute = AppInventoryScanRouteImport.update({
   id: '/inventory/scan',
   path: '/inventory/scan',
@@ -159,6 +166,7 @@ export interface FileRoutesByFullPath {
   '/settings': typeof AppSettingsRoute
   '/inventory/$productId': typeof AppInventoryProductIdRoute
   '/inventory/scan': typeof AppInventoryScanRoute
+  '/inventory/subcategories': typeof AppInventorySubcategoriesRoute
   '/purchases/$id': typeof AppPurchasesIdRoute
   '/purchases/new': typeof AppPurchasesNewRoute
   '/sales/$id': typeof AppSalesIdRoute
@@ -183,6 +191,7 @@ export interface FileRoutesByTo {
   '/settings': typeof AppSettingsRoute
   '/inventory/$productId': typeof AppInventoryProductIdRoute
   '/inventory/scan': typeof AppInventoryScanRoute
+  '/inventory/subcategories': typeof AppInventorySubcategoriesRoute
   '/purchases/$id': typeof AppPurchasesIdRoute
   '/purchases/new': typeof AppPurchasesNewRoute
   '/sales/$id': typeof AppSalesIdRoute
@@ -209,6 +218,7 @@ export interface FileRoutesById {
   '/_app/settings': typeof AppSettingsRoute
   '/_app/inventory/$productId': typeof AppInventoryProductIdRoute
   '/_app/inventory/scan': typeof AppInventoryScanRoute
+  '/_app/inventory/subcategories': typeof AppInventorySubcategoriesRoute
   '/_app/purchases/$id': typeof AppPurchasesIdRoute
   '/_app/purchases/new': typeof AppPurchasesNewRoute
   '/_app/sales/$id': typeof AppSalesIdRoute
@@ -235,6 +245,7 @@ export interface FileRouteTypes {
     | '/settings'
     | '/inventory/$productId'
     | '/inventory/scan'
+    | '/inventory/subcategories'
     | '/purchases/$id'
     | '/purchases/new'
     | '/sales/$id'
@@ -259,6 +270,7 @@ export interface FileRouteTypes {
     | '/settings'
     | '/inventory/$productId'
     | '/inventory/scan'
+    | '/inventory/subcategories'
     | '/purchases/$id'
     | '/purchases/new'
     | '/sales/$id'
@@ -284,6 +296,7 @@ export interface FileRouteTypes {
     | '/_app/settings'
     | '/_app/inventory/$productId'
     | '/_app/inventory/scan'
+    | '/_app/inventory/subcategories'
     | '/_app/purchases/$id'
     | '/_app/purchases/new'
     | '/_app/sales/$id'
@@ -453,6 +466,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppPurchasesIdRouteImport
       parentRoute: typeof AppRoute
     }
+    '/_app/inventory/subcategories': {
+      id: '/_app/inventory/subcategories'
+      path: '/inventory/subcategories'
+      fullPath: '/inventory/subcategories'
+      preLoaderRoute: typeof AppInventorySubcategoriesRouteImport
+      parentRoute: typeof AppRoute
+    }
     '/_app/inventory/scan': {
       id: '/_app/inventory/scan'
       path: '/inventory/scan'
@@ -479,6 +499,7 @@ interface AppRouteChildren {
   AppSettingsRoute: typeof AppSettingsRoute
   AppInventoryProductIdRoute: typeof AppInventoryProductIdRoute
   AppInventoryScanRoute: typeof AppInventoryScanRoute
+  AppInventorySubcategoriesRoute: typeof AppInventorySubcategoriesRoute
   AppPurchasesIdRoute: typeof AppPurchasesIdRoute
   AppPurchasesNewRoute: typeof AppPurchasesNewRoute
   AppSalesIdRoute: typeof AppSalesIdRoute
@@ -502,6 +523,7 @@ const AppRouteChildren: AppRouteChildren = {
   AppSettingsRoute: AppSettingsRoute,
   AppInventoryProductIdRoute: AppInventoryProductIdRoute,
   AppInventoryScanRoute: AppInventoryScanRoute,
+  AppInventorySubcategoriesRoute: AppInventorySubcategoriesRoute,
   AppPurchasesIdRoute: AppPurchasesIdRoute,
   AppPurchasesNewRoute: AppPurchasesNewRoute,
   AppSalesIdRoute: AppSalesIdRoute,
@@ -526,13 +548,3 @@ const rootRouteChildren: RootRouteChildren = {
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
   ._addFileTypes<FileRouteTypes>()
-
-import type { getRouter } from './router.tsx'
-import type { startInstance } from './start.ts'
-declare module '@tanstack/react-start' {
-  interface Register {
-    ssr: true
-    router: Awaited<ReturnType<typeof getRouter>>
-    config: Awaited<ReturnType<typeof startInstance.getOptions>>
-  }
-}

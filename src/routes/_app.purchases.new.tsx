@@ -13,6 +13,7 @@ import {
 import { toast } from "sonner";
 import { inr } from "@/lib/codes";
 import { QuickCreatePartyDialog } from "@/components/erp/QuickCreatePartyDialog";
+import { SubCategoryPicker, ItemBySubCategoryPicker, type SubCategory } from "@/components/erp/SubCategoryPicker";
 
 export const Route = createFileRoute("/_app/purchases/new")({ component: NewPurchase });
 
@@ -43,6 +44,7 @@ function NewPurchase() {
   const [discount, setDiscount] = useState(0);
   const [lines, setLines] = useState<Line[]>([]);
   const [productPick, setProductPick] = useState("");
+  const [pickerSub, setPickerSub] = useState<SubCategory | null>(null);
   const [busy, setBusy] = useState(false);
   const [notes, setNotes] = useState("");
   const [billFile, setBillFile] = useState<File | null>(null);
@@ -398,6 +400,24 @@ function NewPurchase() {
                     </option>
                   ))}
                 </select>
+              </div>
+              <div className="mt-4 grid grid-cols-1 md:grid-cols-2 gap-3">
+                <div>
+                  <FieldLabel>Sub-category</FieldLabel>
+                  <SubCategoryPicker
+                    value={pickerSub}
+                    onChange={setPickerSub}
+                    allowCreate={false}
+                    placeholder="Type sub-category (18MM 8*4 LC)…"
+                  />
+                </div>
+                <div>
+                  <FieldLabel>Item</FieldLabel>
+                  <ItemBySubCategoryPicker
+                    subcategoryId={pickerSub?.id ?? null}
+                    onPick={(p) => { addProduct(p); }}
+                  />
+                </div>
               </div>
 
               <div className="mt-5 overflow-x-auto">

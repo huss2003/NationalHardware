@@ -501,6 +501,42 @@ export type Database = {
           },
         ]
       }
+      product_subcategories: {
+        Row: {
+          active: boolean
+          category: Database["public"]["Enums"]["product_category"]
+          created_at: string
+          default_price_per_pc: number | null
+          default_price_per_sqft: number | null
+          dimension_label: string | null
+          id: string
+          name: string
+          updated_at: string
+        }
+        Insert: {
+          active?: boolean
+          category: Database["public"]["Enums"]["product_category"]
+          created_at?: string
+          default_price_per_pc?: number | null
+          default_price_per_sqft?: number | null
+          dimension_label?: string | null
+          id?: string
+          name: string
+          updated_at?: string
+        }
+        Update: {
+          active?: boolean
+          category?: Database["public"]["Enums"]["product_category"]
+          created_at?: string
+          default_price_per_pc?: number | null
+          default_price_per_sqft?: number | null
+          dimension_label?: string | null
+          id?: string
+          name?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       products: {
         Row: {
           active: boolean
@@ -518,6 +554,7 @@ export type Database = {
           prefix: string
           reorder_level: number
           sku: string | null
+          subcategory_id: string | null
           unit: string
           updated_at: string
         }
@@ -537,6 +574,7 @@ export type Database = {
           prefix: string
           reorder_level?: number
           sku?: string | null
+          subcategory_id?: string | null
           unit?: string
           updated_at?: string
         }
@@ -556,10 +594,19 @@ export type Database = {
           prefix?: string
           reorder_level?: number
           sku?: string | null
+          subcategory_id?: string | null
           unit?: string
           updated_at?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "products_subcategory_id_fkey"
+            columns: ["subcategory_id"]
+            isOneToOne: false
+            referencedRelation: "product_subcategories"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       profiles: {
         Row: {

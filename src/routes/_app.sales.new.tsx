@@ -14,6 +14,7 @@ import { useUiConfig } from "@/lib/ui-config";
 // jspdf + jspdf-autotable (~250KB) loaded only when finalize() actually runs.
 import { ScanWarning, type ScanWarningKind } from "@/components/erp/ScanWarning";
 import { QuickCreatePartyDialog } from "@/components/erp/QuickCreatePartyDialog";
+import { SubCategoryPicker, ItemBySubCategoryPicker, type SubCategory } from "@/components/erp/SubCategoryPicker";
 
 export const Route = createFileRoute("/_app/sales/new")({ component: NewSale });
 
@@ -49,6 +50,7 @@ function NewSale() {
   const [busy, setBusy] = useState(false);
   const [createCustomerOpen, setCreateCustomerOpen] = useState(false);
   const [products, setProducts] = useState<ProductRow[]>([]);
+  const [pickerSub, setPickerSub] = useState<SubCategory | null>(null);
   const [draftQuery, setDraftQuery] = useState("");
   const [draftFocused, setDraftFocused] = useState(false);
   const [activeSuggest, setActiveSuggest] = useState(0);
@@ -457,6 +459,30 @@ function NewSale() {
             <ScanWarning kind={warn.kind} message={warn.msg} code={warn.code} />
           </div>
         )}
+
+        {/* Sub-category → Item picker */}
+        <div className="bg-white border border-[#e8ecf1] rounded-lg px-3 py-3 shadow-sm grid grid-cols-1 md:grid-cols-2 gap-3">
+          <div>
+            <label className="text-[10px] uppercase tracking-wider text-[#94a3b8] font-bold block mb-1">
+              Sub-category
+            </label>
+            <SubCategoryPicker
+              value={pickerSub}
+              onChange={setPickerSub}
+              allowCreate={false}
+              placeholder="Type sub-category (18MM 8*4 LC)…"
+            />
+          </div>
+          <div>
+            <label className="text-[10px] uppercase tracking-wider text-[#94a3b8] font-bold block mb-1">
+              Item
+            </label>
+            <ItemBySubCategoryPicker
+              subcategoryId={pickerSub?.id ?? null}
+              onPick={(p) => addProductLine(p as any, 1)}
+            />
+          </div>
+        </div>
 
         {/* Hidden auto-focus scanner (catches wedge input anywhere on page) */}
         <div className="sr-only">
