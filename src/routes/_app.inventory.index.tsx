@@ -429,6 +429,7 @@ function NewProductDialog({ onCreated }: { onCreated: () => void }) {
   const [open, setOpen] = useState(false);
   const [name, setName] = useState("");
   const [category, setCategory] = useState<NewCat>("plywood");
+  const [subcategory, setSubcategory] = useState<SubCategory | null>(null);
   const [length, setLength] = useState<number>(0);
   const [width, setWidth] = useState<number>(0);
   const [areaInput, setAreaInput] = useState<number>(0);
@@ -469,6 +470,7 @@ function NewProductDialog({ onCreated }: { onCreated: () => void }) {
   const reset = () => {
     setName(""); setCategory("plywood"); setLength(0); setWidth(0);
     setAreaInput(0); setSize(""); setPricePerSqft(0); setPricePerPc(0); setQty(1); setQrUrl("");
+    setSubcategory(null);
   };
 
   // When length/width change, sync the area input field to the computed value.
@@ -490,6 +492,7 @@ function NewProductDialog({ onCreated }: { onCreated: () => void }) {
 
   const submit = async () => {
     if (!name.trim()) return toast.error("Name is required");
+    if (!subcategory) return toast.error("Sub-category is required");
     if (hasDimensions(category)) {
       if (!areaSqft) return toast.error("Enter length & breadth or area (sqft)");
       if (!pricePerSqft) return toast.error("Price per sqft is required");
@@ -515,6 +518,7 @@ function NewProductDialog({ onCreated }: { onCreated: () => void }) {
           default_price: unitPrice,
           gst_rate: 18,
           reorder_level: 5,
+          subcategory_id: subcategory.id,
         } as any)
         .select()
         .single();
