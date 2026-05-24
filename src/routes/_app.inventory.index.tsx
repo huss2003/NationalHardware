@@ -20,6 +20,7 @@ import { inr, makeQrDataUrl } from "@/lib/codes";
 import { Label } from "@/components/ui/label";
 import { TableSkeleton } from "@/components/erp/Skeletons";
 import { SubCategoryPicker, type SubCategory } from "@/components/erp/SubCategoryPicker";
+import { NewProductDialog } from "@/components/erp/NewProductDialog";
 import { Layers } from "lucide-react";
 
 export const Route = createFileRoute("/_app/inventory/")({ component: Inventory });
