@@ -616,7 +616,9 @@ function NewSale() {
                       onBlur={() => setTimeout(() => setDraftFocused(false), 150)}
                       onKeyDown={(e) => {
                         if (e.key === "Enter" || e.key === "Tab") {
-                          if (draftQuery.trim()) { e.preventDefault(); handleDraftCommit(); }
+                          if (draftQuery.trim() || draftSuggestions.length > 0) {
+                            e.preventDefault(); handleDraftCommit();
+                          }
                         } else if (e.key === "ArrowDown") {
                           e.preventDefault();
                           setActiveSuggest((n) => Math.min(n + 1, draftSuggestions.length - 1));
@@ -624,13 +626,21 @@ function NewSale() {
                           e.preventDefault();
                           setActiveSuggest((n) => Math.max(0, n - 1));
                         } else if (e.key === "Escape") {
-                          setDraftQuery("");
+                          setDraftQuery(""); setDraftSub(null);
+                        } else if (e.key === "Backspace" && !draftQuery && draftSub) {
+                          e.preventDefault(); setDraftSub(null);
                         }
                       }}
-                      placeholder="Scan barcode or type product name…"
+                      placeholder={draftSub ? `Pick item in ${draftSub.name}…` : "Scan barcode or type sub-category…"}
                       className="w-full h-full px-2 py-1.5 bg-transparent focus:outline-none focus:bg-white focus:ring-2 focus:ring-inset focus:ring-[#3b82f6] placeholder:text-slate-400 font-sans"
                       aria-label="Add new line"
                     />
+                    {draftSub && (
+                      <div className="absolute left-1.5 top-0.5 flex items-center gap-1 text-[10px] font-bold uppercase bg-[#3b82f6]/10 text-[#3b82f6] px-1.5 py-0.5 rounded">
+                        {draftSub.name}
+                        <button type="button" className="ml-0.5 hover:text-red-500" onMouseDown={(e) => { e.preventDefault(); setDraftSub(null); }}>×</button>
+                      </div>
+                    )}
                     {draftFocused && draftSuggestions.length > 0 && (
                       <div
                         className="fixed bg-white border border-slate-300 rounded-md shadow-2xl z-50 overflow-auto font-sans"
@@ -642,11 +652,21 @@ function NewSale() {
                           maxHeight: draftRect?.maxHeight ?? 320,
                         }}
                       >
-                        {draftSuggestions.map((p, idx) => (
+                        <div className="px-3 py-1.5 text-[10px] font-bold uppercase tracking-wider text-slate-500 bg-slate-50 border-b border-slate-200 flex items-center justify-between">
+                          <span>{draftSub ? `Items in ${draftSub.name}` : "Sub-categories"}</span>
+                          {draftSub && (
+                            <button type="button" onMouseDown={(e) => { e.preventDefault(); setDraftSub(null); }} className="text-[#3b82f6] hover:underline normal-case font-semibold">← back</button>
+                          )}
+                        </div>
+                        {draftSuggestions.map((p: any, idx: number) => (
                           <button
                             key={p.id}
                             type="button"
-                            onMouseDown={(e) => { e.preventDefault(); addProductLine(p, 1); }}
+                            onMouseDown={(e) => {
+                              e.preventDefault();
+                              if (!draftSub) pickDraftSub(p);
+                              else addAndReset(p as ProductRow);
+                            }}
                             className={`w-full text-left px-3 py-2 border-b border-slate-100 last:border-0 flex items-center justify-between gap-2 ${
                               idx === activeSuggest ? "bg-[#3b82f6]/10" : "hover:bg-slate-50"
                             }`}
@@ -654,12 +674,16 @@ function NewSale() {
                             <div className="min-w-0">
                               <div className="text-sm font-semibold text-slate-800 truncate">{p.name}</div>
                               <div className="text-[11px] text-slate-500">
-                                {p.prefix} · {p.gst_rate}% GST · {p.unit}{p.alt_unit ? ` / ${p.alt_unit}` : ""}
+                                {draftSub
+                                  ? `${p.prefix} · ${p.gst_rate}% GST · ${p.unit}${p.alt_unit ? ` / ${p.alt_unit}` : ""}`
+                                  : <span className="uppercase">{p.category}</span>}
                               </div>
                             </div>
-                            <div className="text-sm font-bold tabular-nums text-[#3b82f6] shrink-0">
-                              {inr(Number(p.default_price))}
-                            </div>
+                            {draftSub && (
+                              <div className="text-sm font-bold tabular-nums text-[#3b82f6] shrink-0">
+                                {inr(Number(p.default_price))}
+                              </div>
+                            )}
                           </button>
                         ))}
                       </div>
