@@ -8,7 +8,7 @@ import { toast } from "sonner";
 import { inr } from "@/lib/codes";
 import {
   Trash2, ArrowLeft, Check, ScanLine,
-  Plus, Calendar, MessageCircle, DoorOpen,
+  Plus, Calendar, MessageCircle, DoorOpen, Warehouse,
 } from "lucide-react";
 import { useUiConfig } from "@/lib/ui-config";
 // jspdf + jspdf-autotable (~250KB) loaded only when finalize() actually runs.
@@ -41,6 +41,8 @@ function NewSale() {
   const [paymentMode, setPaymentMode] = useState("cash");
   const [discount, setDiscount] = useState(0);
   const [lines, setLines] = useState<Line[]>([]);
+  const [godowns, setGodowns] = useState<{ id: string; name: string }[]>([]);
+  const [sourceGodownId, setSourceGodownId] = useState<string>(""); // "" = shop floor
   const [warn, setWarn] = useState<{ kind: ScanWarningKind; msg: string; code?: string } | null>(null);
   const [knownPrefixes, setKnownPrefixes] = useState<string[]>([]);
   const [busy, setBusy] = useState(false);
@@ -118,6 +120,8 @@ function NewSale() {
 
   useEffect(() => {
     supabase.from("customers").select("*").order("name").then(({ data }) => setCustomers(data ?? []));
+    supabase.from("godowns").select("id, name").eq("active", true).order("name")
+      .then(({ data }) => setGodowns((data ?? []) as any));
     supabase.from("products")
       .select("id,name,prefix,hsn,default_price,gst_rate,unit,alt_unit,alt_conversion")
       .eq("active", true)
@@ -192,6 +196,19 @@ function NewSale() {
         : "generic";
       setWarn({ kind, code, msg: `Status is ${String(item.status).toUpperCase()} — cannot be sold.` });
       return;
+    }
+    // Validate stock source
+    if (sourceGodownId) {
+      if (item.godown_id !== sourceGodownId) {
+        const g = godowns.find((x) => x.id === sourceGodownId)?.name ?? "selected godown";
+        setWarn({ kind: "generic", code, msg: `This item is not in ${g}. Change the source above or stock it in first.` });
+        return;
+      }
+    } else {
+      if (item.godown_id) {
+        setWarn({ kind: "generic", code, msg: `This item is in a godown, not on the shop floor. Change the source above.` });
+        return;
+      }
     }
     const isLot = !!(item as any).is_lot;
     const maxQty = isLot ? Number((item as any).qty_on_hand ?? 1) : 1;
