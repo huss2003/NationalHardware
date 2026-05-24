@@ -478,12 +478,6 @@ function SortableHead({
   );
 }
 
-type NewCat = "plywood" | "hardware" | "door" | "mica" | "other";
-const prefixForCat = (c: NewCat) =>
-  c === "plywood" ? "PLY" : c === "hardware" ? "HDR" : c === "door" ? "DOR" : c === "mica" ? "MIC" : "OTH";
-const hasDimensions = (c: NewCat) => c === "plywood" || c === "door";
-
-function NewProductDialog({ onCreated }: { onCreated: () => void }) {
   const [open, setOpen] = useState(false);
   const [name, setName] = useState("");
   const [category, setCategory] = useState<NewCat>("plywood");
