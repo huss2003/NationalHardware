@@ -415,47 +415,258 @@ function SortableHead({
   );
 }
 
+type NewCat = "plywood" | "hardware" | "door" | "mica" | "other";
+const prefixForCat = (c: NewCat) =>
+  c === "plywood" ? "PLY" : c === "hardware" ? "HDR" : c === "door" ? "DOR" : c === "mica" ? "MIC" : "OTH";
+const hasDimensions = (c: NewCat) => c === "plywood" || c === "door";
+
 function NewProductDialog({ onCreated }: { onCreated: () => void }) {
   const [open, setOpen] = useState(false);
-  const [form, setForm] = useState({ name: "", category: "plywood", prefix: "PLY", hsn: "", gst_rate: 18, default_cost: 0, default_price: 0, reorder_level: 5, unit: "pcs" });
-  const submit = async () => {
-    if (!form.name || !form.prefix) { toast.error("Name and prefix required"); return; }
-    const { error } = await supabase.from("products").insert({ ...form, prefix: form.prefix.toUpperCase() } as any);
-    if (error) toast.error(error.message); else { toast.success("Product created"); setOpen(false); onCreated(); }
+  const [name, setName] = useState("");
+  const [category, setCategory] = useState<NewCat>("plywood");
+  const [length, setLength] = useState<number>(0);
+  const [width, setWidth] = useState<number>(0);
+  const [size, setSize] = useState("");
+  const [pricePerSqft, setPricePerSqft] = useState<number>(0);
+  const [pricePerPc, setPricePerPc] = useState<number>(0);
+  const [qty, setQty] = useState<number>(1);
+  const [qrUrl, setQrUrl] = useState<string>("");
+  const [busy, setBusy] = useState(false);
+
+  const sizeLabel = hasDimensions(category)
+    ? (length && width ? `${length}x${width} ft` : "")
+    : size;
+  const areaSqft = hasDimensions(category) ? Number(length || 0) * Number(width || 0) : 0;
+  const unitPrice = hasDimensions(category)
+    ? Number(pricePerSqft || 0) * areaSqft
+    : Number(pricePerPc || 0);
+
+  const qrPayload = useMemo(
+    () => ({ name, category, size: sizeLabel }),
+    [name, category, sizeLabel],
+  );
+
+  useEffect(() => {
+    let cancelled = false;
+    if (!name) { setQrUrl(""); return; }
+    makeQrDataUrl(qrPayload).then((u) => { if (!cancelled) setQrUrl(u); });
+    return () => { cancelled = true; };
+  }, [qrPayload, name]);
+
+  const reset = () => {
+    setName(""); setCategory("plywood"); setLength(0); setWidth(0);
+    setSize(""); setPricePerSqft(0); setPricePerPc(0); setQty(1); setQrUrl("");
   };
+
+  const submit = async () => {
+    if (!name.trim()) return toast.error("Name is required");
+    if (hasDimensions(category)) {
+      if (!length || !width) return toast.error("Length and width are required");
+      if (!pricePerSqft) return toast.error("Price per sqft is required");
+    } else {
+      if (!size.trim()) return toast.error("Size is required");
+      if (!pricePerPc) return toast.error("Price is required");
+    }
+    if (qty < 1) return toast.error("Quantity must be at least 1");
+
+    setBusy(true);
+    try {
+      const prefix = prefixForCat(category);
+      // 'mica' isn't in the product_category enum on older deployments — fall back to 'other'.
+      const dbCategory: any = category;
+      const { data: prod, error: pErr } = await supabase
+        .from("products")
+        .insert({
+          name: name.trim(),
+          category: dbCategory,
+          prefix,
+          unit: hasDimensions(category) ? "sheet" : "pcs",
+          default_cost: unitPrice,
+          default_price: unitPrice,
+          gst_rate: 18,
+          reorder_level: 5,
+        } as any)
+        .select()
+        .single();
+      if (pErr) throw pErr;
+
+      const { data: userRes } = await supabase.auth.getUser();
+      const actorId = userRes?.user?.id ?? null;
+      const isLot = category === "hardware";
+
+      if (isLot) {
+        const { data: nid, error: nErr } = await supabase.rpc("next_item_id", { _prefix: prefix });
+        if (nErr) throw nErr;
+        const newId = nid as unknown as string;
+        const qr: any = { id: newId, name: name.trim(), category, size: sizeLabel, status: "available", lot: true };
+        const { error: iErr } = await supabase.from("item_instances").insert({
+          id: newId,
+          product_id: prod.id,
+          status: "available",
+          cost_price: unitPrice,
+          barcode_payload: newId,
+          qr_payload: qr,
+          is_lot: true,
+          qty_on_hand: qty,
+        } as any);
+        if (iErr) throw iErr;
+        await supabase.from("item_history").insert({
+          item_id: newId, event: "purchased" as any, actor_user_id: actorId,
+          notes: `Initial stock +${qty}`,
+        } as any);
+      } else {
+        for (let i = 0; i < qty; i++) {
+          const { data: nid, error: nErr } = await supabase.rpc("next_item_id", { _prefix: prefix });
+          if (nErr) throw nErr;
+          const newId = nid as unknown as string;
+          const qr: any = { id: newId, name: name.trim(), category, size: sizeLabel, status: "available" };
+          if (hasDimensions(category)) {
+            qr.length_ft = Number(length);
+            qr.width_ft = Number(width);
+            qr.area_sqft = Number(areaSqft.toFixed(2));
+          }
+          const { error: iErr } = await supabase.from("item_instances").insert({
+            id: newId,
+            product_id: prod.id,
+            status: "available",
+            cost_price: unitPrice,
+            barcode_payload: newId,
+            qr_payload: qr,
+            is_lot: false,
+            qty_on_hand: 1,
+            length_value: hasDimensions(category) ? Number(length) : null,
+            width_value: hasDimensions(category) ? Number(width) : null,
+            area_sqft: hasDimensions(category) ? Number(areaSqft.toFixed(2)) : null,
+            dimension_unit: hasDimensions(category) ? "ft" : null,
+          } as any);
+          if (iErr) throw iErr;
+          await supabase.from("item_history").insert({
+            item_id: newId, event: "purchased" as any, actor_user_id: actorId,
+            notes: "Initial stock",
+          } as any);
+        }
+      }
+
+      toast.success(`Created ${name} with ${qty} unit${qty > 1 ? "s" : ""}`);
+      setOpen(false); reset(); onCreated();
+    } catch (e: any) {
+      toast.error(e.message ?? "Failed to create product");
+    } finally {
+      setBusy(false);
+    }
+  };
+
   return (
-    <Dialog open={open} onOpenChange={setOpen}>
-      <DialogTrigger asChild><Button className="h-12"><Plus className="mr-1 h-5 w-5" />New product</Button></DialogTrigger>
-      <DialogContent>
+    <Dialog open={open} onOpenChange={(o) => { setOpen(o); if (!o) reset(); }}>
+      <DialogTrigger asChild>
+        <Button className="h-12"><Plus className="mr-1 h-5 w-5" />New product</Button>
+      </DialogTrigger>
+      <DialogContent className="max-w-lg">
         <DialogHeader><DialogTitle>New product</DialogTitle></DialogHeader>
-        <div className="space-y-3">
-          <Input placeholder="Name" value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} />
-          <div className="grid grid-cols-2 gap-3">
-            <select className="h-10 rounded-md border bg-background px-3" value={form.category} onChange={(e) => {
-              const cat = e.target.value as any;
-              const pref = cat === "plywood" ? "PLY" : cat === "hardware" ? "HDR" : cat === "door" ? "DOR" : "OTH";
-              setForm({ ...form, category: cat, prefix: pref });
-            }}>
+        <div className="space-y-3 max-h-[70vh] overflow-y-auto pr-1">
+          <div>
+            <Label className="text-xs">Name</Label>
+            <Input placeholder="e.g. Century Sainik MR" value={name} onChange={(e) => setName(e.target.value)} />
+          </div>
+          <div>
+            <Label className="text-xs">Category</Label>
+            <select
+              className="h-10 rounded-md border bg-background px-3 w-full text-sm"
+              value={category}
+              onChange={(e) => setCategory(e.target.value as NewCat)}
+            >
               <option value="plywood">Plywood</option>
               <option value="hardware">Hardware</option>
               <option value="door">Door</option>
-              <option value="other">Other</option>
+              <option value="mica">Mica</option>
+              <option value="other">Others</option>
             </select>
-            <Input placeholder="Prefix" value={form.prefix} onChange={(e) => setForm({ ...form, prefix: e.target.value.toUpperCase() })} />
           </div>
+
+          {hasDimensions(category) ? (
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <Label className="text-xs">Length (ft)</Label>
+                <Input
+                  type="number" min={0} step="0.01"
+                  value={length || ""}
+                  onChange={(e) => setLength(Number(e.target.value))}
+                />
+              </div>
+              <div>
+                <Label className="text-xs">Breadth (ft)</Label>
+                <Input
+                  type="number" min={0} step="0.01"
+                  value={width || ""}
+                  onChange={(e) => setWidth(Number(e.target.value))}
+                />
+              </div>
+            </div>
+          ) : (
+            <div>
+              <Label className="text-xs">Size</Label>
+              <Input
+                placeholder="e.g. 4 inch, M8x50, 1mm"
+                value={size}
+                onChange={(e) => setSize(e.target.value)}
+              />
+            </div>
+          )}
+
           <div className="grid grid-cols-2 gap-3">
-            <Input placeholder="HSN" value={form.hsn} onChange={(e) => setForm({ ...form, hsn: e.target.value })} />
-            <Input type="number" placeholder="GST %" value={form.gst_rate} onChange={(e) => setForm({ ...form, gst_rate: Number(e.target.value) })} />
+            {hasDimensions(category) ? (
+              <div>
+                <Label className="text-xs">Price per sqft (₹)</Label>
+                <Input
+                  type="number" min={0} step="0.01"
+                  value={pricePerSqft || ""}
+                  onChange={(e) => setPricePerSqft(Number(e.target.value))}
+                />
+              </div>
+            ) : (
+              <div>
+                <Label className="text-xs">Price per pc (₹)</Label>
+                <Input
+                  type="number" min={0} step="0.01"
+                  value={pricePerPc || ""}
+                  onChange={(e) => setPricePerPc(Number(e.target.value))}
+                />
+              </div>
+            )}
+            <div>
+              <Label className="text-xs">Quantity (PCS)</Label>
+              <Input
+                type="number" min={1} step={1}
+                value={qty}
+                onChange={(e) => setQty(Math.max(1, Number(e.target.value) || 1))}
+              />
+            </div>
           </div>
-          <div className="grid grid-cols-2 gap-3">
-            <Input type="number" placeholder="Default cost" value={form.default_cost} onChange={(e) => setForm({ ...form, default_cost: Number(e.target.value) })} />
-            <Input type="number" placeholder="Default price" value={form.default_price} onChange={(e) => setForm({ ...form, default_price: Number(e.target.value) })} />
+
+          {hasDimensions(category) && areaSqft > 0 && (
+            <div className="text-xs text-muted-foreground">
+              Area per unit: <span className="font-semibold text-foreground">{areaSqft.toFixed(2)} sqft</span>
+              {" • "}Unit price: <span className="font-semibold text-foreground">{inr(unitPrice)}</span>
+            </div>
+          )}
+
+          <div className="rounded-md border border-border/60 p-3 flex items-center gap-3 bg-muted/30">
+            <div className="h-24 w-24 shrink-0 grid place-items-center bg-background rounded border border-border/60">
+              {qrUrl ? (
+                <img src={qrUrl} alt="QR preview" className="h-24 w-24" />
+              ) : (
+                <span className="text-[10px] text-muted-foreground text-center px-1">QR preview</span>
+              )}
+            </div>
+            <div className="text-xs space-y-0.5 min-w-0 flex-1">
+              <div className="text-muted-foreground uppercase tracking-wider text-[10px] font-semibold">QR value</div>
+              <div className="font-mono break-all">{JSON.stringify(qrPayload)}</div>
+            </div>
           </div>
-          <div className="grid grid-cols-2 gap-3">
-            <Input type="number" placeholder="Reorder level" value={form.reorder_level} onChange={(e) => setForm({ ...form, reorder_level: Number(e.target.value) })} />
-            <Input placeholder="Unit (pcs, sheet, kg)" value={form.unit} onChange={(e) => setForm({ ...form, unit: e.target.value })} />
-          </div>
-          <Button className="w-full h-12" onClick={submit}>Create</Button>
+
+          <Button className="w-full h-12" onClick={submit} disabled={busy}>
+            {busy ? "Creating…" : "Create"}
+          </Button>
         </div>
       </DialogContent>
     </Dialog>
