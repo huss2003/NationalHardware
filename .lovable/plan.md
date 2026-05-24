@@ -1,35 +1,53 @@
-## Godown Stock In / Stock Out
+## Goal
 
-Add two action buttons on each Godown tile (and a header pair when "All Locations" is selected) that open dedicated dialogs.
+Replace the current "pick a role" fake login with real Supabase email+password auth, then remove every `anon` policy so the scan findings are resolved without breaking the app.
 
-### Stock In dialog
+## What changes for users
 
-Tabs:
-1. **Move existing** — searchable list of `item_instances` with `status='available'` and `godown_id` ≠ this godown (includes unassigned). Multi-select → updates `godown_id` to chosen godown, writes `item_history` event `moved`.
-2. **Receive new** — pick product + qty → mints fresh `item_instances` via the same logic the purchase flow uses (unique units get N stickers; hardware reuses/creates a lot row). New rows get `godown_id` set. Auto-opens the print dialog (LabelSheet) for the minted stickers.
+- The login screen becomes an **email + password** form (with a "Create account" toggle).
+- The first user to sign up is automatically made **admin**; everyone else is `billing` (already wired by the existing `handle_new_user` trigger).
+- After the migration, **existing users must create an account** — the old "Admin / Employee" buttons go away. The localStorage role is replaced by the Supabase session.
+- All app screens require sign-in; visiting any `/something` while signed out bounces to `/login`.
 
-### Stock Out dialog
+## Steps
 
-Step 1: pick units from this godown (scan or multi-select list, filtered to `godown_id = this`, `status='available'`).
+### 1. Auth UI (frontend)
+- Rewrite `src/routes/login.tsx` as a real Supabase email/password sign-in + sign-up form, with `emailRedirectTo: window.location.origin`.
+- Replace `src/lib/auth-store.ts` with a Supabase session-backed store:
+  - subscribe to `onAuthStateChange` (set listener BEFORE `getSession`)
+  - expose `user`, `ready`, `role` (read from `user_roles` for the signed-in user)
+  - `logout()` calls `supabase.auth.signOut()`
+- Add an `_authenticated` layout route OR add a `beforeLoad` guard in `_app.tsx` that redirects to `/login` when no session. Use the existing `_app` shell.
+- Update `AppSidebar` "Signed in as …" + sign-out button to use the new store.
+- Disable email confirmation in Supabase Auth settings so signup works instantly (user can re-enable later).
 
-Step 2: destination tabs:
-- **To Shop floor** — set `godown_id = null`, status stays `available`, write `moved` history.
-- **To Sales bill** — autocomplete on `sales` (recent + search by invoice_no/customer). On confirm: insert into `sales_items` with `item_instance_id`, recompute `sales.subtotal/grand_total`, mark instance `sold` (or decrement lot qty), write `sold` history with `ref_table='sales'`.
+### 2. Lock down RLS (database migration)
+Drop every `anon` policy and rely on the existing `authenticated` policies. Specifically:
+- `customers`, `suppliers`, `sales`, `sales_items`, `sales_returns`, `sales_return_items`, `purchases`, `purchase_items`, `purchase_returns`, `purchase_return_items`, `receipts`, `item_instances`, `item_history`, `shop_users`, `recycle_bin`, `audit_log`, `alerts`, `id_sequences`, `customer_receipt_seq`, `godowns`, `door_orders`, `door_order_items`, `door_types`, `app_settings`, `products` — drop all `... anon ...` policies.
+- Replace `public read customers` / `public write customers` / etc. (which target `{anon,authenticated}`) with `authenticated`-only equivalents.
+- `audit_log`: keep `authenticated` SELECT + INSERT only — no UPDATE/DELETE for anyone.
+- `recycle_bin`: keep admin-only UPDATE/DELETE; SELECT for `authenticated`; INSERT for `authenticated`.
+- `shop_users`: SELECT for `authenticated`; manage limited to admins (already in place via `admin manage shop_users`).
+- `app_settings`: SELECT for `authenticated` only (drop `anon read app_settings`).
+- Storage buckets `bill-images` / `invoices`: already authenticated-only — leave as-is.
 
-After EITHER destination is committed, automatically mint NEW sequential stickers for the moved units (one per unique unit; lot units skip mint per your choice) using the existing `mintReprintForSale` helper in `src/lib/relabel.ts` — original row is marked moved/sold, new sticker carries `replaces: <oldId>`. The new stickers open in the existing `ReprintLabelDialog` for printing.
+### 3. Postgres extension warning
+- Move `pg_trgm` from `public` schema to `extensions` schema (the linter warning).
 
-**Hardware lots:** Stock Out asks for qty, decrements `qty_on_hand` on the lot row, reprints the existing lot sticker only (no new ID minted). If qty becomes 0, status flips to `sold`/`moved`.
+### 4. Validation
+- Sign up first account → becomes admin → confirm all screens (dashboard, sales/new, purchases/new, godowns, inventory) load and writes succeed.
+- Sign out → bounced to `/login`. Direct URL access while signed out → `/login`.
+- Re-run the security scan; remaining items get triaged.
 
-### Files
+## Technical notes
 
-- New: `src/components/erp/GodownStockInDialog.tsx`
-- New: `src/components/erp/GodownStockOutDialog.tsx`
-- New: `src/lib/godown-stock.ts` — helpers: `moveToGodown`, `moveOutOfGodown`, `attachUnitsToSale`, `mintFreshIntoGodown` (wraps existing mint pattern).
-- Edit: `src/routes/_app.godowns.index.tsx` — add "Stock In" / "Stock Out" buttons on tile + page header; mount the two dialogs and the existing `ReprintLabelDialog`.
-- Reuse: `src/lib/relabel.ts` (`mintReprintForSale`) for the new-sticker mint on stock-out.
+- All Supabase reads in components already use the browser client (`supabase` from `@/integrations/supabase/client`), so once a real session exists, RLS will accept them as `authenticated` — no per-query code changes needed.
+- Server functions are not currently used for these reads; we do NOT need to introduce `requireSupabaseAuth` for the lockdown to work. The browser client carries the user's JWT directly.
+- The existing `user_roles` + `has_role()` + `handle_new_user()` trigger already wires "first signup = admin"; nothing new needed there.
+- Files touched: `src/routes/login.tsx`, `src/lib/auth-store.ts`, `src/routes/_app.tsx`, `src/routes/__root.tsx` (invalidate on auth change), `src/components/layout/AppSidebar.tsx`. Plus one DB migration.
 
-### Notes
+## Out of scope
 
-- No schema changes — `item_instances.godown_id` already exists, `item_history` already supports `moved`.
-- Sale total recomputation mirrors what `record_sale` does (subtotal + GST split). Done client-side via `supabase.update` on `sales` after inserting the line.
-- "Stock Out" buttons only enabled when a specific godown (not "All") is selected.
+- Password reset flow (can add `/reset-password` later if you want).
+- Google/social login.
+- Migrating the existing `shop_users` PIN table — left in place but no longer used for login. We can delete it in a follow-up.
