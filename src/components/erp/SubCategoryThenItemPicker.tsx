@@ -164,7 +164,7 @@ export function SubCategoryThenItemPicker({
           ref={inputRef}
           autoFocus={autoFocus}
           className="flex-1 h-full bg-transparent text-sm focus:outline-none placeholder:text-muted-foreground min-w-0"
-          placeholder={sub ? `Pick item in ${sub.name}…` : placeholder}
+        placeholder={sub ? `Pick item in ${sub.name}…` : "Type item or sub-category…"}
           value={query}
           onFocus={() => setFocus(true)}
           onChange={(e) => setQuery(e.target.value)}
@@ -206,7 +206,7 @@ export function SubCategoryThenItemPicker({
         <div className="absolute z-30 mt-1 w-full bg-popover border border-border/60 rounded-lg shadow-lg max-h-72 overflow-auto">
           {!sub && (
             <div className="px-3 py-1.5 text-[10px] font-bold uppercase tracking-wider text-muted-foreground bg-muted/40 border-b">
-              Sub-categories
+              Items & Sub-categories
             </div>
           )}
           {sub && (
