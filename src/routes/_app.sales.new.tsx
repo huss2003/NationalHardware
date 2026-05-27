@@ -645,7 +645,7 @@ function NewSale() {
                           e.preventDefault(); setDraftSub(null);
                         }
                       }}
-                      placeholder={draftSub ? `Pick item in ${draftSub.name}…` : "Scan barcode or type sub-category…"}
+                      placeholder={draftSub ? `Pick item in ${draftSub.name}…` : "Scan barcode or type item / sub-category…"}
                       className="w-full h-full px-2 py-1.5 bg-transparent focus:outline-none focus:bg-white focus:ring-2 focus:ring-inset focus:ring-[#3b82f6] placeholder:text-slate-400 font-sans"
                       aria-label="Add new line"
                     />
@@ -667,7 +667,7 @@ function NewSale() {
                         }}
                       >
                         <div className="px-3 py-1.5 text-[10px] font-bold uppercase tracking-wider text-slate-500 bg-slate-50 border-b border-slate-200 flex items-center justify-between">
-                          <span>{draftSub ? `Items in ${draftSub.name}` : "Sub-categories"}</span>
+                          <span>{draftSub ? `Items in ${draftSub.name}` : "Items & Sub-categories"}</span>
                           {draftSub && (
                             <button type="button" onMouseDown={(e) => { e.preventDefault(); setDraftSub(null); }} className="text-[#3b82f6] hover:underline normal-case font-semibold">← back</button>
                           )}
@@ -678,8 +678,12 @@ function NewSale() {
                             type="button"
                             onMouseDown={(e) => {
                               e.preventDefault();
-                              if (!draftSub) pickDraftSub(p);
-                              else addAndReset(p as ProductRow);
+                              if (!draftSub) {
+                                if (p.__kind === "item") addAndReset(p as ProductRow);
+                                else pickDraftSub(p);
+                              } else {
+                                addAndReset(p as ProductRow);
+                              }
                             }}
                             className={`w-full text-left px-3 py-2 border-b border-slate-100 last:border-0 flex items-center justify-between gap-2 ${
                               idx === activeSuggest ? "bg-[#3b82f6]/10" : "hover:bg-slate-50"
@@ -690,10 +694,17 @@ function NewSale() {
                               <div className="text-[11px] text-slate-500">
                                 {draftSub
                                   ? `${p.prefix} · ${p.gst_rate}% GST · ${p.unit}${p.alt_unit ? ` / ${p.alt_unit}` : ""}`
-                                  : <span className="uppercase">{p.category}</span>}
+                                  : (
+                                      <span className="inline-flex items-center gap-1.5">
+                                        {p.__kind === "item" && (
+                                          <span className="px-1.5 py-0.5 rounded bg-[#3b82f6]/10 text-[#3b82f6] font-bold text-[9px]">ITEM</span>
+                                        )}
+                                        <span className="uppercase">{p.category}</span>
+                                      </span>
+                                    )}
                               </div>
                             </div>
-                            {draftSub && (
+                            {(draftSub || p.__kind === "item") && (
                               <div className="text-sm font-bold tabular-nums text-[#3b82f6] shrink-0">
                                 {inr(Number(p.default_price))}
                               </div>
