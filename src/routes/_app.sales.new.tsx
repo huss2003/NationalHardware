@@ -160,8 +160,18 @@ function NewSale() {
   const draftSuggestions = useMemo<any[]>(() => {
     const q = draftQuery.trim().toLowerCase();
     if (!draftSub) {
-      if (!q) return subcats.slice(0, 8);
-      return subcats.filter((s) => s.name.toLowerCase().includes(q)).slice(0, 8);
+      const subPool = subcats.map((s) => ({ ...s, __kind: "sub" as const }));
+      const itemPool = products
+        .filter((p) => !p.subcategory_id)
+        .map((p) => ({ ...p, __kind: "item" as const }));
+      const pool = [...subPool, ...itemPool];
+      const filtered = q
+        ? pool.filter((s: any) =>
+            s.name.toLowerCase().includes(q) ||
+            (s.prefix ? String(s.prefix).toLowerCase().includes(q) : false),
+          )
+        : pool;
+      return filtered.slice(0, 14);
     }
     const pool = products.filter((p) => p.subcategory_id === draftSub.id);
     if (!q) return pool.slice(0, 10);
@@ -263,8 +273,12 @@ function NewSale() {
     if (s && looksLikeCode(s)) { onScan(s); setDraftQuery(""); return; }
     const pick = draftSuggestions[activeSuggest] ?? draftSuggestions[0];
     if (!pick) { toast.error(draftSub ? "No matching item" : "No matching sub-category"); return; }
-    if (!draftSub) pickDraftSub(pick);
-    else addProductLine(pick as ProductRow, 1);
+    if (!draftSub) {
+      if (pick.__kind === "item") addProductLine(pick as ProductRow, 1);
+      else pickDraftSub(pick);
+    } else {
+      addProductLine(pick as ProductRow, 1);
+    }
   };
 
   // reset draft sub when a line is added
