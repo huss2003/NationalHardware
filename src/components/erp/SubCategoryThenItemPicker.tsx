@@ -22,6 +22,7 @@ export function SubCategoryThenItemPicker({
   autoFocus?: boolean;
 }) {
   const [subs, setSubs] = useState<any[]>([]);
+  const [standalone, setStandalone] = useState<any[]>([]);
   const [items, setItems] = useState<any[]>([]);
   const [sub, setSub] = useState<any | null>(null);
   const [query, setQuery] = useState("");
@@ -40,6 +41,14 @@ export function SubCategoryThenItemPicker({
       .eq("active", true)
       .order("name")
       .then(({ data }) => setSubs(data ?? []));
+    // Standalone products (no sub-category) — show alongside sub-categories
+    supabase
+      .from("products")
+      .select("id,name,prefix,hsn,default_price,default_cost,gst_rate,unit,alt_unit,alt_conversion,category,subcategory_id")
+      .eq("active", true)
+      .is("subcategory_id", null)
+      .order("name")
+      .then(({ data }) => setStandalone(data ?? []));
   }, []);
 
   // Fetch the full sub-category row (with dimension_label & default prices)
@@ -76,13 +85,17 @@ export function SubCategoryThenItemPicker({
   const suggestions = useMemo(() => {
     const q = query.trim().toLowerCase();
     if (!sub) {
-      const pool = subs;
-      if (!q) return pool.slice(0, 10);
-      return pool.filter((s) => s.name.toLowerCase().includes(q)).slice(0, 10);
+      const subPool = subs.map((s) => ({ ...s, __kind: "sub" as const }));
+      const itemPool = standalone.map((p) => ({ ...p, __kind: "item" as const }));
+      const pool = [...subPool, ...itemPool];
+      const filtered = q
+        ? pool.filter((s) => s.name.toLowerCase().includes(q))
+        : pool;
+      return filtered.slice(0, 14);
     }
     if (!q) return items.slice(0, 12);
     return items.filter((p) => p.name.toLowerCase().includes(q)).slice(0, 12);
-  }, [sub, subs, items, query]);
+  }, [sub, subs, standalone, items, query]);
 
   useEffect(() => { setActive(0); }, [query, sub]);
 
@@ -92,6 +105,12 @@ export function SubCategoryThenItemPicker({
     const pick = suggestions[idx];
     if (!pick) return;
     if (!sub) {
+      if (pick.__kind === "item") {
+        onPickItem(pick);
+        reset();
+        setTimeout(() => inputRef.current?.focus(), 0);
+        return;
+      }
       setSub(pick);
       setQuery("");
       setActive(0);
@@ -208,7 +227,12 @@ export function SubCategoryThenItemPicker({
             >
               <span className="font-medium truncate">{s.name}</span>
               {!sub ? (
-                <span className="text-[10px] uppercase text-muted-foreground shrink-0">{s.category}</span>
+                <span className="text-[10px] uppercase shrink-0 flex items-center gap-1.5">
+                  {s.__kind === "item" && (
+                    <span className="px-1.5 py-0.5 rounded bg-primary/10 text-primary font-bold">item</span>
+                  )}
+                  <span className="text-muted-foreground">{s.category}</span>
+                </span>
               ) : (
                 <span className="text-[11px] text-muted-foreground tabular-nums shrink-0">
                   ₹{Number(s.default_price ?? s.default_cost ?? 0).toFixed(2)}
