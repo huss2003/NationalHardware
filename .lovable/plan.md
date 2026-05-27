@@ -1,40 +1,27 @@
-# Restructure Sub-Category → Item flow
+## Goal
+Show standalone products (items with no sub-category) in the first-stage suggestion list on `/sales/new`, alongside sub-categories — same behaviour already in `/purchases/new`.
 
-## 1. Sales & Purchase (`_app.sales.new.tsx`, `_app.purchases.new.tsx`)
+## Root cause
+`src/routes/_app.sales.new.tsx` does NOT use the shared `SubCategoryThenItemPicker`. It has its own inline picker (lines ~53–171, ~613–690) whose first-stage `draftSuggestions` only reads from `subcats`. Standalone products are never merged in, so the dropdown header stays "SUB-CATEGORIES" with only sub-cats visible. Purchases already works because it uses the shared picker (which was fixed last turn).
 
-**Remove** the standalone "Sub-Category / Item" block above the line-items grid.
+## Changes (single file: `src/routes/_app.sales.new.tsx`)
 
-**Replace** the current product autocomplete inside each row's first cell (Item column) with a single inline picker that works in two stages:
+1. **`draftSuggestions` memo (~line 160)** — when `draftSub` is null, build the pool as:
+   - sub-categories tagged `__kind: "sub"`, plus
+   - products where `subcategory_id == null && active` tagged `__kind: "item"`.
+   Filter by query, slice ~14.
 
-- Stage A — empty / typing: dropdown lists matching **Sub-Categories** (from `product_subcategories`, filtered by typed text). Each row shows the sub-category name + category badge.
-- Stage B — after the user clicks a sub-category: the same dropdown switches to list **Items** belonging to that sub-category (`products.subcategory_id = chosen.id`), filtered by further typing. A small "← back to sub-categories" / chip showing the picked sub-category appears at the top so the user can reset.
-- Selecting an item fills the row exactly like today (price, unit, alt-unit, GST, source pickers all unchanged).
-- Keyboard: ↑/↓ to move, Enter to select, Esc to close, Backspace on empty input returns to Stage A.
+2. **`handleDraftCommit` (~line 261)** and the suggestion `onClick` (~line 667) — branch on `pick.__kind`: if `"item"`, call `addProductLine(pick, 1)`; otherwise `pickDraftSub(pick)`.
 
-No changes to totals, payment, customer block, scan input, or "Add Door" custom flow.
+3. **Dropdown header (~line 656)** — change `"Sub-categories"` label to `"Items & Sub-categories"` when at first stage.
 
-## 2. Inventory list (`_app.inventory.index.tsx`)
+4. **Suggestion row meta (~line 677)** — for `__kind === "item"`, render a small "ITEM" badge before the category text to distinguish from sub-cats.
 
-Replace the current flat product table with a **sub-category-grouped** view:
+5. **Input placeholder (~line 634)** — change first-stage placeholder to `"Scan barcode or type item / sub-category…"`.
 
-```text
-▸ Plywood — 18MM 8*4 LC          12 items
-▸ Plywood — 12MM 8*4              5 items
-▸ Door  — Teak Flush 7x3          3 items
-▸ Uncategorized                   4 items
-```
+No changes to DB, purchases page, or shared picker.
 
-- Each row is a collapsible header (chevron). Clicking expands and renders the existing product table rows for that sub-category inline.
-- Search box filters across sub-category name + item name; matching groups auto-expand.
-- "Uncategorized" bucket holds products with `subcategory_id IS NULL`.
-- All existing product actions (edit, QR, stock, delete, row click → detail) stay intact.
-
-## 3. Shared picker component
-
-Add `SubCategoryThenItemPicker` (new file `src/components/erp/SubCategoryThenItemPicker.tsx`) implementing the two-stage suggestion described above. Sales and Purchase rows both use it. The existing `SubCategoryPicker` / `ItemBySubCategoryPicker` components are removed from Sales/Purchase imports (kept only where Inventory's "New product" dialog still needs `SubCategoryPicker` for creation).
-
-## Out of scope
-
-- Sub-category management page (`_app.inventory.subcategories.tsx`) and DB schema — unchanged.
-- New product dialog still uses the existing sub-category picker.
-- No pricing/calculation logic changes.
+## Verification
+- Open `/sales/new`, focus the product cell — dropdown header reads "ITEMS & SUB-CATEGORIES" and lists the 16 Mica items (Ebony, Glossy White, …) below the Plywood sub-categories.
+- Typing `mica` filters to Mica items + Mica sub-cat (if any).
+- Clicking an item adds it as a line directly; clicking a sub-cat drills into its items as before.

@@ -160,8 +160,18 @@ function NewSale() {
   const draftSuggestions = useMemo<any[]>(() => {
     const q = draftQuery.trim().toLowerCase();
     if (!draftSub) {
-      if (!q) return subcats.slice(0, 8);
-      return subcats.filter((s) => s.name.toLowerCase().includes(q)).slice(0, 8);
+      const subPool = subcats.map((s) => ({ ...s, __kind: "sub" as const }));
+      const itemPool = products
+        .filter((p) => !p.subcategory_id)
+        .map((p) => ({ ...p, __kind: "item" as const }));
+      const pool = [...subPool, ...itemPool];
+      const filtered = q
+        ? pool.filter((s: any) =>
+            s.name.toLowerCase().includes(q) ||
+            (s.prefix ? String(s.prefix).toLowerCase().includes(q) : false),
+          )
+        : pool;
+      return filtered.slice(0, 14);
     }
     const pool = products.filter((p) => p.subcategory_id === draftSub.id);
     if (!q) return pool.slice(0, 10);
@@ -263,8 +273,12 @@ function NewSale() {
     if (s && looksLikeCode(s)) { onScan(s); setDraftQuery(""); return; }
     const pick = draftSuggestions[activeSuggest] ?? draftSuggestions[0];
     if (!pick) { toast.error(draftSub ? "No matching item" : "No matching sub-category"); return; }
-    if (!draftSub) pickDraftSub(pick);
-    else addProductLine(pick as ProductRow, 1);
+    if (!draftSub) {
+      if (pick.__kind === "item") addProductLine(pick as ProductRow, 1);
+      else pickDraftSub(pick);
+    } else {
+      addProductLine(pick as ProductRow, 1);
+    }
   };
 
   // reset draft sub when a line is added
@@ -631,7 +645,7 @@ function NewSale() {
                           e.preventDefault(); setDraftSub(null);
                         }
                       }}
-                      placeholder={draftSub ? `Pick item in ${draftSub.name}…` : "Scan barcode or type sub-category…"}
+                      placeholder={draftSub ? `Pick item in ${draftSub.name}…` : "Scan barcode or type item / sub-category…"}
                       className="w-full h-full px-2 py-1.5 bg-transparent focus:outline-none focus:bg-white focus:ring-2 focus:ring-inset focus:ring-[#3b82f6] placeholder:text-slate-400 font-sans"
                       aria-label="Add new line"
                     />
@@ -653,7 +667,7 @@ function NewSale() {
                         }}
                       >
                         <div className="px-3 py-1.5 text-[10px] font-bold uppercase tracking-wider text-slate-500 bg-slate-50 border-b border-slate-200 flex items-center justify-between">
-                          <span>{draftSub ? `Items in ${draftSub.name}` : "Sub-categories"}</span>
+                          <span>{draftSub ? `Items in ${draftSub.name}` : "Items & Sub-categories"}</span>
                           {draftSub && (
                             <button type="button" onMouseDown={(e) => { e.preventDefault(); setDraftSub(null); }} className="text-[#3b82f6] hover:underline normal-case font-semibold">← back</button>
                           )}
@@ -664,8 +678,12 @@ function NewSale() {
                             type="button"
                             onMouseDown={(e) => {
                               e.preventDefault();
-                              if (!draftSub) pickDraftSub(p);
-                              else addAndReset(p as ProductRow);
+                              if (!draftSub) {
+                                if (p.__kind === "item") addAndReset(p as ProductRow);
+                                else pickDraftSub(p);
+                              } else {
+                                addAndReset(p as ProductRow);
+                              }
                             }}
                             className={`w-full text-left px-3 py-2 border-b border-slate-100 last:border-0 flex items-center justify-between gap-2 ${
                               idx === activeSuggest ? "bg-[#3b82f6]/10" : "hover:bg-slate-50"
@@ -676,10 +694,17 @@ function NewSale() {
                               <div className="text-[11px] text-slate-500">
                                 {draftSub
                                   ? `${p.prefix} · ${p.gst_rate}% GST · ${p.unit}${p.alt_unit ? ` / ${p.alt_unit}` : ""}`
-                                  : <span className="uppercase">{p.category}</span>}
+                                  : (
+                                      <span className="inline-flex items-center gap-1.5">
+                                        {p.__kind === "item" && (
+                                          <span className="px-1.5 py-0.5 rounded bg-[#3b82f6]/10 text-[#3b82f6] font-bold text-[9px]">ITEM</span>
+                                        )}
+                                        <span className="uppercase">{p.category}</span>
+                                      </span>
+                                    )}
                               </div>
                             </div>
-                            {draftSub && (
+                            {(draftSub || p.__kind === "item") && (
                               <div className="text-sm font-bold tabular-nums text-[#3b82f6] shrink-0">
                                 {inr(Number(p.default_price))}
                               </div>
