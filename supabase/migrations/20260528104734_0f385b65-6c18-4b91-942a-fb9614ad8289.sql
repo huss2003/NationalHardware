@@ -1,0 +1,2 @@
+-- See /tmp/import.sql — full INSERT script for 90 sub-categories and 1418 products
+-- Inserted via tool with full body
