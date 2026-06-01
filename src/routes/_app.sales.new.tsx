@@ -63,10 +63,7 @@ function NewSale() {
     }
   }, [tabs, activeId]);
 
-  const persistedOnce = useRef(false);
   useEffect(() => {
-    // Skip the very first run if it matches what we restored (harmless either way).
-    persistedOnce.current = true;
     try {
       sessionStorage.setItem(TABS_KEY, JSON.stringify({ tabs, activeId }));
     } catch {}
