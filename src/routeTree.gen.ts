@@ -24,6 +24,7 @@ import { Route as AppPurchasesIndexRouteImport } from './routes/_app.purchases.i
 import { Route as AppPurchaseReturnsIndexRouteImport } from './routes/_app.purchase-returns.index'
 import { Route as AppInventoryIndexRouteImport } from './routes/_app.inventory.index'
 import { Route as AppGodownsIndexRouteImport } from './routes/_app.godowns.index'
+import { Route as ApiPublicSeedBusyImportRouteImport } from './routes/api/public/seed-busy-import'
 import { Route as AppUnitsItemIdRouteImport } from './routes/_app.units.$itemId'
 import { Route as AppSalesReceiptsRouteImport } from './routes/_app.sales.receipts'
 import { Route as AppSalesNewRouteImport } from './routes/_app.sales.new'
@@ -108,6 +109,11 @@ const AppGodownsIndexRoute = AppGodownsIndexRouteImport.update({
   path: '/godowns/',
   getParentRoute: () => AppRoute,
 } as any)
+const ApiPublicSeedBusyImportRoute = ApiPublicSeedBusyImportRouteImport.update({
+  id: '/api/public/seed-busy-import',
+  path: '/api/public/seed-busy-import',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const AppUnitsItemIdRoute = AppUnitsItemIdRouteImport.update({
   id: '/units/$itemId',
   path: '/units/$itemId',
@@ -173,6 +179,7 @@ export interface FileRoutesByFullPath {
   '/sales/new': typeof AppSalesNewRoute
   '/sales/receipts': typeof AppSalesReceiptsRoute
   '/units/$itemId': typeof AppUnitsItemIdRoute
+  '/api/public/seed-busy-import': typeof ApiPublicSeedBusyImportRoute
   '/godowns/': typeof AppGodownsIndexRoute
   '/inventory/': typeof AppInventoryIndexRoute
   '/purchase-returns/': typeof AppPurchaseReturnsIndexRoute
@@ -198,6 +205,7 @@ export interface FileRoutesByTo {
   '/sales/new': typeof AppSalesNewRoute
   '/sales/receipts': typeof AppSalesReceiptsRoute
   '/units/$itemId': typeof AppUnitsItemIdRoute
+  '/api/public/seed-busy-import': typeof ApiPublicSeedBusyImportRoute
   '/godowns': typeof AppGodownsIndexRoute
   '/inventory': typeof AppInventoryIndexRoute
   '/purchase-returns': typeof AppPurchaseReturnsIndexRoute
@@ -225,6 +233,7 @@ export interface FileRoutesById {
   '/_app/sales/new': typeof AppSalesNewRoute
   '/_app/sales/receipts': typeof AppSalesReceiptsRoute
   '/_app/units/$itemId': typeof AppUnitsItemIdRoute
+  '/api/public/seed-busy-import': typeof ApiPublicSeedBusyImportRoute
   '/_app/godowns/': typeof AppGodownsIndexRoute
   '/_app/inventory/': typeof AppInventoryIndexRoute
   '/_app/purchase-returns/': typeof AppPurchaseReturnsIndexRoute
@@ -252,6 +261,7 @@ export interface FileRouteTypes {
     | '/sales/new'
     | '/sales/receipts'
     | '/units/$itemId'
+    | '/api/public/seed-busy-import'
     | '/godowns/'
     | '/inventory/'
     | '/purchase-returns/'
@@ -277,6 +287,7 @@ export interface FileRouteTypes {
     | '/sales/new'
     | '/sales/receipts'
     | '/units/$itemId'
+    | '/api/public/seed-busy-import'
     | '/godowns'
     | '/inventory'
     | '/purchase-returns'
@@ -303,6 +314,7 @@ export interface FileRouteTypes {
     | '/_app/sales/new'
     | '/_app/sales/receipts'
     | '/_app/units/$itemId'
+    | '/api/public/seed-busy-import'
     | '/_app/godowns/'
     | '/_app/inventory/'
     | '/_app/purchase-returns/'
@@ -315,6 +327,7 @@ export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   AppRoute: typeof AppRouteWithChildren
   LoginRoute: typeof LoginRoute
+  ApiPublicSeedBusyImportRoute: typeof ApiPublicSeedBusyImportRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -423,6 +436,13 @@ declare module '@tanstack/react-router' {
       fullPath: '/godowns/'
       preLoaderRoute: typeof AppGodownsIndexRouteImport
       parentRoute: typeof AppRoute
+    }
+    '/api/public/seed-busy-import': {
+      id: '/api/public/seed-busy-import'
+      path: '/api/public/seed-busy-import'
+      fullPath: '/api/public/seed-busy-import'
+      preLoaderRoute: typeof ApiPublicSeedBusyImportRouteImport
+      parentRoute: typeof rootRouteImport
     }
     '/_app/units/$itemId': {
       id: '/_app/units/$itemId'
@@ -544,6 +564,7 @@ const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   AppRoute: AppRouteWithChildren,
   LoginRoute: LoginRoute,
+  ApiPublicSeedBusyImportRoute: ApiPublicSeedBusyImportRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)

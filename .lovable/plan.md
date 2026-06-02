@@ -1,57 +1,63 @@
-## Goal
-Add a tabbed multi-bill system to `/sales/new` so the user can open up to **5 independent sale bills** at once (matching the uploaded screenshots: "Sale #1 … Sale #5" tabs with a `+` to add and `×` to close each). Every bill keeps its own customer, items, payment, discount, godown source, and totals — **no data is shared/merged between bills**. Tabs persist across page refresh, and saving one bill closes only that tab.
+# Import Busy ledger data into Supabase
 
-## Approach
-The current route file is a single ~819-line `NewSale` component that mixes:
-- **Per-bill state** — customer, payment mode, discount, lines, source godown, draft picker, scan warnings, busy flag.
-- **Shared reference data** — customers, products, sub-categories, godowns, known prefixes.
+Load party masters and their bill-wise opening outstanding from `nh_20260602_MSAll.DAT` into the existing schema. No schema changes — everything maps to current tables, and outstanding bills become seed sales/purchase documents so the current Ledger math picks them up automatically.
 
-I'll split these: shared data is fetched once in a container; per-bill state moves into a reusable form component instantiated once per tab.
+## What gets imported
+
+- **502 customers** (Sundry Debtors) → `customers`
+- **136 suppliers** (Sundry Creditors) → `suppliers`
+- **4,152 customer outstanding bills** → seed `sales` / `receipts`
+- **1,355 supplier outstanding bills** → seed `purchases` / `purchase_returns`
+- **Items: excluded** (per your choice)
+
+## Field mapping (parties)
+
+| Busy field | customers / suppliers column |
+|---|---|
+| `Name` (`PrintName`) | `name` |
+| `Mobile` (fallback `WhatsAppNo`) | `phone` |
+| `StateName` | `state` |
+| `CityName` + `AreaName` + `RegionName` | `address` |
+| — (not present in file) | `gstin` left empty |
+
+Note: this export has **no GSTIN and no email** for parties, so those stay blank.
+
+## Opening outstanding → seed entries
+
+Each party's balance equals the sum of its bill-reference `Value1` amounts. Busy sign convention in this file: for a customer, a negative bill value = they owe us; for a supplier, a positive value = we owe them. Each bill becomes one document, preserving bill-wise detail (`RefNo` → invoice/bill no, `Date` → date):
+
+**Customers**
+- Bill where customer owes → one `sales` row: `grand_total` = amount, `paid_amount` = 0, `invoice_no` = `RefNo`, `invoice_date` = bill `Date`.
+- Bill that is a credit/advance → one `receipts` row (amount), so the balance nets correctly.
+
+**Suppliers**
+- Bill where we owe → one `purchases` row: `grand_total` = amount, `bill_no` = `RefNo`, `bill_date` = bill `Date`.
+- Reverse/advance bill → one `purchase_returns` row, so the balance nets correctly.
+
+All seed rows get `notes` = `"Opening balance (Busy import 2026-06-02)"` so they're identifiable and reversible later. Seed sales/purchases carry **no line items and no stock movement** — they are balance-only opening documents (the `record_sale` stock RPC is NOT used).
+
+## Process
 
 ```text
-NewSale (route container)
-├── fetch shared data once (customers, products, subcats, godowns, prefixes)
-├── tab bar:  [Sale #1] [Sale #2] … [+]      (close × on each, max 5)
-└── render ALL open bills, only the active one visible (others hidden)
-        SaleBillForm  (tab 1)  ← own isolated state
-        SaleBillForm  (tab 2)  ← own isolated state
-        …
+1. Parse the DAT (ISO-8859-1 XML) → extract Accounts under
+   Sundry Debtors / Sundry Creditors + their BillByBill bills.
+2. De-dupe: skip a party if name (+phone) already exists in the table;
+   otherwise insert and capture its new id.
+3. For each party's bills, build the matching sales/receipts or
+   purchases/purchase_returns rows linked by customer_id / supplier_id.
+4. Bulk-insert in order: parties first, then their documents.
+5. Print a summary: parties inserted/skipped, docs created, total
+   customer due and supplier due, and a few sample ledgers to verify
+   the running balance matches Busy OPBal.
 ```
 
-Keeping every form **mounted but hidden** (via a `hidden` class) is what guarantees each bill's state survives tab switches with zero cross-contamination.
-
-## Changes
-
-### 1. New component `src/components/erp/SaleBillForm.tsx`
-- Move all per-bill state, effects, handlers, and the entire JSX (header, scanner strip, scan warning, sheet grid, sticky totals footer, QuickCreateParty dialog) out of the current `NewSale` into this component.
-- Props: `tabId`, `active`, `customers`, `products`, `subcats`, `godowns`, `knownPrefixes`, `onCustomerCreated`, `onSaved(tabId)`.
-- Stop fetching reference data here — receive it via props.
-- Gate global side-effects on `active` so background tabs don't steal input:
-  - F2/F3 keyboard shortcuts.
-  - The hidden auto-focus `ScanInput`.
-- **Persistence:** read/write this bill's serializable state (customerId, paymentMode, discount, lines, sourceGodownId) to `sessionStorage` under `sale_tab_<tabId>` — restore on mount, save on change.
-- **Post-save:** `finalize()` no longer navigates away. On success it clears this tab's stored draft and calls `onSaved(tabId)`. (Door flow `pending_door_lines` restore stays, targeting the active tab.)
-
-### 2. Rewrite route `src/routes/_app.sales.new.tsx` as the container
-- Fetch shared reference data once (customers, products, subcats, godowns, prefixes) — same queries currently in the effect.
-- Manage `tabs: { id: string }[]` (max 5) and `activeId`, both persisted to `sessionStorage` (`sale_tabs`) so open tabs survive refresh.
-- Render the **tab bar** styled like the screenshot: pills labelled `Sale #1…#N`, a `×` close button per tab (closing also removes its `sale_tab_<id>` storage; minimum 1 tab), and a `+` button to add a new blank tab (disabled at 5).
-- Render one `SaleBillForm` per tab; wrap each in a container that is `hidden` unless it's the active tab.
-- `onCustomerCreated` updates the shared customers list so a party created in one bill is available to all.
-- `onSaved(tabId)`: remove that tab; if it was the last one, replace it with a fresh blank tab so the screen always has at least one bill. Show the existing "Sale recorded" toast.
-
-### 3. Keep behavior identical within each bill
-No changes to `record_sale` RPC, totals math, scan validation, door flow, or WhatsApp share — they simply run inside whichever form is active.
-
-## Technical notes
-- Tab IDs are generated with `crypto.randomUUID()` and used as React keys and sessionStorage suffixes.
-- Hidden forms use `hidden` (display:none); the draft dropdown uses `getBoundingClientRect`, which only runs while focused — a hidden input can't be focused, so there's no positioning glitch.
-- Persistence stores only plain data already in state; no DB/schema changes.
-
 ## Verification
-- Open `/sales/new`: one "Sale #1" tab shows the normal form.
-- Click `+`: "Sale #2" opens blank; add items to #2, switch back to #1 — #1 is unchanged (no merge). Confirm up to 5 tabs, `+` disabled at 5.
-- Add different customers/items per tab and confirm totals are independent.
-- Refresh the page: open tabs and their data reload.
-- Save one tab: that tab closes, others remain; saving the only tab leaves a fresh blank bill.
-- `×` closes a tab and drops its data.
+
+- Cross-check imported customer due (~₹39.3L) and supplier due (~₹10.1L) against the file totals.
+- Open 2–3 parties in the **Ledger** page and confirm the bill-wise rows and outstanding balance render correctly.
+
+## Notes / trade-offs
+
+- Seed opening sales will appear in the **Sales list** (and purchases in the Purchases list), tagged with the import note. This is expected when modelling opening balances as documents.
+- No literal transaction history (real invoices/receipts over time) exists in this file, so the ledger reflects the **opening position**, not historical movements.
+- The whole import is one-time and re-runnable safely thanks to the de-dupe + note tagging.
