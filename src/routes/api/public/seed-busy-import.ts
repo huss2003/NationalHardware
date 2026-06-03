@@ -36,12 +36,19 @@ export const Route = createFileRoute("/api/public/seed-busy-import")({
         }
         const d = importData as Record<string, any[]>;
         const result: Record<string, number> = {};
-        result.customers = await insertAll("customers", d.customers);
-        result.suppliers = await insertAll("suppliers", d.suppliers);
-        result.sales = await insertAll("sales", d.sales);
-        result.receipts = await insertAll("receipts", d.receipts);
-        result.purchases = await insertAll("purchases", d.purchases);
-        result.purchase_returns = await insertAll("purchase_returns", d.purchase_returns);
+        try {
+          result.customers = await insertAll("customers", d.customers);
+          result.suppliers = await insertAll("suppliers", d.suppliers);
+          result.sales = await insertAll("sales", d.sales);
+          result.receipts = await insertAll("receipts", d.receipts);
+          result.purchases = await insertAll("purchases", d.purchases);
+          result.purchase_returns = await insertAll("purchase_returns", d.purchase_returns);
+        } catch (e: any) {
+          return Response.json(
+            { status: "error", message: String(e?.message ?? e), partial: result },
+            { status: 500 },
+          );
+        }
         return Response.json({ status: "ok", inserted: result });
       },
     },
