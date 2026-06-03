@@ -277,7 +277,7 @@ function Sales() {
           <div className="flex items-center justify-between px-5 pt-5 pb-3">
             <h2 className="text-lg font-semibold">Recent Transactions</h2>
             <Link
-              to="/sales"
+              to="/sales/all"
               className="text-sm font-medium text-primary inline-flex items-center gap-1 hover:underline"
             >
               View All <ArrowRight className="h-3.5 w-3.5" />
