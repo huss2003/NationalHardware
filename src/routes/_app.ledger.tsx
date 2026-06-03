@@ -44,10 +44,10 @@ function LedgerPage() {
 
   const filtered = useMemo(() => {
     const q = search.trim().toLowerCase();
-    if (!q) return parties.slice(0, 50);
+    if (!q) return parties;
     return parties.filter((p) =>
       p.name.toLowerCase().includes(q) || (p.phone ?? "").toLowerCase().includes(q),
-    ).slice(0, 50);
+    );
   }, [parties, search]);
 
   const { data: entries = [], isFetching: loading } = useQuery({
@@ -207,6 +207,9 @@ function LedgerPage() {
               placeholder={`Search ${kind}s…`}
               className="pl-8"
             />
+          </div>
+          <div className="px-1 pb-2 text-[11px] text-muted-foreground">
+            Showing {filtered.length} of {parties.length} {kind}s
           </div>
           <div className="max-h-[60vh] overflow-y-auto -mx-1">
             {filtered.length === 0 && (
