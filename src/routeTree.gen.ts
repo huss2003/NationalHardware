@@ -25,7 +25,6 @@ import { Route as AppPurchaseReturnsIndexRouteImport } from './routes/_app.purch
 import { Route as AppInventoryIndexRouteImport } from './routes/_app.inventory.index'
 import { Route as AppGodownsIndexRouteImport } from './routes/_app.godowns.index'
 import { Route as ApiPublicSeedBusyImportRouteImport } from './routes/api/public/seed-busy-import'
-import { Route as ApiPublicSeedAccountsImportRouteImport } from './routes/api/public/seed-accounts-import'
 import { Route as AppUnitsItemIdRouteImport } from './routes/_app.units.$itemId'
 import { Route as AppSalesReceiptsRouteImport } from './routes/_app.sales.receipts'
 import { Route as AppSalesNewRouteImport } from './routes/_app.sales.new'
@@ -115,12 +114,6 @@ const ApiPublicSeedBusyImportRoute = ApiPublicSeedBusyImportRouteImport.update({
   path: '/api/public/seed-busy-import',
   getParentRoute: () => rootRouteImport,
 } as any)
-const ApiPublicSeedAccountsImportRoute =
-  ApiPublicSeedAccountsImportRouteImport.update({
-    id: '/api/public/seed-accounts-import',
-    path: '/api/public/seed-accounts-import',
-    getParentRoute: () => rootRouteImport,
-  } as any)
 const AppUnitsItemIdRoute = AppUnitsItemIdRouteImport.update({
   id: '/units/$itemId',
   path: '/units/$itemId',
@@ -186,7 +179,6 @@ export interface FileRoutesByFullPath {
   '/sales/new': typeof AppSalesNewRoute
   '/sales/receipts': typeof AppSalesReceiptsRoute
   '/units/$itemId': typeof AppUnitsItemIdRoute
-  '/api/public/seed-accounts-import': typeof ApiPublicSeedAccountsImportRoute
   '/api/public/seed-busy-import': typeof ApiPublicSeedBusyImportRoute
   '/godowns/': typeof AppGodownsIndexRoute
   '/inventory/': typeof AppInventoryIndexRoute
@@ -213,7 +205,6 @@ export interface FileRoutesByTo {
   '/sales/new': typeof AppSalesNewRoute
   '/sales/receipts': typeof AppSalesReceiptsRoute
   '/units/$itemId': typeof AppUnitsItemIdRoute
-  '/api/public/seed-accounts-import': typeof ApiPublicSeedAccountsImportRoute
   '/api/public/seed-busy-import': typeof ApiPublicSeedBusyImportRoute
   '/godowns': typeof AppGodownsIndexRoute
   '/inventory': typeof AppInventoryIndexRoute
@@ -242,7 +233,6 @@ export interface FileRoutesById {
   '/_app/sales/new': typeof AppSalesNewRoute
   '/_app/sales/receipts': typeof AppSalesReceiptsRoute
   '/_app/units/$itemId': typeof AppUnitsItemIdRoute
-  '/api/public/seed-accounts-import': typeof ApiPublicSeedAccountsImportRoute
   '/api/public/seed-busy-import': typeof ApiPublicSeedBusyImportRoute
   '/_app/godowns/': typeof AppGodownsIndexRoute
   '/_app/inventory/': typeof AppInventoryIndexRoute
@@ -271,7 +261,6 @@ export interface FileRouteTypes {
     | '/sales/new'
     | '/sales/receipts'
     | '/units/$itemId'
-    | '/api/public/seed-accounts-import'
     | '/api/public/seed-busy-import'
     | '/godowns/'
     | '/inventory/'
@@ -298,7 +287,6 @@ export interface FileRouteTypes {
     | '/sales/new'
     | '/sales/receipts'
     | '/units/$itemId'
-    | '/api/public/seed-accounts-import'
     | '/api/public/seed-busy-import'
     | '/godowns'
     | '/inventory'
@@ -326,7 +314,6 @@ export interface FileRouteTypes {
     | '/_app/sales/new'
     | '/_app/sales/receipts'
     | '/_app/units/$itemId'
-    | '/api/public/seed-accounts-import'
     | '/api/public/seed-busy-import'
     | '/_app/godowns/'
     | '/_app/inventory/'
@@ -340,7 +327,6 @@ export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   AppRoute: typeof AppRouteWithChildren
   LoginRoute: typeof LoginRoute
-  ApiPublicSeedAccountsImportRoute: typeof ApiPublicSeedAccountsImportRoute
   ApiPublicSeedBusyImportRoute: typeof ApiPublicSeedBusyImportRoute
 }
 
@@ -456,13 +442,6 @@ declare module '@tanstack/react-router' {
       path: '/api/public/seed-busy-import'
       fullPath: '/api/public/seed-busy-import'
       preLoaderRoute: typeof ApiPublicSeedBusyImportRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/api/public/seed-accounts-import': {
-      id: '/api/public/seed-accounts-import'
-      path: '/api/public/seed-accounts-import'
-      fullPath: '/api/public/seed-accounts-import'
-      preLoaderRoute: typeof ApiPublicSeedAccountsImportRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/_app/units/$itemId': {
@@ -585,7 +564,6 @@ const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   AppRoute: AppRouteWithChildren,
   LoginRoute: LoginRoute,
-  ApiPublicSeedAccountsImportRoute: ApiPublicSeedAccountsImportRoute,
   ApiPublicSeedBusyImportRoute: ApiPublicSeedBusyImportRoute,
 }
 export const routeTree = rootRouteImport

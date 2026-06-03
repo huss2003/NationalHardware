@@ -1,63 +1,33 @@
-# Import Busy ledger data into Supabase
+## Goal
+Insert all 638 parties (502 Sundry Debtors → customers, 136 Sundry Creditors → suppliers) and their opening balances straight into Supabase with one SQL run. No endpoint, no publish.
 
-Load party masters and their bill-wise opening outstanding from `nh_20260602_MSAll.DAT` into the existing schema. No schema changes — everything maps to current tables, and outstanding bills become seed sales/purchase documents so the current Ledger math picks them up automatically.
+## What I'll do
 
-## What gets imported
+1. **Drop the endpoint approach**
+   - Delete `src/routes/api/public/seed-accounts-import.ts`
+   - Delete `src/data/accounts-import.json`
+   These were only needed for the publish→trigger flow you don't want.
 
-- **502 customers** (Sundry Debtors) → `customers`
-- **136 suppliers** (Sundry Creditors) → `suppliers`
-- **4,152 customer outstanding bills** → seed `sales` / `receipts`
-- **1,355 supplier outstanding bills** → seed `purchases` / `purchase_returns`
-- **Items: excluded** (per your choice)
+2. **Insert everything via a single SQL migration**
+   The data is already parsed from `nh_ListofAccounts.xlsx`. One SQL run (wrapped in a transaction) inserts:
+   - `customers` — 502 rows (name only)
+   - `suppliers` — 136 rows (name only)
+   - `sales` — 205 opening-balance invoices (`OB-OPENING`) for debtors with a net Dr balance
+   - `receipts` — 30 opening-balance receipts for debtors with a net Cr (advance) balance
+   - `purchases` — 60 opening-balance bills for creditors with a net Cr balance
+   - `purchase_returns` — 31 opening-balance entries for creditors with a net Dr balance
 
-## Field mapping (parties)
+   All opening-balance docs tagged `notes = "Opening balance (Accounts import 2026-06-03)"` so the Ledger computes each party's outstanding automatically (same modeling the Ledger page already reads).
 
-| Busy field | customers / suppliers column |
-|---|---|
-| `Name` (`PrintName`) | `name` |
-| `Mobile` (fallback `WhatsAppNo`) | `phone` |
-| `StateName` | `state` |
-| `CityName` + `AreaName` + `RegionName` | `address` |
-| — (not present in file) | `gstin` left empty |
+3. **Verify**
+   Query Supabase to confirm: 638 new parties exist and the opening-balance doc counts match (205 / 30 / 60 / 31), then spot-check a couple of party balances against the spreadsheet.
 
-Note: this export has **no GSTIN and no email** for parties, so those stay blank.
+## Balance mapping (per the Ledger logic)
+- Customer net = Dr − Cr → positive becomes a `sales` row (they owe us), negative becomes a `receipts` row (advance).
+- Supplier net = Cr − Dr → positive becomes a `purchases` row (we owe them), negative becomes a `purchase_returns` row.
+- Zero-balance parties get a row in customers/suppliers but no document.
 
-## Opening outstanding → seed entries
-
-Each party's balance equals the sum of its bill-reference `Value1` amounts. Busy sign convention in this file: for a customer, a negative bill value = they owe us; for a supplier, a positive value = we owe them. Each bill becomes one document, preserving bill-wise detail (`RefNo` → invoice/bill no, `Date` → date):
-
-**Customers**
-- Bill where customer owes → one `sales` row: `grand_total` = amount, `paid_amount` = 0, `invoice_no` = `RefNo`, `invoice_date` = bill `Date`.
-- Bill that is a credit/advance → one `receipts` row (amount), so the balance nets correctly.
-
-**Suppliers**
-- Bill where we owe → one `purchases` row: `grand_total` = amount, `bill_no` = `RefNo`, `bill_date` = bill `Date`.
-- Reverse/advance bill → one `purchase_returns` row, so the balance nets correctly.
-
-All seed rows get `notes` = `"Opening balance (Busy import 2026-06-02)"` so they're identifiable and reversible later. Seed sales/purchases carry **no line items and no stock movement** — they are balance-only opening documents (the `record_sale` stock RPC is NOT used).
-
-## Process
-
-```text
-1. Parse the DAT (ISO-8859-1 XML) → extract Accounts under
-   Sundry Debtors / Sundry Creditors + their BillByBill bills.
-2. De-dupe: skip a party if name (+phone) already exists in the table;
-   otherwise insert and capture its new id.
-3. For each party's bills, build the matching sales/receipts or
-   purchases/purchase_returns rows linked by customer_id / supplier_id.
-4. Bulk-insert in order: parties first, then their documents.
-5. Print a summary: parties inserted/skipped, docs created, total
-   customer due and supplier due, and a few sample ledgers to verify
-   the running balance matches Busy OPBal.
-```
-
-## Verification
-
-- Cross-check imported customer due (~₹39.3L) and supplier due (~₹10.1L) against the file totals.
-- Open 2–3 parties in the **Ledger** page and confirm the bill-wise rows and outstanding balance render correctly.
-
-## Notes / trade-offs
-
-- Seed opening sales will appear in the **Sales list** (and purchases in the Purchases list), tagged with the import note. This is expected when modelling opening balances as documents.
-- No literal transaction history (real invoices/receipts over time) exists in this file, so the ledger reflects the **opening position**, not historical movements.
-- The whole import is one-time and re-runnable safely thanks to the de-dupe + note tagging.
+## Technical notes
+- Run as one `BEGIN; … COMMIT;` migration via the migration tool (full DB privileges; `psql`/exec DB access isn't available in this session, and the migration tool is the only way to execute writes here). It's all `INSERT`s — no schema change.
+- Receipt numbers use an `AOB#####` prefix and purchase-return numbers `AOBR#####` to avoid clashing with any future Busy-import numbering.
+- Idempotency: I'll confirm beforehand that no rows already carry the Accounts-import note (currently 0), so this runs clean once.
