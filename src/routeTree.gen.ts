@@ -28,8 +28,10 @@ import { Route as ApiPublicSeedBusyImportRouteImport } from './routes/api/public
 import { Route as AppUnitsItemIdRouteImport } from './routes/_app.units.$itemId'
 import { Route as AppSalesReceiptsRouteImport } from './routes/_app.sales.receipts'
 import { Route as AppSalesNewRouteImport } from './routes/_app.sales.new'
+import { Route as AppSalesAllRouteImport } from './routes/_app.sales.all'
 import { Route as AppSalesIdRouteImport } from './routes/_app.sales.$id'
 import { Route as AppPurchasesNewRouteImport } from './routes/_app.purchases.new'
+import { Route as AppPurchasesAllRouteImport } from './routes/_app.purchases.all'
 import { Route as AppPurchasesIdRouteImport } from './routes/_app.purchases.$id'
 import { Route as AppInventorySubcategoriesRouteImport } from './routes/_app.inventory.subcategories'
 import { Route as AppInventoryScanRouteImport } from './routes/_app.inventory.scan'
@@ -129,6 +131,11 @@ const AppSalesNewRoute = AppSalesNewRouteImport.update({
   path: '/sales/new',
   getParentRoute: () => AppRoute,
 } as any)
+const AppSalesAllRoute = AppSalesAllRouteImport.update({
+  id: '/sales/all',
+  path: '/sales/all',
+  getParentRoute: () => AppRoute,
+} as any)
 const AppSalesIdRoute = AppSalesIdRouteImport.update({
   id: '/sales/$id',
   path: '/sales/$id',
@@ -137,6 +144,11 @@ const AppSalesIdRoute = AppSalesIdRouteImport.update({
 const AppPurchasesNewRoute = AppPurchasesNewRouteImport.update({
   id: '/purchases/new',
   path: '/purchases/new',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppPurchasesAllRoute = AppPurchasesAllRouteImport.update({
+  id: '/purchases/all',
+  path: '/purchases/all',
   getParentRoute: () => AppRoute,
 } as any)
 const AppPurchasesIdRoute = AppPurchasesIdRouteImport.update({
@@ -174,8 +186,10 @@ export interface FileRoutesByFullPath {
   '/inventory/scan': typeof AppInventoryScanRoute
   '/inventory/subcategories': typeof AppInventorySubcategoriesRoute
   '/purchases/$id': typeof AppPurchasesIdRoute
+  '/purchases/all': typeof AppPurchasesAllRoute
   '/purchases/new': typeof AppPurchasesNewRoute
   '/sales/$id': typeof AppSalesIdRoute
+  '/sales/all': typeof AppSalesAllRoute
   '/sales/new': typeof AppSalesNewRoute
   '/sales/receipts': typeof AppSalesReceiptsRoute
   '/units/$itemId': typeof AppUnitsItemIdRoute
@@ -200,8 +214,10 @@ export interface FileRoutesByTo {
   '/inventory/scan': typeof AppInventoryScanRoute
   '/inventory/subcategories': typeof AppInventorySubcategoriesRoute
   '/purchases/$id': typeof AppPurchasesIdRoute
+  '/purchases/all': typeof AppPurchasesAllRoute
   '/purchases/new': typeof AppPurchasesNewRoute
   '/sales/$id': typeof AppSalesIdRoute
+  '/sales/all': typeof AppSalesAllRoute
   '/sales/new': typeof AppSalesNewRoute
   '/sales/receipts': typeof AppSalesReceiptsRoute
   '/units/$itemId': typeof AppUnitsItemIdRoute
@@ -228,8 +244,10 @@ export interface FileRoutesById {
   '/_app/inventory/scan': typeof AppInventoryScanRoute
   '/_app/inventory/subcategories': typeof AppInventorySubcategoriesRoute
   '/_app/purchases/$id': typeof AppPurchasesIdRoute
+  '/_app/purchases/all': typeof AppPurchasesAllRoute
   '/_app/purchases/new': typeof AppPurchasesNewRoute
   '/_app/sales/$id': typeof AppSalesIdRoute
+  '/_app/sales/all': typeof AppSalesAllRoute
   '/_app/sales/new': typeof AppSalesNewRoute
   '/_app/sales/receipts': typeof AppSalesReceiptsRoute
   '/_app/units/$itemId': typeof AppUnitsItemIdRoute
@@ -256,8 +274,10 @@ export interface FileRouteTypes {
     | '/inventory/scan'
     | '/inventory/subcategories'
     | '/purchases/$id'
+    | '/purchases/all'
     | '/purchases/new'
     | '/sales/$id'
+    | '/sales/all'
     | '/sales/new'
     | '/sales/receipts'
     | '/units/$itemId'
@@ -282,8 +302,10 @@ export interface FileRouteTypes {
     | '/inventory/scan'
     | '/inventory/subcategories'
     | '/purchases/$id'
+    | '/purchases/all'
     | '/purchases/new'
     | '/sales/$id'
+    | '/sales/all'
     | '/sales/new'
     | '/sales/receipts'
     | '/units/$itemId'
@@ -309,8 +331,10 @@ export interface FileRouteTypes {
     | '/_app/inventory/scan'
     | '/_app/inventory/subcategories'
     | '/_app/purchases/$id'
+    | '/_app/purchases/all'
     | '/_app/purchases/new'
     | '/_app/sales/$id'
+    | '/_app/sales/all'
     | '/_app/sales/new'
     | '/_app/sales/receipts'
     | '/_app/units/$itemId'
@@ -465,6 +489,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppSalesNewRouteImport
       parentRoute: typeof AppRoute
     }
+    '/_app/sales/all': {
+      id: '/_app/sales/all'
+      path: '/sales/all'
+      fullPath: '/sales/all'
+      preLoaderRoute: typeof AppSalesAllRouteImport
+      parentRoute: typeof AppRoute
+    }
     '/_app/sales/$id': {
       id: '/_app/sales/$id'
       path: '/sales/$id'
@@ -477,6 +508,13 @@ declare module '@tanstack/react-router' {
       path: '/purchases/new'
       fullPath: '/purchases/new'
       preLoaderRoute: typeof AppPurchasesNewRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/_app/purchases/all': {
+      id: '/_app/purchases/all'
+      path: '/purchases/all'
+      fullPath: '/purchases/all'
+      preLoaderRoute: typeof AppPurchasesAllRouteImport
       parentRoute: typeof AppRoute
     }
     '/_app/purchases/$id': {
@@ -521,8 +559,10 @@ interface AppRouteChildren {
   AppInventoryScanRoute: typeof AppInventoryScanRoute
   AppInventorySubcategoriesRoute: typeof AppInventorySubcategoriesRoute
   AppPurchasesIdRoute: typeof AppPurchasesIdRoute
+  AppPurchasesAllRoute: typeof AppPurchasesAllRoute
   AppPurchasesNewRoute: typeof AppPurchasesNewRoute
   AppSalesIdRoute: typeof AppSalesIdRoute
+  AppSalesAllRoute: typeof AppSalesAllRoute
   AppSalesNewRoute: typeof AppSalesNewRoute
   AppSalesReceiptsRoute: typeof AppSalesReceiptsRoute
   AppUnitsItemIdRoute: typeof AppUnitsItemIdRoute
@@ -545,8 +585,10 @@ const AppRouteChildren: AppRouteChildren = {
   AppInventoryScanRoute: AppInventoryScanRoute,
   AppInventorySubcategoriesRoute: AppInventorySubcategoriesRoute,
   AppPurchasesIdRoute: AppPurchasesIdRoute,
+  AppPurchasesAllRoute: AppPurchasesAllRoute,
   AppPurchasesNewRoute: AppPurchasesNewRoute,
   AppSalesIdRoute: AppSalesIdRoute,
+  AppSalesAllRoute: AppSalesAllRoute,
   AppSalesNewRoute: AppSalesNewRoute,
   AppSalesReceiptsRoute: AppSalesReceiptsRoute,
   AppUnitsItemIdRoute: AppUnitsItemIdRoute,
