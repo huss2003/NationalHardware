@@ -88,11 +88,18 @@ function Purchases() {
         title="Purchases"
         subtitle="Manage supplier orders, deliveries, and spending."
         actions={
-          <Button asChild>
-            <Link to="/purchases/new">
-              <Plus className="h-4 w-4" /> Create Purchase Order
-            </Link>
-          </Button>
+          <>
+            <Button asChild variant="outline" className="gap-2">
+              <Link to="/purchases/all">
+                <ClipboardList className="h-4 w-4" /> View All Bills
+              </Link>
+            </Button>
+            <Button asChild>
+              <Link to="/purchases/new">
+                <Plus className="h-4 w-4" /> Create Purchase Order
+              </Link>
+            </Button>
+          </>
         }
       />
       <div className="px-8 pb-10 max-w-[1400px] mx-auto w-full space-y-5">
