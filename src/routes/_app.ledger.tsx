@@ -44,10 +44,10 @@ function LedgerPage() {
 
   const filtered = useMemo(() => {
     const q = search.trim().toLowerCase();
-    if (!q) return parties.slice(0, 50);
+    if (!q) return parties;
     return parties.filter((p) =>
       p.name.toLowerCase().includes(q) || (p.phone ?? "").toLowerCase().includes(q),
-    ).slice(0, 50);
+    );
   }, [parties, search]);
 
   const { data: entries = [], isFetching: loading } = useQuery({
