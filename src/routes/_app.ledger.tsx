@@ -208,6 +208,9 @@ function LedgerPage() {
               className="pl-8"
             />
           </div>
+          <div className="px-1 pb-2 text-[11px] text-muted-foreground">
+            Showing {filtered.length} of {parties.length} {kind}s
+          </div>
           <div className="max-h-[60vh] overflow-y-auto -mx-1">
             {filtered.length === 0 && (
               <div className="text-sm text-muted-foreground p-3 text-center">No matches.</div>
