@@ -1,46 +1,42 @@
-## Goal
-Import all purchase bills from `nh_AccountLedger_Purchase.xlsx` directly into the Supabase database (no API endpoint, no edge function, no publish step) as real purchase bills with item‑wise rates, so they render on each purchase bill page and show up per‑supplier in the Ledger. Also make the **View All** button on both the Sales and Purchases screens open a full list of all bills.
+# Cash in Hand Ledger
 
-## Part 1 — Import purchase bills (direct DB inserts)
+Add a third **Cash** tab to the existing Ledger page and import the uploaded Cash account ledger directly into the database, exactly as it appears in the file.
 
-Source parses cleanly into **32 purchase bills / 13 suppliers** (each bill's items − discount + tax + freight + rounding = its printed total, verified with 0 mismatches).
+## Verified from the file
 
-Steps (all done with the DB insert/migration tooling, nothing in the app runtime):
+- **Opening Balance:** ₹3,24,27,970.70 Dr (1‑Apr‑2026)
+- **129 entries:** 68 Receipts + 40 cash Sales (cash in / Debit), 20 Payments + 1 Credit Note (cash out / Credit)
+- **Totals:** Debit ₹29,64,190 − Credit ₹21,15,197
+- **Closing Balance:** ₹3,32,76,963.70 Dr — reconciles exactly (opening + debit − credit)
 
-1. **Suppliers** — match the 13 supplier names to existing `suppliers`. Create the 3 missing ones: `Hind Prakash Industries`, `Vandana Trader (jivanjor)`, `Ply House 25-26`. The other 10 already exist and will be reused by exact name.
+## What gets built
 
-2. **Products** — for every distinct item name, match to an existing `products` row by normalized name; create any missing product (name‑prefixed code, `gst_rate = 18`, `default_price` = the bill rate). Purchase line items require a `product_id`, so this guarantees every line links to a product.
+### 1. New table `cash_transactions` (schema migration)
+Columns: `txn_date`, `txn_type` (`opening` | `receipt` | `sale` | `payment` | `credit_note`), `vch_no`, `account_name`, `debit`, `credit`, `narration`, `source` (tag for safe re‑runs), plus standard id/created_at/updated_at.
+- Grants + RLS mirroring the existing tables (authenticated can read/write; service_role full).
+- An `updated_at` trigger.
 
-3. **purchases** — one row per bill with:
-   - `supplier_id`, `bill_no` (the voucher's Vch/Bill No), `bill_date` (voucher date)
-   - `subtotal` = sum of line totals − discount
-   - `tax_total` = bill total − subtotal (covers IGST / CGST+SGST / freight / rounding / BALANCE‑TAX)
-   - `grand_total` = the bill's printed `**** Amt ****`
-   - `notes = 'Purchase import 2026-06-11'` so the batch is identifiable/re‑runnable safely (insert guarded with NOT EXISTS to avoid duplicates).
+### 2. Seed the data directly (no app endpoints)
+- Insert one `opening` row (debit = ₹3,24,27,970.70, dated 1‑Apr‑2026).
+- Insert all 129 entries parsed from the spreadsheet (date, type, voucher no, account/party name, debit, credit, narration).
+- Sales rows store the bill total as Debit; each entry keeps its short narration (item lines are summarized — the cash ledger only tracks the cash amount per voucher, matching the file).
+- Every row tagged `source = 'cash import 2026-06-11'` and guarded by `NOT EXISTS`, so re‑running is safe and never duplicates.
 
-4. **purchase_items** — one row per item line: `qty`, `rate`, `gst_rate`, `line_total`, linked to the parent purchase and the matched product.
+### 3. Cash tab in `src/routes/_app.ledger.tsx`
+- Add a third toggle button **Cash** (Wallet icon) next to Customers / Suppliers.
+- When **Cash** is selected:
+  - Hide the party search/list (not needed) and show the full cash ledger immediately.
+  - Header card shows: **Opening Balance**, total Debit, total Credit, and **Closing Balance** (Dr/Cr).
+  - Transactions table: Date · Type (Receipt/Sale/Payment/Credit Note badges) · Voucher · Account · Debit · Credit · running **Balance** (with Dr/Cr suffix).
+  - Receipt/Sale = green credit-in styling; Payment/Credit Note = debit-out styling, matching the existing ledger look.
+- Customers and Suppliers tabs are unchanged.
 
-5. **Verification queries** after insert: confirm 32 bills + all line items exist, each bill has a supplier and a grand total, and spot‑check a handful of bills (e.g. 23, 12, 17, 28) against the spreadsheet totals.
-
-Result: each bill opens as a full purchase bill (item, qty, rate, GST, totals) on `/purchases/$id`, and appears under its supplier in the Ledger (Suppliers tab) as a debit entry, with outstanding balance recomputed from grand totals.
-
-Note: the spreadsheet's running *Balance* column is inconsistent (it's a nominal Purchase‑account export, not a party ledger) and will be ignored — the app derives balances itself.
-
-## Part 2 — Make "View All" work on Sales and Purchases
-
-Currently the Sales "View All" links back to the same overview page, and the Purchases "View All" button does nothing. Add two dedicated full‑list routes and wire the buttons to them.
-
-1. **New route `src/routes/_app.sales.all.tsx`** — full, searchable, paginated table of every sales bill (invoice no, date, customer, amount, status), each row linking to `/sales/$id`. Reuses the existing table/card styling.
-
-2. **New route `src/routes/_app.purchases.all.tsx`** — full, searchable, paginated table of every purchase bill (bill no, date, supplier, amount), each row linking to `/purchases/$id`.
-
-3. **Wire the buttons:**
-   - In `src/routes/_app.sales.index.tsx`, point the "View All" link to `/sales/all`.
-   - In `src/routes/_app.purchases.index.tsx`, make the "View All" action navigate to `/purchases/all` (add a clear "View All Bills" link on the bills table header).
-
-These pages query the full `sales` / `purchases` tables (excluding soft‑deleted), with client‑side search + pagination so all bills are reachable.
+## Verification after import
+- Query the table: confirm 130 rows (1 opening + 129), Debit sum = ₹29,64,190, Credit sum = ₹21,15,197.
+- Confirm computed closing balance = ₹3,32,76,963.70 Dr, matching the file's last line.
+- Open `/ledger` → **Cash** tab and confirm the running balance on the final row matches.
 
 ## Technical notes
-- Bill content is authoritative; the Balance column is discarded.
-- Imports are idempotent via the `notes` tag + NOT EXISTS guards, so re‑running won't double‑insert.
-- No schema changes are required for the import (existing `purchases` / `purchase_items` / `suppliers` / `products` tables suffice). The only new code is the two list routes + two link edits — pure frontend, no business‑logic changes.
+- The CrNt (credit note) row's debit/credit orientation will be taken verbatim from the file during parsing so the running balance stays exact.
+- Schema change goes through a migration; the 130 data rows are inserted as data (not in the migration), guarded for idempotency.
+- No changes to sales/purchases/receipts logic — this Cash ledger is a standalone, file-accurate view as requested ("import this ledger as-is").
