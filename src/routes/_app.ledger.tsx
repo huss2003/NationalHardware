@@ -429,3 +429,118 @@ function LedgerPage() {
     </>
   );
 }
+
+function CashLedger({
+  rows,
+  loading,
+  opening,
+  debit,
+  credit,
+  closing,
+}: {
+  rows: (CashTxn & { balance: number })[];
+  loading: boolean;
+  opening: number;
+  debit: number;
+  credit: number;
+  closing: number;
+}) {
+  const drcr = (n: number) => `${inr(Math.abs(n))} ${n >= 0 ? "Dr" : "Cr"}`;
+  const typeLabel: Record<CashTxn["txn_type"], string> = {
+    opening: "Opening",
+    receipt: "Receipt",
+    sale: "Cash Sale",
+    payment: "Payment",
+    credit_note: "Credit Note",
+  };
+  return (
+    <>
+      <Card className="p-5 flex flex-wrap items-center justify-between gap-4">
+        <div>
+          <div className="text-xs uppercase text-muted-foreground tracking-wider">Cash in Hand</div>
+          <div className="text-2xl font-bold">Cash Account</div>
+          <div className="text-sm text-muted-foreground">
+            Opening balance {drcr(opening)}
+          </div>
+        </div>
+        <div className="flex gap-4 items-center">
+          <div className="text-right">
+            <div className="text-[11px] uppercase text-muted-foreground">Cash In</div>
+            <div className="font-semibold tabular-nums text-emerald-600">{inr(debit)}</div>
+          </div>
+          <div className="text-right">
+            <div className="text-[11px] uppercase text-muted-foreground">Cash Out</div>
+            <div className="font-semibold tabular-nums text-destructive">{inr(credit)}</div>
+          </div>
+          <div className="text-right border-l pl-4 ml-2">
+            <div className="text-[11px] uppercase text-muted-foreground">Closing Balance</div>
+            <div className="text-xl font-bold tabular-nums">{drcr(closing)}</div>
+          </div>
+        </div>
+      </Card>
+
+      <Card className="overflow-hidden">
+        <div className="px-5 pt-5 pb-3">
+          <h2 className="text-lg font-semibold">Cash Transactions</h2>
+        </div>
+        {loading ? (
+          <div className="p-8 text-center text-muted-foreground">Loading…</div>
+        ) : (
+          <table className="w-full text-sm">
+            <thead className="bg-muted/50 text-xs uppercase tracking-wider text-muted-foreground">
+              <tr>
+                <th className="text-left p-3 pl-5">Date</th>
+                <th className="text-left p-3">Type</th>
+                <th className="text-left p-3">Vch No</th>
+                <th className="text-left p-3">Account</th>
+                <th className="text-right p-3">Cash In</th>
+                <th className="text-right p-3">Cash Out</th>
+                <th className="text-right p-3 pr-5">Balance</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr className="border-t bg-muted/20">
+                <td className="p-3 pl-5 text-muted-foreground whitespace-nowrap" colSpan={4}>
+                  Opening Balance
+                </td>
+                <td className="p-3 text-right tabular-nums">—</td>
+                <td className="p-3 text-right tabular-nums">—</td>
+                <td className="p-3 pr-5 text-right tabular-nums font-semibold">{drcr(opening)}</td>
+              </tr>
+              {rows.map((e) => {
+                const isIn = Number(e.debit) > 0;
+                const Icon = isIn ? ArrowDownCircle : ArrowUpCircle;
+                return (
+                  <tr key={e.id} className="border-t hover:bg-muted/30">
+                    <td className="p-3 pl-5 text-muted-foreground whitespace-nowrap">
+                      {new Date(e.txn_date).toLocaleDateString()}
+                    </td>
+                    <td className="p-3">
+                      <span className={`inline-flex items-center gap-1.5 px-2 py-0.5 rounded-md text-xs font-semibold ${
+                        e.txn_type === "receipt" ? "bg-emerald-500/10 text-emerald-600" :
+                        e.txn_type === "sale" ? "bg-blue-500/10 text-blue-600" :
+                        e.txn_type === "payment" ? "bg-amber-500/10 text-amber-600" :
+                        e.txn_type === "credit_note" ? "bg-rose-500/10 text-rose-600" :
+                        "bg-muted text-muted-foreground"
+                      }`}>
+                        <Icon className="h-3 w-3" /> {typeLabel[e.txn_type]}
+                      </span>
+                    </td>
+                    <td className="p-3 text-muted-foreground">{e.vch_no ?? "—"}</td>
+                    <td className="p-3 font-medium">{e.account_name}</td>
+                    <td className="p-3 text-right tabular-nums text-emerald-600">{Number(e.debit) > 0 ? inr(Number(e.debit)) : "—"}</td>
+                    <td className="p-3 text-right tabular-nums text-destructive">{Number(e.credit) > 0 ? inr(Number(e.credit)) : "—"}</td>
+                    <td className="p-3 pr-5 text-right tabular-nums font-semibold">{drcr(e.balance)}</td>
+                  </tr>
+                );
+              })}
+              {rows.length === 0 && (
+                <tr><td colSpan={7} className="text-center py-12 text-muted-foreground">No cash transactions yet.</td></tr>
+              )}
+            </tbody>
+          </table>
+        )}
+      </Card>
+    </>
+  );
+}
