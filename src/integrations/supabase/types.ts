@@ -110,6 +110,48 @@ export type Database = {
         }
         Relationships: []
       }
+      cash_transactions: {
+        Row: {
+          account_name: string
+          created_at: string
+          credit: number
+          debit: number
+          id: string
+          narration: string | null
+          source: string | null
+          txn_date: string
+          txn_type: string
+          updated_at: string
+          vch_no: string | null
+        }
+        Insert: {
+          account_name?: string
+          created_at?: string
+          credit?: number
+          debit?: number
+          id?: string
+          narration?: string | null
+          source?: string | null
+          txn_date: string
+          txn_type: string
+          updated_at?: string
+          vch_no?: string | null
+        }
+        Update: {
+          account_name?: string
+          created_at?: string
+          credit?: number
+          debit?: number
+          id?: string
+          narration?: string | null
+          source?: string | null
+          txn_date?: string
+          txn_type?: string
+          updated_at?: string
+          vch_no?: string | null
+        }
+        Relationships: []
+      }
       customer_receipt_seq: {
         Row: {
           customer_id: string
