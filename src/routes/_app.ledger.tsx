@@ -8,12 +8,22 @@ import { Button } from "@/components/ui/button";
 import { PageHeader } from "@/components/erp/PageHeader";
 import { ReturnTimelineDialog } from "@/components/erp/ReturnTimelineDialog";
 import { inr } from "@/lib/codes";
-import { Search, Users, Truck, FileText, ShoppingCart, Receipt as ReceiptIcon, RotateCcw, Wallet } from "lucide-react";
+import { Search, Users, Truck, FileText, ShoppingCart, Receipt as ReceiptIcon, RotateCcw, Wallet, Banknote, ArrowDownCircle, ArrowUpCircle } from "lucide-react";
 
 export const Route = createFileRoute("/_app/ledger")({ component: LedgerPage });
 
-type Kind = "customer" | "supplier";
+type Kind = "customer" | "supplier" | "cash";
 type Party = { id: string; name: string; phone?: string | null };
+
+type CashTxn = {
+  id: string;
+  txn_date: string;
+  txn_type: "opening" | "receipt" | "sale" | "payment" | "credit_note";
+  vch_no: string | null;
+  account_name: string;
+  debit: number;
+  credit: number;
+};
 
 type Entry = {
   date: string;
@@ -34,12 +44,28 @@ function LedgerPage() {
 
   const { data: parties = [] } = useQuery({
     queryKey: ["ledger", "parties", kind],
+    enabled: kind !== "cash",
     queryFn: async () => {
       const table = kind === "customer" ? "customers" : "suppliers";
       const { data } = await supabase.from(table).select("id, name, phone").order("name");
       return (data as Party[]) ?? [];
     },
     staleTime: 5 * 60 * 1000,
+  });
+
+  const { data: cashTxns = [], isFetching: cashLoading } = useQuery({
+    enabled: kind === "cash",
+    queryKey: ["ledger", "cash"],
+    staleTime: 5 * 60 * 1000,
+    queryFn: async () => {
+      const { data } = await supabase
+        .from("cash_transactions")
+        .select("id, txn_date, txn_type, vch_no, account_name, debit, credit")
+        .order("txn_date", { ascending: true })
+        .order("created_at", { ascending: true })
+        .limit(2000);
+      return (data as CashTxn[]) ?? [];
+    },
   });
 
   const filtered = useMemo(() => {
@@ -169,6 +195,19 @@ function LedgerPage() {
   const totalCredit = entries.reduce((s, e) => s + e.credit, 0);
   const outstanding = totalDebit - totalCredit;
 
+  // Cash in hand running balance (Dr positive)
+  const opening = cashTxns.find((t) => t.txn_type === "opening");
+  const cashMovements = cashTxns.filter((t) => t.txn_type !== "opening");
+  let cashRunning = opening ? Number(opening.debit) - Number(opening.credit) : 0;
+  const cashRows = cashMovements.map((t) => {
+    cashRunning += Number(t.debit) - Number(t.credit);
+    return { ...t, balance: cashRunning };
+  });
+  const cashDebit = cashMovements.reduce((s, t) => s + Number(t.debit), 0);
+  const cashCredit = cashMovements.reduce((s, t) => s + Number(t.credit), 0);
+  const cashOpening = opening ? Number(opening.debit) - Number(opening.credit) : 0;
+  const cashClosing = cashOpening + cashDebit - cashCredit;
+
   return (
     <>
       <PageHeader
@@ -182,6 +221,7 @@ function LedgerPage() {
             {([
               { v: "customer" as const, label: "Customers", icon: Users },
               { v: "supplier" as const, label: "Suppliers", icon: Truck },
+              { v: "cash" as const, label: "Cash", icon: Banknote },
             ]).map((t) => {
               const active = kind === t.v;
               const Icon = t.icon;
@@ -189,7 +229,7 @@ function LedgerPage() {
                 <button
                   key={t.v}
                   onClick={() => { setKind(t.v); setSelected(null); }}
-                  className={`flex-1 flex items-center justify-center gap-2 h-9 px-3 rounded-md text-sm font-medium transition-colors ${
+                  className={`flex-1 flex items-center justify-center gap-1.5 h-9 px-2 rounded-md text-sm font-medium transition-colors ${
                     active ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:text-foreground"
                   }`}
                 >
@@ -198,6 +238,17 @@ function LedgerPage() {
               );
             })}
           </div>
+          {kind === "cash" ? (
+            <div className="rounded-md bg-muted/40 p-3 text-sm">
+              <div className="flex items-center gap-2 font-semibold mb-1">
+                <Wallet className="h-4 w-4 text-primary" /> Cash in Hand
+              </div>
+              <p className="text-xs text-muted-foreground">
+                All cash account movements (receipts, cash sales, payments) with a running balance.
+              </p>
+            </div>
+          ) : (
+          <>
           <div className="relative mb-3">
             <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
             <Input
@@ -231,11 +282,22 @@ function LedgerPage() {
               );
             })}
           </div>
+          </>
+          )}
         </Card>
 
         {/* Ledger view */}
         <div className="space-y-4 min-w-0">
-          {!selected ? (
+          {kind === "cash" ? (
+            <CashLedger
+              rows={cashRows}
+              loading={cashLoading}
+              opening={cashOpening}
+              debit={cashDebit}
+              credit={cashCredit}
+              closing={cashClosing}
+            />
+          ) : !selected ? (
             <Card className="p-12 text-center text-muted-foreground">
               Select a {kind} from the left to view their ledger.
             </Card>
@@ -364,6 +426,121 @@ function LedgerPage() {
         returnNo={returnView?.no}
         refTable={returnView?.refTable ?? "sales_returns"}
       />
+    </>
+  );
+}
+
+function CashLedger({
+  rows,
+  loading,
+  opening,
+  debit,
+  credit,
+  closing,
+}: {
+  rows: (CashTxn & { balance: number })[];
+  loading: boolean;
+  opening: number;
+  debit: number;
+  credit: number;
+  closing: number;
+}) {
+  const drcr = (n: number) => `${inr(Math.abs(n))} ${n >= 0 ? "Dr" : "Cr"}`;
+  const typeLabel: Record<CashTxn["txn_type"], string> = {
+    opening: "Opening",
+    receipt: "Receipt",
+    sale: "Cash Sale",
+    payment: "Payment",
+    credit_note: "Credit Note",
+  };
+  return (
+    <>
+      <Card className="p-5 flex flex-wrap items-center justify-between gap-4">
+        <div>
+          <div className="text-xs uppercase text-muted-foreground tracking-wider">Cash in Hand</div>
+          <div className="text-2xl font-bold">Cash Account</div>
+          <div className="text-sm text-muted-foreground">
+            Opening balance {drcr(opening)}
+          </div>
+        </div>
+        <div className="flex gap-4 items-center">
+          <div className="text-right">
+            <div className="text-[11px] uppercase text-muted-foreground">Cash In</div>
+            <div className="font-semibold tabular-nums text-emerald-600">{inr(debit)}</div>
+          </div>
+          <div className="text-right">
+            <div className="text-[11px] uppercase text-muted-foreground">Cash Out</div>
+            <div className="font-semibold tabular-nums text-destructive">{inr(credit)}</div>
+          </div>
+          <div className="text-right border-l pl-4 ml-2">
+            <div className="text-[11px] uppercase text-muted-foreground">Closing Balance</div>
+            <div className="text-xl font-bold tabular-nums">{drcr(closing)}</div>
+          </div>
+        </div>
+      </Card>
+
+      <Card className="overflow-hidden">
+        <div className="px-5 pt-5 pb-3">
+          <h2 className="text-lg font-semibold">Cash Transactions</h2>
+        </div>
+        {loading ? (
+          <div className="p-8 text-center text-muted-foreground">Loading…</div>
+        ) : (
+          <table className="w-full text-sm">
+            <thead className="bg-muted/50 text-xs uppercase tracking-wider text-muted-foreground">
+              <tr>
+                <th className="text-left p-3 pl-5">Date</th>
+                <th className="text-left p-3">Type</th>
+                <th className="text-left p-3">Vch No</th>
+                <th className="text-left p-3">Account</th>
+                <th className="text-right p-3">Cash In</th>
+                <th className="text-right p-3">Cash Out</th>
+                <th className="text-right p-3 pr-5">Balance</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr className="border-t bg-muted/20">
+                <td className="p-3 pl-5 text-muted-foreground whitespace-nowrap" colSpan={4}>
+                  Opening Balance
+                </td>
+                <td className="p-3 text-right tabular-nums">—</td>
+                <td className="p-3 text-right tabular-nums">—</td>
+                <td className="p-3 pr-5 text-right tabular-nums font-semibold">{drcr(opening)}</td>
+              </tr>
+              {rows.map((e) => {
+                const isIn = Number(e.debit) > 0;
+                const Icon = isIn ? ArrowDownCircle : ArrowUpCircle;
+                return (
+                  <tr key={e.id} className="border-t hover:bg-muted/30">
+                    <td className="p-3 pl-5 text-muted-foreground whitespace-nowrap">
+                      {new Date(e.txn_date).toLocaleDateString()}
+                    </td>
+                    <td className="p-3">
+                      <span className={`inline-flex items-center gap-1.5 px-2 py-0.5 rounded-md text-xs font-semibold ${
+                        e.txn_type === "receipt" ? "bg-emerald-500/10 text-emerald-600" :
+                        e.txn_type === "sale" ? "bg-blue-500/10 text-blue-600" :
+                        e.txn_type === "payment" ? "bg-amber-500/10 text-amber-600" :
+                        e.txn_type === "credit_note" ? "bg-rose-500/10 text-rose-600" :
+                        "bg-muted text-muted-foreground"
+                      }`}>
+                        <Icon className="h-3 w-3" /> {typeLabel[e.txn_type]}
+                      </span>
+                    </td>
+                    <td className="p-3 text-muted-foreground">{e.vch_no ?? "—"}</td>
+                    <td className="p-3 font-medium">{e.account_name}</td>
+                    <td className="p-3 text-right tabular-nums text-emerald-600">{Number(e.debit) > 0 ? inr(Number(e.debit)) : "—"}</td>
+                    <td className="p-3 text-right tabular-nums text-destructive">{Number(e.credit) > 0 ? inr(Number(e.credit)) : "—"}</td>
+                    <td className="p-3 pr-5 text-right tabular-nums font-semibold">{drcr(e.balance)}</td>
+                  </tr>
+                );
+              })}
+              {rows.length === 0 && (
+                <tr><td colSpan={7} className="text-center py-12 text-muted-foreground">No cash transactions yet.</td></tr>
+              )}
+            </tbody>
+          </table>
+        )}
+      </Card>
     </>
   );
 }
