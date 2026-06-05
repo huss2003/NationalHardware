@@ -24,7 +24,6 @@ import { Route as AppPurchasesIndexRouteImport } from './routes/_app.purchases.i
 import { Route as AppPurchaseReturnsIndexRouteImport } from './routes/_app.purchase-returns.index'
 import { Route as AppInventoryIndexRouteImport } from './routes/_app.inventory.index'
 import { Route as AppGodownsIndexRouteImport } from './routes/_app.godowns.index'
-import { Route as ApiPublicSeedSheetLedgerRouteImport } from './routes/api/public/seed-sheet-ledger'
 import { Route as ApiPublicSeedBusyImportRouteImport } from './routes/api/public/seed-busy-import'
 import { Route as AppUnitsItemIdRouteImport } from './routes/_app.units.$itemId'
 import { Route as AppSalesReceiptsRouteImport } from './routes/_app.sales.receipts'
@@ -112,12 +111,6 @@ const AppGodownsIndexRoute = AppGodownsIndexRouteImport.update({
   path: '/godowns/',
   getParentRoute: () => AppRoute,
 } as any)
-const ApiPublicSeedSheetLedgerRoute =
-  ApiPublicSeedSheetLedgerRouteImport.update({
-    id: '/api/public/seed-sheet-ledger',
-    path: '/api/public/seed-sheet-ledger',
-    getParentRoute: () => rootRouteImport,
-  } as any)
 const ApiPublicSeedBusyImportRoute = ApiPublicSeedBusyImportRouteImport.update({
   id: '/api/public/seed-busy-import',
   path: '/api/public/seed-busy-import',
@@ -201,7 +194,6 @@ export interface FileRoutesByFullPath {
   '/sales/receipts': typeof AppSalesReceiptsRoute
   '/units/$itemId': typeof AppUnitsItemIdRoute
   '/api/public/seed-busy-import': typeof ApiPublicSeedBusyImportRoute
-  '/api/public/seed-sheet-ledger': typeof ApiPublicSeedSheetLedgerRoute
   '/godowns/': typeof AppGodownsIndexRoute
   '/inventory/': typeof AppInventoryIndexRoute
   '/purchase-returns/': typeof AppPurchaseReturnsIndexRoute
@@ -230,7 +222,6 @@ export interface FileRoutesByTo {
   '/sales/receipts': typeof AppSalesReceiptsRoute
   '/units/$itemId': typeof AppUnitsItemIdRoute
   '/api/public/seed-busy-import': typeof ApiPublicSeedBusyImportRoute
-  '/api/public/seed-sheet-ledger': typeof ApiPublicSeedSheetLedgerRoute
   '/godowns': typeof AppGodownsIndexRoute
   '/inventory': typeof AppInventoryIndexRoute
   '/purchase-returns': typeof AppPurchaseReturnsIndexRoute
@@ -261,7 +252,6 @@ export interface FileRoutesById {
   '/_app/sales/receipts': typeof AppSalesReceiptsRoute
   '/_app/units/$itemId': typeof AppUnitsItemIdRoute
   '/api/public/seed-busy-import': typeof ApiPublicSeedBusyImportRoute
-  '/api/public/seed-sheet-ledger': typeof ApiPublicSeedSheetLedgerRoute
   '/_app/godowns/': typeof AppGodownsIndexRoute
   '/_app/inventory/': typeof AppInventoryIndexRoute
   '/_app/purchase-returns/': typeof AppPurchaseReturnsIndexRoute
@@ -292,7 +282,6 @@ export interface FileRouteTypes {
     | '/sales/receipts'
     | '/units/$itemId'
     | '/api/public/seed-busy-import'
-    | '/api/public/seed-sheet-ledger'
     | '/godowns/'
     | '/inventory/'
     | '/purchase-returns/'
@@ -321,7 +310,6 @@ export interface FileRouteTypes {
     | '/sales/receipts'
     | '/units/$itemId'
     | '/api/public/seed-busy-import'
-    | '/api/public/seed-sheet-ledger'
     | '/godowns'
     | '/inventory'
     | '/purchase-returns'
@@ -351,7 +339,6 @@ export interface FileRouteTypes {
     | '/_app/sales/receipts'
     | '/_app/units/$itemId'
     | '/api/public/seed-busy-import'
-    | '/api/public/seed-sheet-ledger'
     | '/_app/godowns/'
     | '/_app/inventory/'
     | '/_app/purchase-returns/'
@@ -365,7 +352,6 @@ export interface RootRouteChildren {
   AppRoute: typeof AppRouteWithChildren
   LoginRoute: typeof LoginRoute
   ApiPublicSeedBusyImportRoute: typeof ApiPublicSeedBusyImportRoute
-  ApiPublicSeedSheetLedgerRoute: typeof ApiPublicSeedSheetLedgerRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -474,13 +460,6 @@ declare module '@tanstack/react-router' {
       fullPath: '/godowns/'
       preLoaderRoute: typeof AppGodownsIndexRouteImport
       parentRoute: typeof AppRoute
-    }
-    '/api/public/seed-sheet-ledger': {
-      id: '/api/public/seed-sheet-ledger'
-      path: '/api/public/seed-sheet-ledger'
-      fullPath: '/api/public/seed-sheet-ledger'
-      preLoaderRoute: typeof ApiPublicSeedSheetLedgerRouteImport
-      parentRoute: typeof rootRouteImport
     }
     '/api/public/seed-busy-import': {
       id: '/api/public/seed-busy-import'
@@ -628,7 +607,6 @@ const rootRouteChildren: RootRouteChildren = {
   AppRoute: AppRouteWithChildren,
   LoginRoute: LoginRoute,
   ApiPublicSeedBusyImportRoute: ApiPublicSeedBusyImportRoute,
-  ApiPublicSeedSheetLedgerRoute: ApiPublicSeedSheetLedgerRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
