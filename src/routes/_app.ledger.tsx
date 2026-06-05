@@ -301,6 +301,7 @@ function LedgerPage() {
               { v: "customer" as const, label: "Customers", icon: Users },
               { v: "supplier" as const, label: "Suppliers", icon: Truck },
               { v: "cash" as const, label: "Cash", icon: Banknote },
+              { v: "bank" as const, label: "Bank", icon: Wallet },
             ]).map((t) => {
               const active = kind === t.v;
               const Icon = t.icon;
@@ -320,10 +321,10 @@ function LedgerPage() {
           {accountKind ? (
             <div className="rounded-md bg-muted/40 p-3 text-sm">
               <div className="flex items-center gap-2 font-semibold mb-1">
-                <Wallet className="h-4 w-4 text-primary" /> Cash in Hand
+                <Wallet className="h-4 w-4 text-primary" /> {kind === "bank" ? "Bank (HDFC)" : "Cash in Hand"}
               </div>
               <p className="text-xs text-muted-foreground">
-                All cash account movements (receipts, cash sales, payments) with a running balance.
+                All {kind === "bank" ? "bank" : "cash"} account movements (receipts &amp; payments) with a running balance.
               </p>
             </div>
           ) : (
@@ -367,8 +368,9 @@ function LedgerPage() {
 
         {/* Ledger view */}
         <div className="space-y-4 min-w-0">
-          {kind === "cash" ? (
+          {accountKind ? (
             <CashLedger
+              title={kind === "bank" ? "Bank (HDFC)" : "Cash in Hand"}
               rows={cashRows}
               loading={cashLoading}
               opening={cashOpening}
@@ -398,12 +400,11 @@ function LedgerPage() {
                     <div className="font-semibold tabular-nums">{inr(totalCredit)}</div>
                   </div>
                   <div className="text-right border-l pl-4 ml-2">
-                    <div className="text-[11px] uppercase text-muted-foreground">Outstanding</div>
-                    <div className={`text-xl font-bold tabular-nums ${outstanding > 0.01 ? "text-destructive" : outstanding < -0.01 ? "text-emerald-600" : ""}`}>
-                      {inr(Math.abs(outstanding))}
-                      {outstanding > 0.01 && <span className="text-xs ml-1 font-normal">due</span>}
-                      {outstanding < -0.01 && <span className="text-xs ml-1 font-normal">advance</span>}
+                    <div className="text-[11px] uppercase text-muted-foreground">Closing</div>
+                    <div className={`text-xl font-bold tabular-nums ${Math.abs(closing) < 0.01 ? "" : closing > 0 ? "text-destructive" : "text-emerald-600"}`}>
+                      {drcr(closing)}
                     </div>
+                  </div>
                   </div>
                   {kind === "customer" && (
                     <Button asChild size="sm" className="gap-2">
