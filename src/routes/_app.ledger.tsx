@@ -274,16 +274,10 @@ function LedgerPage() {
           {accountKind ? (
             <div className="rounded-md bg-muted/40 p-3 text-sm">
               <div className="flex items-center gap-2 font-semibold mb-1">
-                {kind === "cash" ? <><Wallet className="h-4 w-4 text-primary" /> Cash in Hand</>
-                  : kind === "sales" ? <><FileText className="h-4 w-4 text-primary" /> Sales Ledger</>
-                  : <><ShoppingCart className="h-4 w-4 text-primary" /> Purchase Ledger</>}
+                <Wallet className="h-4 w-4 text-primary" /> Cash in Hand
               </div>
               <p className="text-xs text-muted-foreground">
-                {kind === "cash"
-                  ? "All cash account movements (receipts, cash sales, payments) with a running balance."
-                  : kind === "sales"
-                    ? "Imported Sales account ledger — every sale, return and journal entry with a running balance."
-                    : "Imported Purchase account ledger — every purchase, debit note and journal entry with a running balance."}
+                All cash account movements (receipts, cash sales, payments) with a running balance.
               </p>
             </div>
           ) : (
