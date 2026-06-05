@@ -1327,6 +1327,53 @@ export type Database = {
         }
         Relationships: []
       }
+      supplier_payments: {
+        Row: {
+          amount: number
+          created_at: string
+          created_by: string | null
+          id: string
+          mode: string
+          notes: string | null
+          payment_date: string
+          payment_no: string | null
+          supplier_id: string | null
+          updated_at: string
+        }
+        Insert: {
+          amount?: number
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          mode?: string
+          notes?: string | null
+          payment_date?: string
+          payment_no?: string | null
+          supplier_id?: string | null
+          updated_at?: string
+        }
+        Update: {
+          amount?: number
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          mode?: string
+          notes?: string | null
+          payment_date?: string
+          payment_no?: string | null
+          supplier_id?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "supplier_payments_supplier_id_fkey"
+            columns: ["supplier_id"]
+            isOneToOne: false
+            referencedRelation: "suppliers"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       suppliers: {
         Row: {
           address: string | null
