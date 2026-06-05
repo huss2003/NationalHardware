@@ -1,0 +1,1 @@
+DROP FUNCTION IF EXISTS public.import_ledger_rows(text, jsonb);

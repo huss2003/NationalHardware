@@ -1395,10 +1395,6 @@ export type Database = {
         }
         Returns: boolean
       }
-      import_ledger_rows: {
-        Args: { _rows: Json; _table: string }
-        Returns: number
-      }
       is_signed_in: { Args: never; Returns: boolean }
       mark_damaged: {
         Args: { _actor_user_id: string; _item_id: string; _reason: string }
