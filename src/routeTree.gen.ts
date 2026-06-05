@@ -17,9 +17,12 @@ import { Route as IndexRouteImport } from './routes/index'
 import { Route as AppSettingsRouteImport } from './routes/_app.settings'
 import { Route as AppLedgerRouteImport } from './routes/_app.ledger'
 import { Route as AppDoorRouteImport } from './routes/_app.door'
+import { Route as AppDashboardRouteImport } from './routes/_app.dashboard'
 import { Route as AppAlertsRouteImport } from './routes/_app.alerts'
 import { Route as AppSalesReturnsIndexRouteImport } from './routes/_app.sales-returns.index'
+import { Route as AppPurchasesIndexRouteImport } from './routes/_app.purchases.index'
 import { Route as AppPurchaseReturnsIndexRouteImport } from './routes/_app.purchase-returns.index'
+import { Route as AppInventoryIndexRouteImport } from './routes/_app.inventory.index'
 import { Route as AppGodownsIndexRouteImport } from './routes/_app.godowns.index'
 import { Route as ApiPublicSeedBusyImportRouteImport } from './routes/api/public/seed-busy-import'
 import { Route as AppUnitsItemIdRouteImport } from './routes/_app.units.$itemId'
@@ -29,10 +32,7 @@ import { Route as AppInventoryScanRouteImport } from './routes/_app.inventory.sc
 import { Route as AppInventoryProductIdRouteImport } from './routes/_app.inventory.$productId'
 
 const AppReportsLazyRouteImport = createFileRoute('/_app/reports')()
-const AppDashboardLazyRouteImport = createFileRoute('/_app/dashboard')()
 const AppSalesIndexLazyRouteImport = createFileRoute('/_app/sales/')()
-const AppPurchasesIndexLazyRouteImport = createFileRoute('/_app/purchases/')()
-const AppInventoryIndexLazyRouteImport = createFileRoute('/_app/inventory/')()
 const AppSalesNewLazyRouteImport = createFileRoute('/_app/sales/new')()
 const AppSalesAllLazyRouteImport = createFileRoute('/_app/sales/all')()
 const AppSalesIdLazyRouteImport = createFileRoute('/_app/sales/$id')()
@@ -59,13 +59,6 @@ const AppReportsLazyRoute = AppReportsLazyRouteImport.update({
   path: '/reports',
   getParentRoute: () => AppRoute,
 } as any).lazy(() => import('./routes/_app.reports.lazy').then((d) => d.Route))
-const AppDashboardLazyRoute = AppDashboardLazyRouteImport.update({
-  id: '/dashboard',
-  path: '/dashboard',
-  getParentRoute: () => AppRoute,
-} as any).lazy(() =>
-  import('./routes/_app.dashboard.lazy').then((d) => d.Route),
-)
 const AppSettingsRoute = AppSettingsRouteImport.update({
   id: '/settings',
   path: '/settings',
@@ -81,6 +74,13 @@ const AppDoorRoute = AppDoorRouteImport.update({
   path: '/door',
   getParentRoute: () => AppRoute,
 } as any)
+const AppDashboardRoute = AppDashboardRouteImport.update({
+  id: '/dashboard',
+  path: '/dashboard',
+  getParentRoute: () => AppRoute,
+} as any).lazy(() =>
+  import('./routes/_app.dashboard.lazy').then((d) => d.Route),
+)
 const AppAlertsRoute = AppAlertsRouteImport.update({
   id: '/alerts',
   path: '/alerts',
@@ -93,30 +93,30 @@ const AppSalesIndexLazyRoute = AppSalesIndexLazyRouteImport.update({
 } as any).lazy(() =>
   import('./routes/_app.sales.index.lazy').then((d) => d.Route),
 )
-const AppPurchasesIndexLazyRoute = AppPurchasesIndexLazyRouteImport.update({
+const AppSalesReturnsIndexRoute = AppSalesReturnsIndexRouteImport.update({
+  id: '/sales-returns/',
+  path: '/sales-returns/',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppPurchasesIndexRoute = AppPurchasesIndexRouteImport.update({
   id: '/purchases/',
   path: '/purchases/',
   getParentRoute: () => AppRoute,
 } as any).lazy(() =>
   import('./routes/_app.purchases.index.lazy').then((d) => d.Route),
 )
-const AppInventoryIndexLazyRoute = AppInventoryIndexLazyRouteImport.update({
+const AppPurchaseReturnsIndexRoute = AppPurchaseReturnsIndexRouteImport.update({
+  id: '/purchase-returns/',
+  path: '/purchase-returns/',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppInventoryIndexRoute = AppInventoryIndexRouteImport.update({
   id: '/inventory/',
   path: '/inventory/',
   getParentRoute: () => AppRoute,
 } as any).lazy(() =>
   import('./routes/_app.inventory.index.lazy').then((d) => d.Route),
 )
-const AppSalesReturnsIndexRoute = AppSalesReturnsIndexRouteImport.update({
-  id: '/sales-returns/',
-  path: '/sales-returns/',
-  getParentRoute: () => AppRoute,
-} as any)
-const AppPurchaseReturnsIndexRoute = AppPurchaseReturnsIndexRouteImport.update({
-  id: '/purchase-returns/',
-  path: '/purchase-returns/',
-  getParentRoute: () => AppRoute,
-} as any)
 const AppGodownsIndexRoute = AppGodownsIndexRouteImport.update({
   id: '/godowns/',
   path: '/godowns/',
@@ -200,10 +200,10 @@ export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/login': typeof LoginRoute
   '/alerts': typeof AppAlertsRoute
+  '/dashboard': typeof AppDashboardRoute
   '/door': typeof AppDoorRoute
   '/ledger': typeof AppLedgerRoute
   '/settings': typeof AppSettingsRoute
-  '/dashboard': typeof AppDashboardLazyRoute
   '/reports': typeof AppReportsLazyRoute
   '/inventory/$productId': typeof AppInventoryProductIdRoute
   '/inventory/scan': typeof AppInventoryScanRoute
@@ -218,20 +218,20 @@ export interface FileRoutesByFullPath {
   '/sales/all': typeof AppSalesAllLazyRoute
   '/sales/new': typeof AppSalesNewLazyRoute
   '/godowns/': typeof AppGodownsIndexRoute
+  '/inventory/': typeof AppInventoryIndexRoute
   '/purchase-returns/': typeof AppPurchaseReturnsIndexRoute
+  '/purchases/': typeof AppPurchasesIndexRoute
   '/sales-returns/': typeof AppSalesReturnsIndexRoute
-  '/inventory/': typeof AppInventoryIndexLazyRoute
-  '/purchases/': typeof AppPurchasesIndexLazyRoute
   '/sales/': typeof AppSalesIndexLazyRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/login': typeof LoginRoute
   '/alerts': typeof AppAlertsRoute
+  '/dashboard': typeof AppDashboardRoute
   '/door': typeof AppDoorRoute
   '/ledger': typeof AppLedgerRoute
   '/settings': typeof AppSettingsRoute
-  '/dashboard': typeof AppDashboardLazyRoute
   '/reports': typeof AppReportsLazyRoute
   '/inventory/$productId': typeof AppInventoryProductIdRoute
   '/inventory/scan': typeof AppInventoryScanRoute
@@ -246,10 +246,10 @@ export interface FileRoutesByTo {
   '/sales/all': typeof AppSalesAllLazyRoute
   '/sales/new': typeof AppSalesNewLazyRoute
   '/godowns': typeof AppGodownsIndexRoute
+  '/inventory': typeof AppInventoryIndexRoute
   '/purchase-returns': typeof AppPurchaseReturnsIndexRoute
+  '/purchases': typeof AppPurchasesIndexRoute
   '/sales-returns': typeof AppSalesReturnsIndexRoute
-  '/inventory': typeof AppInventoryIndexLazyRoute
-  '/purchases': typeof AppPurchasesIndexLazyRoute
   '/sales': typeof AppSalesIndexLazyRoute
 }
 export interface FileRoutesById {
@@ -258,10 +258,10 @@ export interface FileRoutesById {
   '/_app': typeof AppRouteWithChildren
   '/login': typeof LoginRoute
   '/_app/alerts': typeof AppAlertsRoute
+  '/_app/dashboard': typeof AppDashboardRoute
   '/_app/door': typeof AppDoorRoute
   '/_app/ledger': typeof AppLedgerRoute
   '/_app/settings': typeof AppSettingsRoute
-  '/_app/dashboard': typeof AppDashboardLazyRoute
   '/_app/reports': typeof AppReportsLazyRoute
   '/_app/inventory/$productId': typeof AppInventoryProductIdRoute
   '/_app/inventory/scan': typeof AppInventoryScanRoute
@@ -276,10 +276,10 @@ export interface FileRoutesById {
   '/_app/sales/all': typeof AppSalesAllLazyRoute
   '/_app/sales/new': typeof AppSalesNewLazyRoute
   '/_app/godowns/': typeof AppGodownsIndexRoute
+  '/_app/inventory/': typeof AppInventoryIndexRoute
   '/_app/purchase-returns/': typeof AppPurchaseReturnsIndexRoute
+  '/_app/purchases/': typeof AppPurchasesIndexRoute
   '/_app/sales-returns/': typeof AppSalesReturnsIndexRoute
-  '/_app/inventory/': typeof AppInventoryIndexLazyRoute
-  '/_app/purchases/': typeof AppPurchasesIndexLazyRoute
   '/_app/sales/': typeof AppSalesIndexLazyRoute
 }
 export interface FileRouteTypes {
@@ -288,10 +288,10 @@ export interface FileRouteTypes {
     | '/'
     | '/login'
     | '/alerts'
+    | '/dashboard'
     | '/door'
     | '/ledger'
     | '/settings'
-    | '/dashboard'
     | '/reports'
     | '/inventory/$productId'
     | '/inventory/scan'
@@ -306,20 +306,20 @@ export interface FileRouteTypes {
     | '/sales/all'
     | '/sales/new'
     | '/godowns/'
-    | '/purchase-returns/'
-    | '/sales-returns/'
     | '/inventory/'
+    | '/purchase-returns/'
     | '/purchases/'
+    | '/sales-returns/'
     | '/sales/'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
     | '/login'
     | '/alerts'
+    | '/dashboard'
     | '/door'
     | '/ledger'
     | '/settings'
-    | '/dashboard'
     | '/reports'
     | '/inventory/$productId'
     | '/inventory/scan'
@@ -334,10 +334,10 @@ export interface FileRouteTypes {
     | '/sales/all'
     | '/sales/new'
     | '/godowns'
-    | '/purchase-returns'
-    | '/sales-returns'
     | '/inventory'
+    | '/purchase-returns'
     | '/purchases'
+    | '/sales-returns'
     | '/sales'
   id:
     | '__root__'
@@ -345,10 +345,10 @@ export interface FileRouteTypes {
     | '/_app'
     | '/login'
     | '/_app/alerts'
+    | '/_app/dashboard'
     | '/_app/door'
     | '/_app/ledger'
     | '/_app/settings'
-    | '/_app/dashboard'
     | '/_app/reports'
     | '/_app/inventory/$productId'
     | '/_app/inventory/scan'
@@ -363,10 +363,10 @@ export interface FileRouteTypes {
     | '/_app/sales/all'
     | '/_app/sales/new'
     | '/_app/godowns/'
-    | '/_app/purchase-returns/'
-    | '/_app/sales-returns/'
     | '/_app/inventory/'
+    | '/_app/purchase-returns/'
     | '/_app/purchases/'
+    | '/_app/sales-returns/'
     | '/_app/sales/'
   fileRoutesById: FileRoutesById
 }
@@ -407,13 +407,6 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppReportsLazyRouteImport
       parentRoute: typeof AppRoute
     }
-    '/_app/dashboard': {
-      id: '/_app/dashboard'
-      path: '/dashboard'
-      fullPath: '/dashboard'
-      preLoaderRoute: typeof AppDashboardLazyRouteImport
-      parentRoute: typeof AppRoute
-    }
     '/_app/settings': {
       id: '/_app/settings'
       path: '/settings'
@@ -435,6 +428,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppDoorRouteImport
       parentRoute: typeof AppRoute
     }
+    '/_app/dashboard': {
+      id: '/_app/dashboard'
+      path: '/dashboard'
+      fullPath: '/dashboard'
+      preLoaderRoute: typeof AppDashboardRouteImport
+      parentRoute: typeof AppRoute
+    }
     '/_app/alerts': {
       id: '/_app/alerts'
       path: '/alerts'
@@ -449,20 +449,6 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppSalesIndexLazyRouteImport
       parentRoute: typeof AppRoute
     }
-    '/_app/purchases/': {
-      id: '/_app/purchases/'
-      path: '/purchases'
-      fullPath: '/purchases/'
-      preLoaderRoute: typeof AppPurchasesIndexLazyRouteImport
-      parentRoute: typeof AppRoute
-    }
-    '/_app/inventory/': {
-      id: '/_app/inventory/'
-      path: '/inventory'
-      fullPath: '/inventory/'
-      preLoaderRoute: typeof AppInventoryIndexLazyRouteImport
-      parentRoute: typeof AppRoute
-    }
     '/_app/sales-returns/': {
       id: '/_app/sales-returns/'
       path: '/sales-returns'
@@ -470,11 +456,25 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppSalesReturnsIndexRouteImport
       parentRoute: typeof AppRoute
     }
+    '/_app/purchases/': {
+      id: '/_app/purchases/'
+      path: '/purchases'
+      fullPath: '/purchases/'
+      preLoaderRoute: typeof AppPurchasesIndexRouteImport
+      parentRoute: typeof AppRoute
+    }
     '/_app/purchase-returns/': {
       id: '/_app/purchase-returns/'
       path: '/purchase-returns'
       fullPath: '/purchase-returns/'
       preLoaderRoute: typeof AppPurchaseReturnsIndexRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/_app/inventory/': {
+      id: '/_app/inventory/'
+      path: '/inventory'
+      fullPath: '/inventory/'
+      preLoaderRoute: typeof AppInventoryIndexRouteImport
       parentRoute: typeof AppRoute
     }
     '/_app/godowns/': {
@@ -573,10 +573,10 @@ declare module '@tanstack/react-router' {
 
 interface AppRouteChildren {
   AppAlertsRoute: typeof AppAlertsRoute
+  AppDashboardRoute: typeof AppDashboardRoute
   AppDoorRoute: typeof AppDoorRoute
   AppLedgerRoute: typeof AppLedgerRoute
   AppSettingsRoute: typeof AppSettingsRoute
-  AppDashboardLazyRoute: typeof AppDashboardLazyRoute
   AppReportsLazyRoute: typeof AppReportsLazyRoute
   AppInventoryProductIdRoute: typeof AppInventoryProductIdRoute
   AppInventoryScanRoute: typeof AppInventoryScanRoute
@@ -590,19 +590,19 @@ interface AppRouteChildren {
   AppSalesAllLazyRoute: typeof AppSalesAllLazyRoute
   AppSalesNewLazyRoute: typeof AppSalesNewLazyRoute
   AppGodownsIndexRoute: typeof AppGodownsIndexRoute
+  AppInventoryIndexRoute: typeof AppInventoryIndexRoute
   AppPurchaseReturnsIndexRoute: typeof AppPurchaseReturnsIndexRoute
+  AppPurchasesIndexRoute: typeof AppPurchasesIndexRoute
   AppSalesReturnsIndexRoute: typeof AppSalesReturnsIndexRoute
-  AppInventoryIndexLazyRoute: typeof AppInventoryIndexLazyRoute
-  AppPurchasesIndexLazyRoute: typeof AppPurchasesIndexLazyRoute
   AppSalesIndexLazyRoute: typeof AppSalesIndexLazyRoute
 }
 
 const AppRouteChildren: AppRouteChildren = {
   AppAlertsRoute: AppAlertsRoute,
+  AppDashboardRoute: AppDashboardRoute,
   AppDoorRoute: AppDoorRoute,
   AppLedgerRoute: AppLedgerRoute,
   AppSettingsRoute: AppSettingsRoute,
-  AppDashboardLazyRoute: AppDashboardLazyRoute,
   AppReportsLazyRoute: AppReportsLazyRoute,
   AppInventoryProductIdRoute: AppInventoryProductIdRoute,
   AppInventoryScanRoute: AppInventoryScanRoute,
@@ -616,10 +616,10 @@ const AppRouteChildren: AppRouteChildren = {
   AppSalesAllLazyRoute: AppSalesAllLazyRoute,
   AppSalesNewLazyRoute: AppSalesNewLazyRoute,
   AppGodownsIndexRoute: AppGodownsIndexRoute,
+  AppInventoryIndexRoute: AppInventoryIndexRoute,
   AppPurchaseReturnsIndexRoute: AppPurchaseReturnsIndexRoute,
+  AppPurchasesIndexRoute: AppPurchasesIndexRoute,
   AppSalesReturnsIndexRoute: AppSalesReturnsIndexRoute,
-  AppInventoryIndexLazyRoute: AppInventoryIndexLazyRoute,
-  AppPurchasesIndexLazyRoute: AppPurchasesIndexLazyRoute,
   AppSalesIndexLazyRoute: AppSalesIndexLazyRoute,
 }
 
@@ -634,3 +634,13 @@ const rootRouteChildren: RootRouteChildren = {
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
   ._addFileTypes<FileRouteTypes>()
+
+import type { getRouter } from './router.tsx'
+import type { startInstance } from './start.ts'
+declare module '@tanstack/react-start' {
+  interface Register {
+    ssr: true
+    router: Awaited<ReturnType<typeof getRouter>>
+    config: Awaited<ReturnType<typeof startInstance.getOptions>>
+  }
+}
