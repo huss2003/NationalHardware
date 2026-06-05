@@ -434,20 +434,21 @@ function LedgerPage() {
                     <tbody>
                       {rows.map((e, i) => {
                         const Icon =
-                          e.kind === "sale" ? FileText :
-                          e.kind === "purchase" ? ShoppingCart :
-                          e.kind === "sales-return" || e.kind === "purchase-return" ? RotateCcw :
-                          e.kind === "refund-paid" ? Wallet :
-                          e.kind === "payment" ? Banknote :
+                          e.type === "sale" ? FileText :
+                          e.type === "purchase" ? ShoppingCart :
+                          e.type === "sales_return" || e.type === "purchase_return" ? RotateCcw :
+                          e.type === "refund" || e.type === "opening" ? Wallet :
+                          e.type === "payment" ? Banknote :
+                          e.type === "journal" || e.type === "credit_note" || e.type === "debit_note" ? FileText :
                           ReceiptIcon;
                         const linkProps =
-                          e.refId && e.kind === "sale"
-                            ? { to: "/sales/$id", params: { id: e.refId } }
-                            : e.refId && e.kind === "purchase"
-                              ? { to: "/purchases/$id", params: { id: e.refId } }
+                          e.saleId
+                            ? { to: "/sales/$id", params: { id: e.saleId } }
+                            : e.purchaseId
+                              ? { to: "/purchases/$id", params: { id: e.purchaseId } }
                               : null;
-                        const openReturn = (e.kind === "sales-return" || e.kind === "purchase-return") && e.refId && e.refTable
-                          ? () => setReturnView({ id: e.refId!, no: e.ref, refTable: e.refTable! })
+                        const openReturn = e.returnId && e.returnTable
+                          ? () => setReturnView({ id: e.returnId!, no: e.ref, refTable: e.returnTable! })
                           : null;
                         return (
                           <tr
@@ -459,16 +460,8 @@ function LedgerPage() {
                               {fmtDate(e.date)}
                             </td>
                             <td className="p-3">
-                              <span className={`inline-flex items-center gap-1.5 px-2 py-0.5 rounded-md text-xs font-semibold capitalize ${
-                                e.kind === "sale" ? "bg-blue-500/10 text-blue-600" :
-                                e.kind === "purchase" ? "bg-amber-500/10 text-amber-600" :
-                                e.kind === "sales-return" ? "bg-rose-500/10 text-rose-600" :
-                                e.kind === "purchase-return" ? "bg-orange-500/10 text-orange-600" :
-                                e.kind === "refund-paid" ? "bg-muted text-muted-foreground" :
-                                e.kind === "payment" ? "bg-amber-500/10 text-amber-600" :
-                                "bg-emerald-500/10 text-emerald-600"
-                              }`}>
-                                <Icon className="h-3 w-3" /> {e.kind}
+                              <span className={`inline-flex items-center gap-1.5 px-2 py-0.5 rounded-md text-xs font-semibold ${TYPE_STYLE[e.type]}`}>
+                                <Icon className="h-3 w-3" /> {TYPE_LABEL[e.type]}
                               </span>
                             </td>
                             <td className="p-3 font-medium">
@@ -483,8 +476,8 @@ function LedgerPage() {
                             </td>
                             <td className="p-3 text-right tabular-nums">{e.debit > 0 ? inr(e.debit) : "—"}</td>
                             <td className="p-3 text-right tabular-nums text-emerald-600">{e.credit > 0 ? inr(e.credit) : "—"}</td>
-                            <td className={`p-3 pr-5 text-right tabular-nums font-semibold ${e.balance > 0.01 ? "text-destructive" : ""}`}>
-                              {inr(e.balance)}
+                            <td className="p-3 pr-5 text-right tabular-nums font-semibold">
+                              {drcr(e.balance)}
                             </td>
                           </tr>
                         );
