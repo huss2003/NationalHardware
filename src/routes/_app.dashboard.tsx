@@ -100,7 +100,7 @@ function Dashboard() {
 
   const stats = data?.stats ?? { salesToday: 0, purchaseToday: 0, stockValue: 0, lowStock: 0, pendingCredit: 0 };
   const chart = data?.chart ?? [];
-  const alerts = data?.alerts ?? [];
+  const alerts: any[] = data?.alerts ?? [];
 
   return (
     <>
