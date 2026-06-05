@@ -1,5 +1,6 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { useEffect, useState } from "react";
+import { useState } from "react";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -22,20 +23,20 @@ const CATEGORIES = ["plywood", "door", "hardware", "mica", "other"] as const;
 type Cat = (typeof CATEGORIES)[number];
 
 function SubCategoriesPage() {
-  const [rows, setRows] = useState<any[]>([]);
-  const [loading, setLoading] = useState(true);
-
-  const load = async () => {
-    setLoading(true);
-    const { data } = await supabase
-      .from("product_subcategories")
-      .select("*")
-      .order("category")
-      .order("name");
-    setRows(data ?? []);
-    setLoading(false);
-  };
-  useEffect(() => { load(); }, []);
+  const queryClient = useQueryClient();
+  const { data: rows = [], isLoading: loading } = useQuery({
+    queryKey: ["product_subcategories"],
+    queryFn: async () => {
+      const { data } = await supabase
+        .from("product_subcategories")
+        .select("*")
+        .order("category")
+        .order("name");
+      return data ?? [];
+    },
+    staleTime: 60_000,
+  });
+  const load = () => queryClient.invalidateQueries({ queryKey: ["product_subcategories"] });
 
   const remove = async (id: string) => {
     if (!confirm("Delete this sub-category? Items inside will become un-categorized.")) return;

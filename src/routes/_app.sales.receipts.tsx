@@ -1,5 +1,6 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { useEffect, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -51,28 +52,32 @@ async function generateReceiptArtifacts(r: Receipt, customer: Customer, shop: an
 
 function ReceiptsPage() {
   const user = useAuth((s) => s.user);
+  const queryClient = useQueryClient();
   const [tab, setTab] = useState<"credit" | "general">("credit");
-  const [loading, setLoading] = useState(true);
-  const [customers, setCustomers] = useState<Customer[]>([]);
-  const [sales, setSales] = useState<any[]>([]);
-  const [receipts, setReceipts] = useState<Receipt[]>([]);
   const [openFor, setOpenFor] = useState<Customer | null>(null);
-  const [shop, setShop] = useState<any>(null);
-
-  const load = async () => {
-    setLoading(true);
-    const [c, s, r, sh] = await Promise.all([
-      supabase.from("customers").select("id, name, phone").order("name"),
-      supabase.from("sales").select("id, customer_id, grand_total, paid_amount, payment_mode, invoice_no, invoice_date").is("deleted_at", null),
-      supabase.from("receipts").select("*, customers(name)").order("created_at", { ascending: false }).limit(50),
-      supabase.from("app_settings").select("*").eq("id", true).maybeSingle(),
-    ]);
-    setCustomers((c.data as any) ?? []);
-    setSales(s.data ?? []);
-    setReceipts((r.data as any) ?? []);
-    setShop(sh.data);
-    setLoading(false);
-  };
+  const { data, isLoading: loading } = useQuery({
+    queryKey: ["receipts-page"],
+    queryFn: async () => {
+      const [c, s, r, sh] = await Promise.all([
+        supabase.from("customers").select("id, name, phone").order("name"),
+        supabase.from("sales").select("id, customer_id, grand_total, paid_amount, payment_mode, invoice_no, invoice_date").is("deleted_at", null),
+        supabase.from("receipts").select("*, customers(name)").order("created_at", { ascending: false }).limit(50),
+        supabase.from("app_settings").select("*").eq("id", true).maybeSingle(),
+      ]);
+      return {
+        customers: ((c.data as any) ?? []) as Customer[],
+        sales: s.data ?? [],
+        receipts: ((r.data as any) ?? []) as Receipt[],
+        shop: sh.data,
+      };
+    },
+    staleTime: 30_000,
+  });
+  const customers = data?.customers ?? [];
+  const sales = data?.sales ?? [];
+  const receipts = data?.receipts ?? [];
+  const shop = data?.shop ?? null;
+  const load = () => queryClient.invalidateQueries({ queryKey: ["receipts-page"] });
 
   const buildPdfFor = async (r: Receipt) => {
     const { buildReceiptPdf } = await import("@/lib/invoice-pdf");
@@ -110,7 +115,6 @@ function ReceiptsPage() {
       toast.error(`WhatsApp share failed: ${e.message ?? e}`);
     }
   };
-  useEffect(() => { load(); }, []);
 
   // Pending per customer = sum(grand_total - paid_amount of credit sales) - sum(credit receipts)
   const pending = useMemo(() => {

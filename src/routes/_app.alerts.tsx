@@ -1,5 +1,5 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { useEffect, useState } from "react";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -7,10 +7,19 @@ import { PageHeader } from "@/components/erp/PageHeader";
 
 export const Route = createFileRoute("/_app/alerts")({ component: Alerts });
 function Alerts() {
-  const [rows, setRows] = useState<any[]>([]);
-  const load = () => supabase.from("alerts").select("*").order("created_at", { ascending: false }).limit(100).then(({ data }) => setRows(data ?? []));
-  useEffect(() => { load(); }, []);
-  const markRead = async (id: string) => { await supabase.from("alerts").update({ read_at: new Date().toISOString() }).eq("id", id); load(); };
+  const queryClient = useQueryClient();
+  const { data: rows = [] } = useQuery({
+    queryKey: ["alerts"],
+    queryFn: async () => {
+      const { data } = await supabase.from("alerts").select("*").order("created_at", { ascending: false }).limit(100);
+      return data ?? [];
+    },
+    staleTime: 30_000,
+  });
+  const markRead = async (id: string) => {
+    await supabase.from("alerts").update({ read_at: new Date().toISOString() }).eq("id", id);
+    queryClient.invalidateQueries({ queryKey: ["alerts"] });
+  };
   return (
     <>
       <PageHeader title="Alerts" />
