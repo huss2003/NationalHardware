@@ -60,7 +60,7 @@ const AppReportsRoute = AppReportsRouteImport.update({
   id: '/reports',
   path: '/reports',
   getParentRoute: () => AppRoute,
-} as any)
+} as any).lazy(() => import('./routes/_app.reports.lazy').then((d) => d.Route))
 const AppLedgerRoute = AppLedgerRouteImport.update({
   id: '/ledger',
   path: '/ledger',
@@ -75,7 +75,9 @@ const AppDashboardRoute = AppDashboardRouteImport.update({
   id: '/dashboard',
   path: '/dashboard',
   getParentRoute: () => AppRoute,
-} as any)
+} as any).lazy(() =>
+  import('./routes/_app.dashboard.lazy').then((d) => d.Route),
+)
 const AppAlertsRoute = AppAlertsRouteImport.update({
   id: '/alerts',
   path: '/alerts',
@@ -85,7 +87,9 @@ const AppSalesIndexRoute = AppSalesIndexRouteImport.update({
   id: '/sales/',
   path: '/sales/',
   getParentRoute: () => AppRoute,
-} as any)
+} as any).lazy(() =>
+  import('./routes/_app.sales.index.lazy').then((d) => d.Route),
+)
 const AppSalesReturnsIndexRoute = AppSalesReturnsIndexRouteImport.update({
   id: '/sales-returns/',
   path: '/sales-returns/',
@@ -95,7 +99,9 @@ const AppPurchasesIndexRoute = AppPurchasesIndexRouteImport.update({
   id: '/purchases/',
   path: '/purchases/',
   getParentRoute: () => AppRoute,
-} as any)
+} as any).lazy(() =>
+  import('./routes/_app.purchases.index.lazy').then((d) => d.Route),
+)
 const AppPurchaseReturnsIndexRoute = AppPurchaseReturnsIndexRouteImport.update({
   id: '/purchase-returns/',
   path: '/purchase-returns/',
@@ -105,7 +111,9 @@ const AppInventoryIndexRoute = AppInventoryIndexRouteImport.update({
   id: '/inventory/',
   path: '/inventory/',
   getParentRoute: () => AppRoute,
-} as any)
+} as any).lazy(() =>
+  import('./routes/_app.inventory.index.lazy').then((d) => d.Route),
+)
 const AppGodownsIndexRoute = AppGodownsIndexRouteImport.update({
   id: '/godowns/',
   path: '/godowns/',
@@ -130,32 +138,44 @@ const AppSalesNewRoute = AppSalesNewRouteImport.update({
   id: '/sales/new',
   path: '/sales/new',
   getParentRoute: () => AppRoute,
-} as any)
+} as any).lazy(() =>
+  import('./routes/_app.sales.new.lazy').then((d) => d.Route),
+)
 const AppSalesAllRoute = AppSalesAllRouteImport.update({
   id: '/sales/all',
   path: '/sales/all',
   getParentRoute: () => AppRoute,
-} as any)
+} as any).lazy(() =>
+  import('./routes/_app.sales.all.lazy').then((d) => d.Route),
+)
 const AppSalesIdRoute = AppSalesIdRouteImport.update({
   id: '/sales/$id',
   path: '/sales/$id',
   getParentRoute: () => AppRoute,
-} as any)
+} as any).lazy(() =>
+  import('./routes/_app.sales.$id.lazy').then((d) => d.Route),
+)
 const AppPurchasesNewRoute = AppPurchasesNewRouteImport.update({
   id: '/purchases/new',
   path: '/purchases/new',
   getParentRoute: () => AppRoute,
-} as any)
+} as any).lazy(() =>
+  import('./routes/_app.purchases.new.lazy').then((d) => d.Route),
+)
 const AppPurchasesAllRoute = AppPurchasesAllRouteImport.update({
   id: '/purchases/all',
   path: '/purchases/all',
   getParentRoute: () => AppRoute,
-} as any)
+} as any).lazy(() =>
+  import('./routes/_app.purchases.all.lazy').then((d) => d.Route),
+)
 const AppPurchasesIdRoute = AppPurchasesIdRouteImport.update({
   id: '/purchases/$id',
   path: '/purchases/$id',
   getParentRoute: () => AppRoute,
-} as any)
+} as any).lazy(() =>
+  import('./routes/_app.purchases.$id.lazy').then((d) => d.Route),
+)
 const AppInventorySubcategoriesRoute =
   AppInventorySubcategoriesRouteImport.update({
     id: '/inventory/subcategories',
