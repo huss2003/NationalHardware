@@ -550,14 +550,6 @@ function CashLedger({
   credit: number;
   closing: number;
 }) {
-  const drcr = (n: number) => `${inr(Math.abs(n))} ${n >= 0 ? "Dr" : "Cr"}`;
-  const typeLabel: Record<CashTxn["txn_type"], string> = {
-    opening: "Opening",
-    receipt: "Receipt",
-    sale: "Cash Sale",
-    payment: "Payment",
-    credit_note: "Credit Note",
-  };
   return (
     <>
       <Card className="p-5 flex flex-wrap items-center justify-between gap-4">
