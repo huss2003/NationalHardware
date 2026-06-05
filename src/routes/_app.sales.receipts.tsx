@@ -9,7 +9,7 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { PageHeader } from "@/components/erp/PageHeader";
-import { inr } from "@/lib/codes";
+import { inr, fmtDate } from "@/lib/codes";
 import { useAuth } from "@/lib/auth-store";
 import { toast } from "sonner";
 import { ArrowLeft, Receipt as ReceiptIcon, Wallet, FileText, Check, MessageCircle } from "lucide-react";
@@ -232,7 +232,7 @@ function ReceiptsPage() {
                     </span>
                   </td>
                   <td className="p-3 capitalize">{r.mode}</td>
-                  <td className="p-3 text-muted-foreground">{new Date(r.created_at).toLocaleDateString()}</td>
+                  <td className="p-3 text-muted-foreground">{fmtDate(r.created_at)}</td>
                   <td className="p-3 pr-5 text-right font-semibold tabular-nums">{inr(r.amount)}</td>
                   <td className="p-3 pr-5 text-right">
                     <div className="inline-flex gap-1">

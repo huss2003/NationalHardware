@@ -5,7 +5,7 @@ import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { PageHeader } from "@/components/erp/PageHeader";
 import { DetailSkeleton, TableSkeleton } from "@/components/erp/Skeletons";
-import { inr } from "@/lib/codes";
+import { inr, fmtDate, fmtDateTime } from "@/lib/codes";
 import { Printer, MessageCircle } from "lucide-react";
 // jspdf + jspdf-autotable (~250KB) loaded only when the user clicks Send.
 import { toast } from "sonner";
@@ -61,7 +61,7 @@ function SaleDetail() {
   };
   return (
     <>
-      <PageHeader title={`Invoice ${s.invoice_no}`} subtitle={new Date(s.invoice_date).toLocaleString()} actions={
+      <PageHeader title={`Invoice ${s.invoice_no}`} subtitle={fmtDateTime(s.invoice_date)} actions={
         <div className="flex gap-2 no-print">
           <Button variant="outline" className="h-11 gap-2" disabled={sending} onClick={sendWhatsApp}>
             <MessageCircle className="h-4 w-4" /> {sending ? "Sending…" : "Send WhatsApp Again"}
@@ -81,7 +81,7 @@ function SaleDetail() {
             <div className="text-right">
               <div className="text-[10px] uppercase tracking-widest opacity-70">Tax Invoice</div>
               <div className="font-extrabold text-xl mt-0.5">{s.invoice_no}</div>
-              <div className="text-xs opacity-80">{new Date(s.invoice_date).toLocaleDateString()}</div>
+              <div className="text-xs opacity-80">{fmtDate(s.invoice_date)}</div>
             </div>
           </div>
 
@@ -96,7 +96,7 @@ function SaleDetail() {
             </div>
             <div className="bg-muted/50 rounded-lg p-4 text-xs space-y-1.5">
               <div className="text-[10px] uppercase font-bold tracking-wider text-muted-foreground mb-1">Invoice Details</div>
-              <div className="flex justify-between"><span className="text-muted-foreground">Date</span><b>{new Date(s.invoice_date).toLocaleDateString()}</b></div>
+              <div className="flex justify-between"><span className="text-muted-foreground">Date</span><b>{fmtDate(s.invoice_date)}</b></div>
               <div className="flex justify-between"><span className="text-muted-foreground">Payment</span><b className="uppercase">{s.payment_mode}</b></div>
               <div className="flex justify-between"><span className="text-muted-foreground">Invoice #</span><b>{s.invoice_no}</b></div>
             </div>

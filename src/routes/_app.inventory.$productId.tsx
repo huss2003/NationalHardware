@@ -5,7 +5,7 @@ import { Card } from "@/components/ui/card";
 import { PageHeader } from "@/components/erp/PageHeader";
 import { DetailSkeleton, TableSkeleton } from "@/components/erp/Skeletons";
 import { StatusPill } from "@/components/erp/StatusPill";
-import { inr } from "@/lib/codes";
+import { inr, fmtDate } from "@/lib/codes";
 
 export const Route = createFileRoute("/_app/inventory/$productId")({ component: ProductDetail });
 
@@ -165,7 +165,7 @@ const ItemRow = memo(function ItemRow({ item: i, hasDims }: { item: any; hasDims
         </td>
       )}
       <td className="p-3">{inr(i.cost_price)}</td>
-      <td className="p-3">{new Date(i.created_at).toLocaleDateString()}</td>
+      <td className="p-3">{fmtDate(i.created_at)}</td>
     </tr>
   );
 });

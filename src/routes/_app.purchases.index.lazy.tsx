@@ -9,7 +9,7 @@ import {
   Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
 } from "@/components/ui/table";
 import { TableSkeleton } from "@/components/erp/Skeletons";
-import { inr } from "@/lib/codes";
+import { inr, fmtDate } from "@/lib/codes";
 import {
   Plus, ClipboardList, Truck, Wallet, AlertTriangle,
   TrendingUp, SlidersHorizontal, Download, BarChart3, ChevronDown,
@@ -190,11 +190,7 @@ function Purchases() {
                         {r.suppliers?.name ?? "—"}
                       </TableCell>
                       <TableCell className="text-muted-foreground">
-                        {r.bill_date
-                          ? new Date(r.bill_date).toLocaleDateString("en", {
-                              month: "short", day: "numeric", year: "numeric",
-                            })
-                          : "—"}
+                        {r.bill_date ? fmtDate(r.bill_date) : "—"}
                       </TableCell>
                       <TableCell className="text-right font-semibold tabular-nums">
                         {inr(r.grand_total)}

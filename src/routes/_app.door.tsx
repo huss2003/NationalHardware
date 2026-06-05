@@ -14,7 +14,7 @@ import {
   Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
 } from "@/components/ui/table";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
-import { inr } from "@/lib/codes";
+import { inr, fmtDate } from "@/lib/codes";
 import { toast } from "sonner";
 import { Plus, DoorOpen, Trash2, FileText } from "lucide-react";
 import { QuickCreatePartyDialog } from "@/components/erp/QuickCreatePartyDialog";
@@ -497,7 +497,7 @@ function GeneralOrderForm({
             <Input value={orderNo} onChange={(e) => setOrderNo(e.target.value)} />
           </Field>
           <Field label="Date">
-            <Input value={new Date().toLocaleDateString()} disabled />
+            <Input value={fmtDate(new Date())} disabled />
           </Field>
           <Field label={isFromSale ? "Customer (optional — sale already has one)" : "Customer / Name"}>
             <div className="flex gap-2">
@@ -833,7 +833,7 @@ function VypaariForm({
 
       <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
         <Field label="Order No."><Input value={orderNo} onChange={(e) => setOrderNo(e.target.value)} /></Field>
-        <Field label="Date"><Input value={new Date().toLocaleDateString()} disabled /></Field>
+        <Field label="Date"><Input value={fmtDate(new Date())} disabled /></Field>
         <Field label="Customer / Name">
           <div className="flex gap-2">
             <select
@@ -934,7 +934,7 @@ function OrdersTable({ rows, loading }: { rows: DoorOrder[]; loading: boolean })
           {rows.map((o) => (
             <TableRow key={o.id} className="cursor-pointer" onClick={() => openDoorOrderPdf(o)}>
               <TableCell className="pl-5 font-medium">{o.order_no}</TableCell>
-              <TableCell>{new Date(o.order_date).toLocaleDateString()}</TableCell>
+              <TableCell>{fmtDate(o.order_date)}</TableCell>
               <TableCell>{o.customer_name}</TableCell>
               <TableCell>{o.door_type_name ?? "—"}</TableCell>
               <TableCell>{o.door_taken_size ?? "—"}</TableCell>

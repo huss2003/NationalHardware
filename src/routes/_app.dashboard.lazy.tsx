@@ -4,7 +4,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { PageHeader } from "@/components/erp/PageHeader";
-import { inr } from "@/lib/codes";
+import { inr, fmtDateTime } from "@/lib/codes";
 import {
   Boxes, IndianRupee, ShoppingCart, AlertTriangle, Receipt,
   TrendingUp, ArrowRight, Calendar, Download, Bell,
@@ -253,7 +253,7 @@ function Dashboard() {
                         </div>
                       )}
                       <div className="text-[11px] text-muted-foreground mt-1">
-                        {new Date(a.created_at).toLocaleString()}
+                        {fmtDateTime(a.created_at)}
                       </div>
                     </div>
                   </li>
