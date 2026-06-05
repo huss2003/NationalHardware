@@ -1,4 +1,4 @@
-import { createLazyFileRoute } from "@tanstack/react-router";
+import { createLazyFileRoute, getRouteApi } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Card } from "@/components/ui/card";
@@ -11,8 +11,10 @@ import { Printer } from "lucide-react";
 
 export const Route = createLazyFileRoute("/_app/purchases/$id")({ component: PurchaseDetail });
 
+const routeApi = getRouteApi("/_app/purchases/$id");
+
 function PurchaseDetail() {
-  const { id } = Route.useParams();
+  const { id } = routeApi.useParams();
   const [pur, setPur] = useState<any>(null);
   const [items, setItems] = useState<any[]>([]);
   const [units, setUnits] = useState<LabelItem[]>([]);

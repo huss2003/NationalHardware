@@ -1,4 +1,4 @@
-import { createLazyFileRoute } from "@tanstack/react-router";
+import { createLazyFileRoute, getRouteApi } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Card } from "@/components/ui/card";
@@ -12,8 +12,10 @@ import { toast } from "sonner";
 
 export const Route = createLazyFileRoute("/_app/sales/$id")({ component: SaleDetail });
 
+const routeApi = getRouteApi("/_app/sales/$id");
+
 function SaleDetail() {
-  const { id } = Route.useParams();
+  const { id } = routeApi.useParams();
   const [s, setS] = useState<any>(null);
   const [items, setItems] = useState<any[]>([]);
   const [shop, setShop] = useState<any>(null);
