@@ -25,30 +25,30 @@ export const Route = createFileRoute("/api/public/seed-sheet-ledger")({
         if (url.searchParams.get("token") !== TOKEN) {
           return new Response("Forbidden", { status: 403 });
         }
-        const d = importData as Record<string, any>;
-        const src = d.source as string;
-
-        // Idempotency: bail if this source already imported
-        const { count: existing } = await supabaseAdmin
-          .from("cash_transactions")
-          .select("id", { count: "exact", head: true })
-          .eq("source", src);
-        if ((existing ?? 0) > 0) {
-          return Response.json({ status: "already_imported", existing_cash: existing });
-        }
-
-        const result: Record<string, number> = {};
         try {
+          const d = importData as Record<string, any>;
+          const src = d.source as string;
+
+          // Idempotency: bail if this source already imported
+          const { count: existing } = await supabaseAdmin
+            .from("cash_transactions")
+            .select("id", { count: "exact", head: true })
+            .eq("source", src);
+          if ((existing ?? 0) > 0) {
+            return Response.json({ status: "already_imported", existing_cash: existing });
+          }
+
+          const result: Record<string, number> = {};
           result.sales_ledger = await insertAll("sales_ledger", d.sales);
           result.purchase_ledger = await insertAll("purchase_ledger", d.purchase);
           result.cash_transactions = await insertAll("cash_transactions", d.cash);
+          return Response.json({ status: "ok", inserted: result });
         } catch (e: any) {
           return Response.json(
-            { status: "error", message: String(e?.message ?? e), partial: result },
+            { status: "error", message: String(e?.message ?? e), stack: String(e?.stack ?? "") },
             { status: 500 },
           );
         }
-        return Response.json({ status: "ok", inserted: result });
       },
     },
   },
