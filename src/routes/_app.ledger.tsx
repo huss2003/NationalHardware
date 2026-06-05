@@ -613,14 +613,8 @@ function CashLedger({
                       {new Date(e.txn_date).toLocaleDateString()}
                     </td>
                     <td className="p-3">
-                      <span className={`inline-flex items-center gap-1.5 px-2 py-0.5 rounded-md text-xs font-semibold ${
-                        e.txn_type === "receipt" ? "bg-emerald-500/10 text-emerald-600" :
-                        e.txn_type === "sale" ? "bg-blue-500/10 text-blue-600" :
-                        e.txn_type === "payment" ? "bg-amber-500/10 text-amber-600" :
-                        e.txn_type === "credit_note" ? "bg-rose-500/10 text-rose-600" :
-                        "bg-muted text-muted-foreground"
-                      }`}>
-                        <Icon className="h-3 w-3" /> {typeLabel[e.txn_type]}
+                      <span className={`inline-flex items-center gap-1.5 px-2 py-0.5 rounded-md text-xs font-semibold ${TYPE_STYLE[e.txn_type]}`}>
+                        <Icon className="h-3 w-3" /> {e.txn_type === "sale" ? "Cash Sale" : TYPE_LABEL[e.txn_type]}
                       </span>
                     </td>
                     <td className="p-3 text-muted-foreground">{e.vch_no ?? "—"}</td>
