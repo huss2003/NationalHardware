@@ -38,16 +38,7 @@ async function hydrate(supaUser: User | null) {
   // Look up admin role once per user; everyone else is treated as employee.
   let role: ShopRole = cachedRole;
   if (cachedRoleUserId !== supaUser.id) {
-    role = "employee";
-    try {
-      const { data } = await supabase
-        .from("user_roles")
-        .select("role")
-        .eq("user_id", supaUser.id);
-      if (data?.some((r) => r.role === "admin")) role = "admin";
-    } catch {}
-    cachedRoleUserId = supaUser.id;
-    cachedRole = role;
+    role = await loadRole(supaUser.id);
   }
   const name =
     (supaUser.user_metadata?.display_name as string | undefined) ||
@@ -67,6 +58,33 @@ async function hydrate(supaUser: User | null) {
 
 let cachedRoleUserId: string | null = null;
 let cachedRole: ShopRole = "employee";
+let rolePromiseUserId: string | null = null;
+let rolePromise: Promise<ShopRole> | null = null;
+
+async function loadRole(userId: string): Promise<ShopRole> {
+  if (cachedRoleUserId === userId) return cachedRole;
+  if (rolePromise && rolePromiseUserId === userId) return rolePromise;
+  rolePromiseUserId = userId;
+  rolePromise = (async () => {
+    let role: ShopRole = "employee";
+    try {
+      const { data } = await supabase
+        .from("user_roles")
+        .select("role")
+        .eq("user_id", userId);
+      if (data?.some((r) => r.role === "admin")) role = "admin";
+    } catch {}
+    cachedRoleUserId = userId;
+    cachedRole = role;
+    return role;
+  })();
+  try {
+    return await rolePromise;
+  } finally {
+    rolePromise = null;
+    rolePromiseUserId = null;
+  }
+}
 
 let listenerInited = false;
 export function initAuthListener() {
