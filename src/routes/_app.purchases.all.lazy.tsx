@@ -24,13 +24,27 @@ function AllPurchases() {
   const { data, isLoading: loading } = useQuery<{ rows: any[]; count: number; total: number }>({
     queryKey: ["purchases", "all", page, search],
     queryFn: async () => {
+      const safeSearch = search.replace(/[(),]/g, " ");
+      let supplierIds: string[] = [];
+      if (safeSearch) {
+        const { data: suppliers } = await supabase
+          .from("suppliers")
+          .select("id")
+          .ilike("name", `%${safeSearch}%`)
+          .limit(50);
+        supplierIds = (suppliers ?? []).map((s) => s.id);
+      }
       let query = supabase
         .from("purchases")
         .select("id, bill_no, bill_date, grand_total, suppliers(name)", { count: "exact" })
         .is("deleted_at", null)
         .order("bill_date", { ascending: false })
         .range(page * pageSize, page * pageSize + pageSize - 1);
-      if (search) query = query.or(`bill_no.ilike.%${search}%,suppliers.name.ilike.%${search}%`);
+      if (safeSearch) {
+        query = supplierIds.length
+          ? query.or(`bill_no.ilike.%${safeSearch}%,supplier_id.in.(${supplierIds.join(",")})`)
+          : query.ilike("bill_no", `%${safeSearch}%`);
+      }
       const { data: rows, count } = await query;
       return {
         rows: rows ?? [],
