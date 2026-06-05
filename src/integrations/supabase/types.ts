@@ -727,6 +727,9 @@ export type Database = {
           debit: number
           id: string
           narration: string | null
+          party_id: string | null
+          party_name: string | null
+          seq: number
           source: string | null
           txn_date: string
           txn_type: string
@@ -740,6 +743,9 @@ export type Database = {
           debit?: number
           id?: string
           narration?: string | null
+          party_id?: string | null
+          party_name?: string | null
+          seq?: number
           source?: string | null
           txn_date: string
           txn_type: string
@@ -753,13 +759,24 @@ export type Database = {
           debit?: number
           id?: string
           narration?: string | null
+          party_id?: string | null
+          party_name?: string | null
+          seq?: number
           source?: string | null
           txn_date?: string
           txn_type?: string
           updated_at?: string
           vch_no?: string | null
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "purchase_ledger_party_id_fkey"
+            columns: ["party_id"]
+            isOneToOne: false
+            referencedRelation: "suppliers"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       purchase_return_items: {
         Row: {
@@ -1141,6 +1158,9 @@ export type Database = {
           debit: number
           id: string
           narration: string | null
+          party_id: string | null
+          party_name: string | null
+          seq: number
           source: string | null
           txn_date: string
           txn_type: string
@@ -1154,6 +1174,9 @@ export type Database = {
           debit?: number
           id?: string
           narration?: string | null
+          party_id?: string | null
+          party_name?: string | null
+          seq?: number
           source?: string | null
           txn_date: string
           txn_type: string
@@ -1167,13 +1190,24 @@ export type Database = {
           debit?: number
           id?: string
           narration?: string | null
+          party_id?: string | null
+          party_name?: string | null
+          seq?: number
           source?: string | null
           txn_date?: string
           txn_type?: string
           updated_at?: string
           vch_no?: string | null
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "sales_ledger_party_id_fkey"
+            columns: ["party_id"]
+            isOneToOne: false
+            referencedRelation: "customers"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       sales_return_items: {
         Row: {
