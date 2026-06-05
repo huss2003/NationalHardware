@@ -405,7 +405,6 @@ function LedgerPage() {
                       {drcr(closing)}
                     </div>
                   </div>
-                  </div>
                   {kind === "customer" && (
                     <Button asChild size="sm" className="gap-2">
                       <Link to="/sales/receipts"><ReceiptIcon className="h-4 w-4" /> Receipts</Link>
