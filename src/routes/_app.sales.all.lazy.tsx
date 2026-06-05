@@ -1,5 +1,5 @@
 import { createLazyFileRoute, Link } from "@tanstack/react-router";
-import { useMemo, useState } from "react";
+import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Card } from "@/components/ui/card";
@@ -19,37 +19,49 @@ function AllSales() {
   const [q, setQ] = useState("");
   const [page, setPage] = useState(0);
   const pageSize = 25;
+  const search = q.trim();
 
-  const { data: rows = [], isLoading: loading } = useQuery<any[]>({
-    queryKey: ["sales", "all"],
+  const { data, isLoading: loading } = useQuery<{ rows: any[]; count: number; total: number }>({
+    queryKey: ["sales", "all", page, search],
     queryFn: async () => {
-      const { data } = await supabase
+      const safeSearch = search.replace(/[(),]/g, " ");
+      let customerIds: string[] = [];
+      if (safeSearch) {
+        const { data: customers } = await supabase
+          .from("customers")
+          .select("id")
+          .ilike("name", `%${safeSearch}%`)
+          .limit(50);
+        customerIds = (customers ?? []).map((c) => c.id);
+      }
+      let query = supabase
         .from("sales")
-        .select("id, invoice_no, invoice_date, grand_total, payment_mode, payment_status, customers(name)")
+        .select("id, invoice_no, invoice_date, grand_total, payment_mode, payment_status, customers(name)", { count: "exact" })
         .is("deleted_at", null)
         .order("invoice_date", { ascending: false })
-        .limit(1000);
-      return data ?? [];
+        .range(page * pageSize, page * pageSize + pageSize - 1);
+      if (safeSearch) {
+        query = customerIds.length
+          ? query.or(`invoice_no.ilike.%${safeSearch}%,customer_id.in.(${customerIds.join(",")})`)
+          : query.ilike("invoice_no", `%${safeSearch}%`);
+      }
+      const { data: rows, count } = await query;
+      return {
+        rows: rows ?? [],
+        count: count ?? 0,
+        total: (rows ?? []).reduce((sum, r) => sum + Number(r.grand_total ?? 0), 0),
+      };
     },
   });
-
-  const filtered = useMemo(() => {
-    const s = q.trim().toLowerCase();
-    if (!s) return rows;
-    return rows.filter((r) =>
-      (r.invoice_no ?? "").toLowerCase().includes(s) ||
-      (r.customers?.name ?? "").toLowerCase().includes(s),
-    );
-  }, [rows, q]);
-
-  const pageRows = filtered.slice(page * pageSize, page * pageSize + pageSize);
-  const total = filtered.reduce((sum, r) => sum + Number(r.grand_total ?? 0), 0);
+  const pageRows = data?.rows ?? [];
+  const count = data?.count ?? 0;
+  const total = data?.total ?? 0;
 
   return (
     <>
       <PageHeader
         title="All Sales Bills"
-        subtitle={`${filtered.length} invoices • ${inr(total)} total`}
+        subtitle={`${count} invoices • ${inr(total)} on this page`}
         actions={
           <Button asChild variant="outline" size="sm" className="gap-2">
             <Link to="/sales"><ArrowLeft className="h-4 w-4" /> Back to Overview</Link>
@@ -113,14 +125,14 @@ function AllSales() {
           </Table>
           <div className="flex items-center justify-between px-5 py-3 border-t border-border/60 text-sm">
             <span className="text-muted-foreground">
-              Showing {filtered.length === 0 ? 0 : page * pageSize + 1}–
-              {Math.min((page + 1) * pageSize, filtered.length)} of {filtered.length}
+              Showing {count === 0 ? 0 : page * pageSize + 1}–
+              {Math.min((page + 1) * pageSize, count)} of {count}
             </span>
             <div className="flex gap-2">
               <Button variant="outline" size="sm" disabled={page === 0} onClick={() => setPage((p) => Math.max(0, p - 1))}>
                 Previous
               </Button>
-              <Button variant="outline" size="sm" disabled={(page + 1) * pageSize >= filtered.length} onClick={() => setPage((p) => p + 1)}>
+              <Button variant="outline" size="sm" disabled={(page + 1) * pageSize >= count} onClick={() => setPage((p) => p + 1)}>
                 Next
               </Button>
             </div>
