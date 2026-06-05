@@ -405,6 +405,7 @@ function LedgerPage() {
                           e.kind === "purchase" ? ShoppingCart :
                           e.kind === "sales-return" || e.kind === "purchase-return" ? RotateCcw :
                           e.kind === "refund-paid" ? Wallet :
+                          e.kind === "payment" ? Banknote :
                           ReceiptIcon;
                         const linkProps =
                           e.refId && e.kind === "sale"
