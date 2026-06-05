@@ -12,7 +12,7 @@ import { Search, Users, Truck, FileText, ShoppingCart, Receipt as ReceiptIcon, R
 
 export const Route = createFileRoute("/_app/ledger")({ component: LedgerPage });
 
-type Kind = "customer" | "supplier" | "cash" | "sales" | "purchase";
+type Kind = "customer" | "supplier" | "cash";
 type Party = { id: string; name: string; phone?: string | null };
 
 type LedgerTxnType =
