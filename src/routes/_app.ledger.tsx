@@ -268,11 +268,13 @@ function LedgerPage() {
       <div className="px-8 pb-10 max-w-[1400px] mx-auto w-full grid grid-cols-1 lg:grid-cols-[320px_1fr] gap-5">
         {/* Party picker */}
         <Card className="p-4 h-fit lg:sticky lg:top-4">
-          <div className="inline-flex rounded-lg border border-input bg-card p-1 w-full mb-3">
+          <div className="flex flex-wrap rounded-lg border border-input bg-card p-1 w-full mb-3 gap-1">
             {([
               { v: "customer" as const, label: "Customers", icon: Users },
               { v: "supplier" as const, label: "Suppliers", icon: Truck },
               { v: "cash" as const, label: "Cash", icon: Banknote },
+              { v: "sales" as const, label: "Sales", icon: FileText },
+              { v: "purchase" as const, label: "Purchase", icon: ShoppingCart },
             ]).map((t) => {
               const active = kind === t.v;
               const Icon = t.icon;
@@ -280,7 +282,7 @@ function LedgerPage() {
                 <button
                   key={t.v}
                   onClick={() => { setKind(t.v); setSelected(null); }}
-                  className={`flex-1 flex items-center justify-center gap-1.5 h-9 px-2 rounded-md text-sm font-medium transition-colors ${
+                  className={`flex-1 min-w-[88px] flex items-center justify-center gap-1.5 h-9 px-2 rounded-md text-sm font-medium transition-colors ${
                     active ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:text-foreground"
                   }`}
                 >
@@ -289,13 +291,19 @@ function LedgerPage() {
               );
             })}
           </div>
-          {kind === "cash" ? (
+          {accountKind ? (
             <div className="rounded-md bg-muted/40 p-3 text-sm">
               <div className="flex items-center gap-2 font-semibold mb-1">
-                <Wallet className="h-4 w-4 text-primary" /> Cash in Hand
+                {kind === "cash" ? <><Wallet className="h-4 w-4 text-primary" /> Cash in Hand</>
+                  : kind === "sales" ? <><FileText className="h-4 w-4 text-primary" /> Sales Ledger</>
+                  : <><ShoppingCart className="h-4 w-4 text-primary" /> Purchase Ledger</>}
               </div>
               <p className="text-xs text-muted-foreground">
-                All cash account movements (receipts, cash sales, payments) with a running balance.
+                {kind === "cash"
+                  ? "All cash account movements (receipts, cash sales, payments) with a running balance."
+                  : kind === "sales"
+                    ? "Imported Sales account ledger — every sale, return and journal entry with a running balance."
+                    : "Imported Purchase account ledger — every purchase, debit note and journal entry with a running balance."}
               </p>
             </div>
           ) : (
