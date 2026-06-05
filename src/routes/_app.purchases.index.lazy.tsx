@@ -105,8 +105,8 @@ function Purchases() {
         <div className="grid gap-4 grid-cols-2 lg:grid-cols-4">
           <KpiCard
             icon={ClipboardList} iconBg="bg-primary/10 text-primary"
-            label="Active POs" value={String(kpis.active)}
-            hint={<><TrendingUp className="h-3 w-3" /> +12% from last week</>}
+            label="Total Bills" value={String(kpis.active)}
+            hint={<><TrendingUp className="h-3 w-3" /> recorded purchase bills</>}
             hintColor="text-success"
           />
           <KpiCard
