@@ -1,4 +1,4 @@
-import { createLazyFileRoute, Link } from "@tanstack/react-router";
+import { createLazyFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
@@ -7,20 +7,16 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { PageHeader } from "@/components/erp/PageHeader";
 import {
-  Plus, Package, Search, SlidersHorizontal,
+  Package, Search, SlidersHorizontal,
   ArrowDownToLine, ArrowUpFromLine, History,
   ArrowUp, ArrowDown, ChevronsUpDown, ChevronRight, ChevronDown,
 } from "lucide-react";
-import { useNavigate } from "@tanstack/react-router";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
-import { toast } from "sonner";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Badge } from "@/components/ui/badge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { inr, makeQrDataUrl } from "@/lib/codes";
-import { Label } from "@/components/ui/label";
+import { inr } from "@/lib/codes";
 import { TableSkeleton } from "@/components/erp/Skeletons";
-import { SubCategoryPicker, type SubCategory } from "@/components/erp/SubCategoryPicker";
 import { NewProductDialog } from "@/components/erp/NewProductDialog";
 import { Layers } from "lucide-react";
 
