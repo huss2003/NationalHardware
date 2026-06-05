@@ -117,6 +117,7 @@ export type Database = {
           credit: number
           debit: number
           id: string
+          ledger_account: string
           narration: string | null
           source: string | null
           txn_date: string
@@ -130,6 +131,7 @@ export type Database = {
           credit?: number
           debit?: number
           id?: string
+          ledger_account?: string
           narration?: string | null
           source?: string | null
           txn_date: string
@@ -143,6 +145,7 @@ export type Database = {
           credit?: number
           debit?: number
           id?: string
+          ledger_account?: string
           narration?: string | null
           source?: string | null
           txn_date?: string
