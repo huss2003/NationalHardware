@@ -30,6 +30,32 @@ type CashTxn = {
   narration?: string | null;
 };
 
+const TYPE_LABEL: Record<LedgerTxnType, string> = {
+  opening: "Opening",
+  receipt: "Receipt",
+  sale: "Sale",
+  payment: "Payment",
+  credit_note: "Credit Note",
+  purchase: "Purchase",
+  journal: "Journal",
+  debit_note: "Debit Note",
+  sales_return: "Sales Return",
+};
+
+const TYPE_STYLE: Record<LedgerTxnType, string> = {
+  opening: "bg-muted text-muted-foreground",
+  receipt: "bg-emerald-500/10 text-emerald-600",
+  sale: "bg-blue-500/10 text-blue-600",
+  payment: "bg-amber-500/10 text-amber-600",
+  credit_note: "bg-rose-500/10 text-rose-600",
+  purchase: "bg-amber-500/10 text-amber-600",
+  journal: "bg-violet-500/10 text-violet-600",
+  debit_note: "bg-orange-500/10 text-orange-600",
+  sales_return: "bg-rose-500/10 text-rose-600",
+};
+
+const drcr = (n: number) => `${inr(Math.abs(n))} ${n >= 0 ? "Dr" : "Cr"}`;
+
 type Entry = {
   date: string;
   kind: "sale" | "purchase" | "receipt" | "sales-return" | "purchase-return" | "refund-paid";
