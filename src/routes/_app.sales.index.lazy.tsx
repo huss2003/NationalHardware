@@ -32,7 +32,7 @@ function Sales() {
     queryFn: async () => {
       const { data } = await supabase
         .from("sales")
-        .select("id, invoice_no, invoice_date, grand_total, payment_status, customers(name)")
+        .select("id, invoice_no, invoice_date, grand_total, paid_amount, customers(name)")
         .is("deleted_at", null)
         .order("invoice_date", { ascending: false })
         .limit(200);
@@ -46,10 +46,9 @@ function Sales() {
     const count = rows.length;
     const avg = count ? total / count : 0;
     const pending = rows
-      .filter((r) => (r.payment_status ?? "").toLowerCase() !== "paid")
-      .reduce((s, r) => s + Number(r.grand_total ?? 0), 0);
+      .reduce((s, r) => s + Math.max(0, Number(r.grand_total ?? 0) - Number(r.paid_amount ?? 0)), 0);
     const overdueCount = rows.filter(
-      (r) => (r.payment_status ?? "").toLowerCase() === "overdue",
+      (r) => Number(r.paid_amount ?? 0) < Number(r.grand_total ?? 0),
     ).length;
     return { total, count, avg, pending, overdueCount };
   }, [rows]);
@@ -277,7 +276,7 @@ function Sales() {
                 </TableRow>
               )}
               {!loading && recent.map((r) => {
-                const status = (r.payment_status ?? "paid").toLowerCase();
+                const status = Number(r.paid_amount ?? 0) >= Number(r.grand_total ?? 0) ? "paid" : "pending";
                 return (
                   <TableRow key={r.id}>
                     <TableCell className="pl-5 font-medium text-foreground">

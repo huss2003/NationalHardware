@@ -36,7 +36,7 @@ function AllSales() {
       }
       let query = supabase
         .from("sales")
-        .select("id, invoice_no, invoice_date, grand_total, payment_mode, payment_status, customers(name)", { count: "exact" })
+        .select("id, invoice_no, invoice_date, grand_total, payment_mode, customers(name)", { count: "exact" })
         .is("deleted_at", null)
         .order("invoice_date", { ascending: false })
         .range(page * pageSize, page * pageSize + pageSize - 1);
