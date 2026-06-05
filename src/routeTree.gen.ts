@@ -19,6 +19,7 @@ import { Route as AppLedgerRouteImport } from './routes/_app.ledger'
 import { Route as AppDoorRouteImport } from './routes/_app.door'
 import { Route as AppDashboardRouteImport } from './routes/_app.dashboard'
 import { Route as AppAlertsRouteImport } from './routes/_app.alerts'
+import { Route as AppSalesIndexRouteImport } from './routes/_app.sales.index'
 import { Route as AppSalesReturnsIndexRouteImport } from './routes/_app.sales-returns.index'
 import { Route as AppPurchasesIndexRouteImport } from './routes/_app.purchases.index'
 import { Route as AppPurchaseReturnsIndexRouteImport } from './routes/_app.purchase-returns.index'
@@ -27,6 +28,8 @@ import { Route as AppGodownsIndexRouteImport } from './routes/_app.godowns.index
 import { Route as ApiPublicSeedBusyImportRouteImport } from './routes/api/public/seed-busy-import'
 import { Route as AppUnitsItemIdRouteImport } from './routes/_app.units.$itemId'
 import { Route as AppSalesReceiptsRouteImport } from './routes/_app.sales.receipts'
+import { Route as AppSalesAllRouteImport } from './routes/_app.sales.all'
+import { Route as AppSalesIdRouteImport } from './routes/_app.sales.$id'
 import { Route as AppPurchasesNewRouteImport } from './routes/_app.purchases.new'
 import { Route as AppPurchasesAllRouteImport } from './routes/_app.purchases.all'
 import { Route as AppPurchasesIdRouteImport } from './routes/_app.purchases.$id'
@@ -35,10 +38,7 @@ import { Route as AppInventoryScanRouteImport } from './routes/_app.inventory.sc
 import { Route as AppInventoryProductIdRouteImport } from './routes/_app.inventory.$productId'
 
 const AppReportsLazyRouteImport = createFileRoute('/_app/reports')()
-const AppSalesIndexLazyRouteImport = createFileRoute('/_app/sales/')()
 const AppSalesNewLazyRouteImport = createFileRoute('/_app/sales/new')()
-const AppSalesAllLazyRouteImport = createFileRoute('/_app/sales/all')()
-const AppSalesIdLazyRouteImport = createFileRoute('/_app/sales/$id')()
 
 const LoginRoute = LoginRouteImport.update({
   id: '/login',
@@ -86,7 +86,7 @@ const AppAlertsRoute = AppAlertsRouteImport.update({
   path: '/alerts',
   getParentRoute: () => AppRoute,
 } as any)
-const AppSalesIndexLazyRoute = AppSalesIndexLazyRouteImport.update({
+const AppSalesIndexRoute = AppSalesIndexRouteImport.update({
   id: '/sales/',
   path: '/sales/',
   getParentRoute: () => AppRoute,
@@ -129,20 +129,6 @@ const AppSalesNewLazyRoute = AppSalesNewLazyRouteImport.update({
 } as any).lazy(() =>
   import('./routes/_app.sales.new.lazy').then((d) => d.Route),
 )
-const AppSalesAllLazyRoute = AppSalesAllLazyRouteImport.update({
-  id: '/sales/all',
-  path: '/sales/all',
-  getParentRoute: () => AppRoute,
-} as any).lazy(() =>
-  import('./routes/_app.sales.all.lazy').then((d) => d.Route),
-)
-const AppSalesIdLazyRoute = AppSalesIdLazyRouteImport.update({
-  id: '/sales/$id',
-  path: '/sales/$id',
-  getParentRoute: () => AppRoute,
-} as any).lazy(() =>
-  import('./routes/_app.sales.$id.lazy').then((d) => d.Route),
-)
 const ApiPublicSeedBusyImportRoute = ApiPublicSeedBusyImportRouteImport.update({
   id: '/api/public/seed-busy-import',
   path: '/api/public/seed-busy-import',
@@ -158,6 +144,20 @@ const AppSalesReceiptsRoute = AppSalesReceiptsRouteImport.update({
   path: '/sales/receipts',
   getParentRoute: () => AppRoute,
 } as any)
+const AppSalesAllRoute = AppSalesAllRouteImport.update({
+  id: '/sales/all',
+  path: '/sales/all',
+  getParentRoute: () => AppRoute,
+} as any).lazy(() =>
+  import('./routes/_app.sales.all.lazy').then((d) => d.Route),
+)
+const AppSalesIdRoute = AppSalesIdRouteImport.update({
+  id: '/sales/$id',
+  path: '/sales/$id',
+  getParentRoute: () => AppRoute,
+} as any).lazy(() =>
+  import('./routes/_app.sales.$id.lazy').then((d) => d.Route),
+)
 const AppPurchasesNewRoute = AppPurchasesNewRouteImport.update({
   id: '/purchases/new',
   path: '/purchases/new',
@@ -211,18 +211,18 @@ export interface FileRoutesByFullPath {
   '/purchases/$id': typeof AppPurchasesIdRoute
   '/purchases/all': typeof AppPurchasesAllRoute
   '/purchases/new': typeof AppPurchasesNewRoute
+  '/sales/$id': typeof AppSalesIdRoute
+  '/sales/all': typeof AppSalesAllRoute
   '/sales/receipts': typeof AppSalesReceiptsRoute
   '/units/$itemId': typeof AppUnitsItemIdRoute
   '/api/public/seed-busy-import': typeof ApiPublicSeedBusyImportRoute
-  '/sales/$id': typeof AppSalesIdLazyRoute
-  '/sales/all': typeof AppSalesAllLazyRoute
   '/sales/new': typeof AppSalesNewLazyRoute
   '/godowns/': typeof AppGodownsIndexRoute
   '/inventory/': typeof AppInventoryIndexRoute
   '/purchase-returns/': typeof AppPurchaseReturnsIndexRoute
   '/purchases/': typeof AppPurchasesIndexRoute
   '/sales-returns/': typeof AppSalesReturnsIndexRoute
-  '/sales/': typeof AppSalesIndexLazyRoute
+  '/sales/': typeof AppSalesIndexRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
@@ -239,18 +239,18 @@ export interface FileRoutesByTo {
   '/purchases/$id': typeof AppPurchasesIdRoute
   '/purchases/all': typeof AppPurchasesAllRoute
   '/purchases/new': typeof AppPurchasesNewRoute
+  '/sales/$id': typeof AppSalesIdRoute
+  '/sales/all': typeof AppSalesAllRoute
   '/sales/receipts': typeof AppSalesReceiptsRoute
   '/units/$itemId': typeof AppUnitsItemIdRoute
   '/api/public/seed-busy-import': typeof ApiPublicSeedBusyImportRoute
-  '/sales/$id': typeof AppSalesIdLazyRoute
-  '/sales/all': typeof AppSalesAllLazyRoute
   '/sales/new': typeof AppSalesNewLazyRoute
   '/godowns': typeof AppGodownsIndexRoute
   '/inventory': typeof AppInventoryIndexRoute
   '/purchase-returns': typeof AppPurchaseReturnsIndexRoute
   '/purchases': typeof AppPurchasesIndexRoute
   '/sales-returns': typeof AppSalesReturnsIndexRoute
-  '/sales': typeof AppSalesIndexLazyRoute
+  '/sales': typeof AppSalesIndexRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -269,18 +269,18 @@ export interface FileRoutesById {
   '/_app/purchases/$id': typeof AppPurchasesIdRoute
   '/_app/purchases/all': typeof AppPurchasesAllRoute
   '/_app/purchases/new': typeof AppPurchasesNewRoute
+  '/_app/sales/$id': typeof AppSalesIdRoute
+  '/_app/sales/all': typeof AppSalesAllRoute
   '/_app/sales/receipts': typeof AppSalesReceiptsRoute
   '/_app/units/$itemId': typeof AppUnitsItemIdRoute
   '/api/public/seed-busy-import': typeof ApiPublicSeedBusyImportRoute
-  '/_app/sales/$id': typeof AppSalesIdLazyRoute
-  '/_app/sales/all': typeof AppSalesAllLazyRoute
   '/_app/sales/new': typeof AppSalesNewLazyRoute
   '/_app/godowns/': typeof AppGodownsIndexRoute
   '/_app/inventory/': typeof AppInventoryIndexRoute
   '/_app/purchase-returns/': typeof AppPurchaseReturnsIndexRoute
   '/_app/purchases/': typeof AppPurchasesIndexRoute
   '/_app/sales-returns/': typeof AppSalesReturnsIndexRoute
-  '/_app/sales/': typeof AppSalesIndexLazyRoute
+  '/_app/sales/': typeof AppSalesIndexRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -299,11 +299,11 @@ export interface FileRouteTypes {
     | '/purchases/$id'
     | '/purchases/all'
     | '/purchases/new'
+    | '/sales/$id'
+    | '/sales/all'
     | '/sales/receipts'
     | '/units/$itemId'
     | '/api/public/seed-busy-import'
-    | '/sales/$id'
-    | '/sales/all'
     | '/sales/new'
     | '/godowns/'
     | '/inventory/'
@@ -327,11 +327,11 @@ export interface FileRouteTypes {
     | '/purchases/$id'
     | '/purchases/all'
     | '/purchases/new'
+    | '/sales/$id'
+    | '/sales/all'
     | '/sales/receipts'
     | '/units/$itemId'
     | '/api/public/seed-busy-import'
-    | '/sales/$id'
-    | '/sales/all'
     | '/sales/new'
     | '/godowns'
     | '/inventory'
@@ -356,11 +356,11 @@ export interface FileRouteTypes {
     | '/_app/purchases/$id'
     | '/_app/purchases/all'
     | '/_app/purchases/new'
+    | '/_app/sales/$id'
+    | '/_app/sales/all'
     | '/_app/sales/receipts'
     | '/_app/units/$itemId'
     | '/api/public/seed-busy-import'
-    | '/_app/sales/$id'
-    | '/_app/sales/all'
     | '/_app/sales/new'
     | '/_app/godowns/'
     | '/_app/inventory/'
@@ -446,7 +446,7 @@ declare module '@tanstack/react-router' {
       id: '/_app/sales/'
       path: '/sales'
       fullPath: '/sales/'
-      preLoaderRoute: typeof AppSalesIndexLazyRouteImport
+      preLoaderRoute: typeof AppSalesIndexRouteImport
       parentRoute: typeof AppRoute
     }
     '/_app/sales-returns/': {
@@ -491,20 +491,6 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppSalesNewLazyRouteImport
       parentRoute: typeof AppRoute
     }
-    '/_app/sales/all': {
-      id: '/_app/sales/all'
-      path: '/sales/all'
-      fullPath: '/sales/all'
-      preLoaderRoute: typeof AppSalesAllLazyRouteImport
-      parentRoute: typeof AppRoute
-    }
-    '/_app/sales/$id': {
-      id: '/_app/sales/$id'
-      path: '/sales/$id'
-      fullPath: '/sales/$id'
-      preLoaderRoute: typeof AppSalesIdLazyRouteImport
-      parentRoute: typeof AppRoute
-    }
     '/api/public/seed-busy-import': {
       id: '/api/public/seed-busy-import'
       path: '/api/public/seed-busy-import'
@@ -524,6 +510,20 @@ declare module '@tanstack/react-router' {
       path: '/sales/receipts'
       fullPath: '/sales/receipts'
       preLoaderRoute: typeof AppSalesReceiptsRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/_app/sales/all': {
+      id: '/_app/sales/all'
+      path: '/sales/all'
+      fullPath: '/sales/all'
+      preLoaderRoute: typeof AppSalesAllRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/_app/sales/$id': {
+      id: '/_app/sales/$id'
+      path: '/sales/$id'
+      fullPath: '/sales/$id'
+      preLoaderRoute: typeof AppSalesIdRouteImport
       parentRoute: typeof AppRoute
     }
     '/_app/purchases/new': {
@@ -584,17 +584,17 @@ interface AppRouteChildren {
   AppPurchasesIdRoute: typeof AppPurchasesIdRoute
   AppPurchasesAllRoute: typeof AppPurchasesAllRoute
   AppPurchasesNewRoute: typeof AppPurchasesNewRoute
+  AppSalesIdRoute: typeof AppSalesIdRoute
+  AppSalesAllRoute: typeof AppSalesAllRoute
   AppSalesReceiptsRoute: typeof AppSalesReceiptsRoute
   AppUnitsItemIdRoute: typeof AppUnitsItemIdRoute
-  AppSalesIdLazyRoute: typeof AppSalesIdLazyRoute
-  AppSalesAllLazyRoute: typeof AppSalesAllLazyRoute
   AppSalesNewLazyRoute: typeof AppSalesNewLazyRoute
   AppGodownsIndexRoute: typeof AppGodownsIndexRoute
   AppInventoryIndexRoute: typeof AppInventoryIndexRoute
   AppPurchaseReturnsIndexRoute: typeof AppPurchaseReturnsIndexRoute
   AppPurchasesIndexRoute: typeof AppPurchasesIndexRoute
   AppSalesReturnsIndexRoute: typeof AppSalesReturnsIndexRoute
-  AppSalesIndexLazyRoute: typeof AppSalesIndexLazyRoute
+  AppSalesIndexRoute: typeof AppSalesIndexRoute
 }
 
 const AppRouteChildren: AppRouteChildren = {
@@ -610,17 +610,17 @@ const AppRouteChildren: AppRouteChildren = {
   AppPurchasesIdRoute: AppPurchasesIdRoute,
   AppPurchasesAllRoute: AppPurchasesAllRoute,
   AppPurchasesNewRoute: AppPurchasesNewRoute,
+  AppSalesIdRoute: AppSalesIdRoute,
+  AppSalesAllRoute: AppSalesAllRoute,
   AppSalesReceiptsRoute: AppSalesReceiptsRoute,
   AppUnitsItemIdRoute: AppUnitsItemIdRoute,
-  AppSalesIdLazyRoute: AppSalesIdLazyRoute,
-  AppSalesAllLazyRoute: AppSalesAllLazyRoute,
   AppSalesNewLazyRoute: AppSalesNewLazyRoute,
   AppGodownsIndexRoute: AppGodownsIndexRoute,
   AppInventoryIndexRoute: AppInventoryIndexRoute,
   AppPurchaseReturnsIndexRoute: AppPurchaseReturnsIndexRoute,
   AppPurchasesIndexRoute: AppPurchasesIndexRoute,
   AppSalesReturnsIndexRoute: AppSalesReturnsIndexRoute,
-  AppSalesIndexLazyRoute: AppSalesIndexLazyRoute,
+  AppSalesIndexRoute: AppSalesIndexRoute,
 }
 
 const AppRouteWithChildren = AppRoute._addFileChildren(AppRouteChildren)
