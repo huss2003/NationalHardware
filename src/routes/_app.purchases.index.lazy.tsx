@@ -36,7 +36,7 @@ function Purchases() {
     queryFn: async () => {
       const { data } = await supabase
         .from("purchases")
-        .select("id, bill_no, bill_date, grand_total, status, suppliers(name)")
+        .select("id, bill_no, bill_date, grand_total, suppliers(name)")
         .is("deleted_at", null)
         .order("created_at", { ascending: false })
         .limit(200);
@@ -46,14 +46,14 @@ function Purchases() {
 
   const filtered = useMemo(() => {
     if (status === "all") return rows;
-    return rows.filter((r) => (r.status ?? "draft").toLowerCase() === status);
+    return rows.filter((r) => (r.status ?? "received").toLowerCase() === status);
   }, [rows, status]);
 
   const pageRows = filtered.slice(page * pageSize, page * pageSize + pageSize);
 
   // KPIs
   const kpis = useMemo(() => {
-    const active = rows.filter((r) => ["sent", "draft", "pending"].includes((r.status ?? "draft").toLowerCase())).length;
+    const active = rows.length;
     const pending = rows.filter((r) => ["sent", "pending"].includes((r.status ?? "").toLowerCase())).length;
     const now = new Date();
     const monthStart = new Date(now.getFullYear(), now.getMonth(), 1).toISOString();
@@ -105,8 +105,8 @@ function Purchases() {
         <div className="grid gap-4 grid-cols-2 lg:grid-cols-4">
           <KpiCard
             icon={ClipboardList} iconBg="bg-primary/10 text-primary"
-            label="Active POs" value={String(kpis.active)}
-            hint={<><TrendingUp className="h-3 w-3" /> +12% from last week</>}
+            label="Total Bills" value={String(kpis.active)}
+            hint={<><TrendingUp className="h-3 w-3" /> recorded purchase bills</>}
             hintColor="text-success"
           />
           <KpiCard
@@ -200,7 +200,7 @@ function Purchases() {
                         {inr(r.grand_total)}
                       </TableCell>
                       <TableCell className="pr-5">
-                        <StatusPill status={(r.status ?? "draft").toLowerCase()} />
+                        <StatusPill status={(r.status ?? "received").toLowerCase()} />
                       </TableCell>
                     </TableRow>
                   ))}
