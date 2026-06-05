@@ -58,7 +58,7 @@ const drcr = (n: number) => `${inr(Math.abs(n))} ${n >= 0 ? "Dr" : "Cr"}`;
 
 type Entry = {
   date: string;
-  kind: "sale" | "purchase" | "receipt" | "sales-return" | "purchase-return" | "refund-paid";
+  kind: "sale" | "purchase" | "receipt" | "sales-return" | "purchase-return" | "refund-paid" | "payment";
   ref: string;
   refId?: string;
   refTable?: "sales_returns" | "purchase_returns";
@@ -181,7 +181,7 @@ function LedgerPage() {
         }
       }
       } else {
-      const [p_, pr] = await Promise.all([
+      const [p_, pr, sp] = await Promise.all([
         supabase.from("purchases")
           .select("id, bill_no, bill_date, grand_total")
           .eq("supplier_id", p.id).is("deleted_at", null)
@@ -190,6 +190,10 @@ function LedgerPage() {
           .select("id, return_no, return_date, grand_total, reason")
           .eq("supplier_id", p.id).is("deleted_at", null)
           .order("return_date", { ascending: true }),
+        supabase.from("supplier_payments")
+          .select("id, payment_no, payment_date, amount, mode, notes")
+          .eq("supplier_id", p.id)
+          .order("payment_date", { ascending: true }),
       ]);
       for (const x of p_.data ?? []) {
         list.push({
@@ -211,6 +215,15 @@ function LedgerPage() {
           debit: 0,
           credit: Number(x.grand_total),
           notes: x.reason ?? undefined,
+        });
+      }
+      for (const x of sp.data ?? []) {
+        list.push({
+          date: x.payment_date as string,
+          kind: "payment",
+          ref: `Payment ${x.payment_no ?? ""} (${x.mode})`.trim(),
+          debit: 0,
+          credit: Number(x.amount),
         });
       }
       }
@@ -392,6 +405,7 @@ function LedgerPage() {
                           e.kind === "purchase" ? ShoppingCart :
                           e.kind === "sales-return" || e.kind === "purchase-return" ? RotateCcw :
                           e.kind === "refund-paid" ? Wallet :
+                          e.kind === "payment" ? Banknote :
                           ReceiptIcon;
                         const linkProps =
                           e.refId && e.kind === "sale"
@@ -418,6 +432,7 @@ function LedgerPage() {
                                 e.kind === "sales-return" ? "bg-rose-500/10 text-rose-600" :
                                 e.kind === "purchase-return" ? "bg-orange-500/10 text-orange-600" :
                                 e.kind === "refund-paid" ? "bg-muted text-muted-foreground" :
+                                e.kind === "payment" ? "bg-amber-500/10 text-amber-600" :
                                 "bg-emerald-500/10 text-emerald-600"
                               }`}>
                                 <Icon className="h-3 w-3" /> {e.kind}
