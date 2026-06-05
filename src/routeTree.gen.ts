@@ -25,6 +25,7 @@ import { Route as AppPurchaseReturnsIndexRouteImport } from './routes/_app.purch
 import { Route as AppInventoryIndexRouteImport } from './routes/_app.inventory.index'
 import { Route as AppGodownsIndexRouteImport } from './routes/_app.godowns.index'
 import { Route as ApiPublicSeedBusyImportRouteImport } from './routes/api/public/seed-busy-import'
+import { Route as ApiPublicImportLedgerFy2526RouteImport } from './routes/api/public/import-ledger-fy2526'
 import { Route as AppUnitsItemIdRouteImport } from './routes/_app.units.$itemId'
 import { Route as AppSalesReceiptsRouteImport } from './routes/_app.sales.receipts'
 import { Route as AppSalesNewRouteImport } from './routes/_app.sales.new'
@@ -124,6 +125,12 @@ const ApiPublicSeedBusyImportRoute = ApiPublicSeedBusyImportRouteImport.update({
   path: '/api/public/seed-busy-import',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ApiPublicImportLedgerFy2526Route =
+  ApiPublicImportLedgerFy2526RouteImport.update({
+    id: '/api/public/import-ledger-fy2526',
+    path: '/api/public/import-ledger-fy2526',
+    getParentRoute: () => rootRouteImport,
+  } as any)
 const AppUnitsItemIdRoute = AppUnitsItemIdRouteImport.update({
   id: '/units/$itemId',
   path: '/units/$itemId',
@@ -213,6 +220,7 @@ export interface FileRoutesByFullPath {
   '/sales/new': typeof AppSalesNewRoute
   '/sales/receipts': typeof AppSalesReceiptsRoute
   '/units/$itemId': typeof AppUnitsItemIdRoute
+  '/api/public/import-ledger-fy2526': typeof ApiPublicImportLedgerFy2526Route
   '/api/public/seed-busy-import': typeof ApiPublicSeedBusyImportRoute
   '/godowns/': typeof AppGodownsIndexRoute
   '/inventory/': typeof AppInventoryIndexRoute
@@ -241,6 +249,7 @@ export interface FileRoutesByTo {
   '/sales/new': typeof AppSalesNewRoute
   '/sales/receipts': typeof AppSalesReceiptsRoute
   '/units/$itemId': typeof AppUnitsItemIdRoute
+  '/api/public/import-ledger-fy2526': typeof ApiPublicImportLedgerFy2526Route
   '/api/public/seed-busy-import': typeof ApiPublicSeedBusyImportRoute
   '/godowns': typeof AppGodownsIndexRoute
   '/inventory': typeof AppInventoryIndexRoute
@@ -271,6 +280,7 @@ export interface FileRoutesById {
   '/_app/sales/new': typeof AppSalesNewRoute
   '/_app/sales/receipts': typeof AppSalesReceiptsRoute
   '/_app/units/$itemId': typeof AppUnitsItemIdRoute
+  '/api/public/import-ledger-fy2526': typeof ApiPublicImportLedgerFy2526Route
   '/api/public/seed-busy-import': typeof ApiPublicSeedBusyImportRoute
   '/_app/godowns/': typeof AppGodownsIndexRoute
   '/_app/inventory/': typeof AppInventoryIndexRoute
@@ -301,6 +311,7 @@ export interface FileRouteTypes {
     | '/sales/new'
     | '/sales/receipts'
     | '/units/$itemId'
+    | '/api/public/import-ledger-fy2526'
     | '/api/public/seed-busy-import'
     | '/godowns/'
     | '/inventory/'
@@ -329,6 +340,7 @@ export interface FileRouteTypes {
     | '/sales/new'
     | '/sales/receipts'
     | '/units/$itemId'
+    | '/api/public/import-ledger-fy2526'
     | '/api/public/seed-busy-import'
     | '/godowns'
     | '/inventory'
@@ -358,6 +370,7 @@ export interface FileRouteTypes {
     | '/_app/sales/new'
     | '/_app/sales/receipts'
     | '/_app/units/$itemId'
+    | '/api/public/import-ledger-fy2526'
     | '/api/public/seed-busy-import'
     | '/_app/godowns/'
     | '/_app/inventory/'
@@ -371,6 +384,7 @@ export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   AppRoute: typeof AppRouteWithChildren
   LoginRoute: typeof LoginRoute
+  ApiPublicImportLedgerFy2526Route: typeof ApiPublicImportLedgerFy2526Route
   ApiPublicSeedBusyImportRoute: typeof ApiPublicSeedBusyImportRoute
 }
 
@@ -486,6 +500,13 @@ declare module '@tanstack/react-router' {
       path: '/api/public/seed-busy-import'
       fullPath: '/api/public/seed-busy-import'
       preLoaderRoute: typeof ApiPublicSeedBusyImportRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/public/import-ledger-fy2526': {
+      id: '/api/public/import-ledger-fy2526'
+      path: '/api/public/import-ledger-fy2526'
+      fullPath: '/api/public/import-ledger-fy2526'
+      preLoaderRoute: typeof ApiPublicImportLedgerFy2526RouteImport
       parentRoute: typeof rootRouteImport
     }
     '/_app/units/$itemId': {
@@ -626,6 +647,7 @@ const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   AppRoute: AppRouteWithChildren,
   LoginRoute: LoginRoute,
+  ApiPublicImportLedgerFy2526Route: ApiPublicImportLedgerFy2526Route,
   ApiPublicSeedBusyImportRoute: ApiPublicSeedBusyImportRoute,
 }
 export const routeTree = rootRouteImport
