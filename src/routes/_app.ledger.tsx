@@ -356,6 +356,26 @@ function LedgerPage() {
               credit={cashCredit}
               closing={cashClosing}
             />
+          ) : kind === "sales" ? (
+            <AccountLedger
+              title="Sales Ledger"
+              subtitle="Sales Account"
+              rows={salesAcc.rws}
+              loading={salesLoading}
+              debit={salesAcc.deb}
+              credit={salesAcc.cred}
+              closing={salesAcc.closing}
+            />
+          ) : kind === "purchase" ? (
+            <AccountLedger
+              title="Purchase Ledger"
+              subtitle="Purchase Account"
+              rows={purchaseAcc.rws}
+              loading={purchaseLoading}
+              debit={purchaseAcc.deb}
+              credit={purchaseAcc.cred}
+              closing={purchaseAcc.closing}
+            />
           ) : !selected ? (
             <Card className="p-12 text-center text-muted-foreground">
               Select a {kind} from the left to view their ledger.
