@@ -1395,6 +1395,7 @@ export type Database = {
         }
         Returns: boolean
       }
+      import_sheet_bills: { Args: { _rows: Json }; Returns: undefined }
       is_signed_in: { Args: never; Returns: boolean }
       mark_damaged: {
         Args: { _actor_user_id: string; _item_id: string; _reason: string }
