@@ -36,7 +36,7 @@ function Purchases() {
     queryFn: async () => {
       const { data } = await supabase
         .from("purchases")
-        .select("id, bill_no, bill_date, grand_total, status, suppliers(name)")
+        .select("id, bill_no, bill_date, grand_total, suppliers(name)")
         .is("deleted_at", null)
         .order("created_at", { ascending: false })
         .limit(200);
