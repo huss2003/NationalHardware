@@ -112,7 +112,7 @@ function LedgerPage() {
 
   const { data: parties = [] } = useQuery({
     queryKey: ["ledger", "parties", kind],
-    enabled: kind !== "cash",
+    enabled: kind === "customer" || kind === "supplier",
     queryFn: async () => {
       const table = kind === "customer" ? "customers" : "suppliers";
       const { data } = await supabase.from(table).select("id, name, phone").order("name");
@@ -122,13 +122,14 @@ function LedgerPage() {
   });
 
   const { data: cashTxns = [], isFetching: cashLoading } = useQuery({
-    enabled: kind === "cash",
-    queryKey: ["ledger", "cash"],
+    enabled: kind === "cash" || kind === "bank",
+    queryKey: ["ledger", "cash", kind],
     staleTime: 5 * 60 * 1000,
     queryFn: async () => {
       const { data } = await supabase
         .from("cash_transactions")
         .select("id, txn_date, txn_type, vch_no, account_name, debit, credit")
+        .eq("ledger_account", kind === "bank" ? "bank" : "cash")
         .order("txn_date", { ascending: true })
         .order("created_at", { ascending: true })
         .limit(2000);
@@ -136,7 +137,7 @@ function LedgerPage() {
     },
   });
 
-  const accountKind = kind === "cash";
+  const accountKind = kind === "cash" || kind === "bank";
 
   const filtered = useMemo(() => {
     const q = search.trim().toLowerCase();
@@ -153,118 +154,113 @@ function LedgerPage() {
     queryFn: async () => {
       const p = selected!;
       const list: Entry[] = [];
+      const ledgerTable = kind === "customer" ? "sales_ledger" : "purchase_ledger";
+
+      // 1) Authoritative imported FY25-26 ledger (matches the Tally/Google-sheet export)
+      const { data: led } = await supabase
+        .from(ledgerTable)
+        .select("txn_date, txn_type, vch_no, account_name, debit, credit, seq")
+        .eq("party_id", p.id)
+        .order("seq", { ascending: true });
+      for (const r of (led as LedgerRow[]) ?? []) {
+        list.push({
+          date: r.txn_date,
+          type: r.txn_type as LedgerTxnType,
+          ref: ledgerRef(r),
+          debit: Number(r.debit),
+          credit: Number(r.credit),
+          seq: r.seq,
+        });
+      }
+
+      // 2) Live activity from 1-Apr-2026 onward (FY26-27+) appended after history
+      let liveSeq = 1_000_000;
       if (kind === "customer") {
-      const [s, r, sr] = await Promise.all([
-        supabase.from("sales")
-          .select("id, invoice_no, invoice_date, grand_total, paid_amount, payment_mode, notes")
-          .eq("customer_id", p.id).is("deleted_at", null)
-          .order("invoice_date", { ascending: true }),
-        supabase.from("receipts")
-          .select("id, receipt_no, amount, mode, created_at, receipt_type, notes")
-          .eq("customer_id", p.id)
-          .order("created_at", { ascending: true }),
-        supabase.from("sales_returns")
-          .select("id, return_no, return_date, grand_total, reason, refund_amount, refund_mode")
-          .eq("customer_id", p.id).is("deleted_at", null)
-          .order("return_date", { ascending: true }),
-      ]);
-      for (const x of s.data ?? []) {
-        const total = Number(x.grand_total);
-        const paid = Number(x.paid_amount);
-        list.push({
-          date: x.invoice_date as string,
-          kind: "sale",
-          ref: `Invoice ${x.invoice_no ?? ""}`.trim(),
-          refId: x.id,
-          debit: total,
-          credit: paid,
-          notes: x.notes ?? undefined,
-        });
-      }
-      for (const x of r.data ?? []) {
-        list.push({
-          date: x.created_at as string,
-          kind: "receipt",
-          ref: `Receipt ${x.receipt_no} (${x.mode})`,
-          debit: 0,
-          credit: Number(x.amount),
-          notes: x.notes ?? undefined,
-        });
-      }
-      for (const x of sr.data ?? []) {
-        const total = Number(x.grand_total);
-        const refund = Number((x as any).refund_amount ?? 0);
-        const mode = (x as any).refund_mode as string | null;
-        list.push({
-          date: x.return_date as string,
-          kind: "sales-return",
-          ref: `Sales Return ${x.return_no ?? ""}`.trim(),
-          refId: x.id,
-          refTable: "sales_returns",
-          debit: 0,
-          credit: total,
-          notes: x.reason ?? undefined,
-        });
-        if (refund > 0 && mode && mode !== "credit_note") {
+        const [s, r, sr] = await Promise.all([
+          supabase.from("sales")
+            .select("id, invoice_no, invoice_date, grand_total, paid_amount, notes")
+            .eq("customer_id", p.id).is("deleted_at", null)
+            .gte("invoice_date", CUTOFF).order("invoice_date", { ascending: true }),
+          supabase.from("receipts")
+            .select("id, receipt_no, amount, mode, created_at, notes")
+            .eq("customer_id", p.id)
+            .gte("created_at", CUTOFF).order("created_at", { ascending: true }),
+          supabase.from("sales_returns")
+            .select("id, return_no, return_date, grand_total, reason, refund_amount, refund_mode")
+            .eq("customer_id", p.id).is("deleted_at", null)
+            .gte("return_date", CUTOFF).order("return_date", { ascending: true }),
+        ]);
+        for (const x of s.data ?? []) {
           list.push({
-            date: x.return_date as string,
-            kind: "refund-paid",
-            ref: `Refund ${mode.toUpperCase()} for ${x.return_no ?? ""}`.trim(),
-            refId: x.id,
-            refTable: "sales_returns",
-            debit: refund,
-            credit: 0,
+            date: x.invoice_date as string, type: "sale",
+            ref: `Sale ${x.invoice_no ?? ""}`.trim(), saleId: x.id,
+            debit: Number(x.grand_total), credit: Number(x.paid_amount),
+            seq: ++liveSeq, notes: x.notes ?? undefined,
+          });
+        }
+        for (const x of r.data ?? []) {
+          list.push({
+            date: x.created_at as string, type: "receipt",
+            ref: `Receipt ${x.receipt_no} (${x.mode})`,
+            debit: 0, credit: Number(x.amount), seq: ++liveSeq, notes: x.notes ?? undefined,
+          });
+        }
+        for (const x of sr.data ?? []) {
+          const refund = Number((x as any).refund_amount ?? 0);
+          const mode = (x as any).refund_mode as string | null;
+          list.push({
+            date: x.return_date as string, type: "sales_return",
+            ref: `Sales Return ${x.return_no ?? ""}`.trim(), returnId: x.id, returnTable: "sales_returns",
+            debit: 0, credit: Number(x.grand_total), seq: ++liveSeq, notes: x.reason ?? undefined,
+          });
+          if (refund > 0 && mode && mode !== "credit_note") {
+            list.push({
+              date: x.return_date as string, type: "refund",
+              ref: `Refund ${mode.toUpperCase()} for ${x.return_no ?? ""}`.trim(),
+              returnId: x.id, returnTable: "sales_returns",
+              debit: refund, credit: 0, seq: ++liveSeq,
+            });
+          }
+        }
+      } else {
+        const [pu, pr, sp] = await Promise.all([
+          supabase.from("purchases")
+            .select("id, bill_no, bill_date, grand_total")
+            .eq("supplier_id", p.id).is("deleted_at", null)
+            .gte("bill_date", CUTOFF).order("bill_date", { ascending: true }),
+          supabase.from("purchase_returns")
+            .select("id, return_no, return_date, grand_total, reason")
+            .eq("supplier_id", p.id).is("deleted_at", null)
+            .gte("return_date", CUTOFF).order("return_date", { ascending: true }),
+          supabase.from("supplier_payments")
+            .select("id, payment_no, payment_date, amount, mode, notes")
+            .eq("supplier_id", p.id)
+            .gte("payment_date", CUTOFF).order("payment_date", { ascending: true }),
+        ]);
+        // Supplier (creditor) convention: purchase increases what we owe (credit), payment reduces it (debit)
+        for (const x of pu.data ?? []) {
+          list.push({
+            date: x.bill_date as string, type: "purchase",
+            ref: `Purchase ${x.bill_no ?? ""}`.trim(), purchaseId: x.id,
+            debit: 0, credit: Number(x.grand_total), seq: ++liveSeq,
+          });
+        }
+        for (const x of pr.data ?? []) {
+          list.push({
+            date: x.return_date as string, type: "purchase_return",
+            ref: `Purchase Return ${x.return_no ?? ""}`.trim(), returnId: x.id, returnTable: "purchase_returns",
+            debit: Number(x.grand_total), credit: 0, seq: ++liveSeq, notes: x.reason ?? undefined,
+          });
+        }
+        for (const x of sp.data ?? []) {
+          list.push({
+            date: x.payment_date as string, type: "payment",
+            ref: `Payment ${x.payment_no ?? ""} (${x.mode})`.trim(),
+            debit: Number(x.amount), credit: 0, seq: ++liveSeq,
           });
         }
       }
-      } else {
-      const [p_, pr, sp] = await Promise.all([
-        supabase.from("purchases")
-          .select("id, bill_no, bill_date, grand_total")
-          .eq("supplier_id", p.id).is("deleted_at", null)
-          .order("bill_date", { ascending: true }),
-        supabase.from("purchase_returns")
-          .select("id, return_no, return_date, grand_total, reason")
-          .eq("supplier_id", p.id).is("deleted_at", null)
-          .order("return_date", { ascending: true }),
-        supabase.from("supplier_payments")
-          .select("id, payment_no, payment_date, amount, mode, notes")
-          .eq("supplier_id", p.id)
-          .order("payment_date", { ascending: true }),
-      ]);
-      for (const x of p_.data ?? []) {
-        list.push({
-          date: x.bill_date as string,
-          kind: "purchase",
-          ref: `Bill ${x.bill_no ?? ""}`.trim(),
-          refId: x.id,
-          debit: Number(x.grand_total),
-          credit: 0,
-        });
-      }
-      for (const x of pr.data ?? []) {
-        list.push({
-          date: x.return_date as string,
-          kind: "purchase-return",
-          ref: `Purchase Return ${x.return_no ?? ""}`.trim(),
-          refId: x.id,
-          refTable: "purchase_returns",
-          debit: 0,
-          credit: Number(x.grand_total),
-          notes: x.reason ?? undefined,
-        });
-      }
-      for (const x of sp.data ?? []) {
-        list.push({
-          date: x.payment_date as string,
-          kind: "payment",
-          ref: `Payment ${x.payment_no ?? ""} (${x.mode})`.trim(),
-          debit: 0,
-          credit: Number(x.amount),
-        });
-      }
-      }
-      list.sort((a, b) => a.date.localeCompare(b.date));
+      list.sort((a, b) => (a.date === b.date ? a.seq - b.seq : a.date < b.date ? -1 : 1));
       return list;
     },
   });
@@ -276,7 +272,7 @@ function LedgerPage() {
   });
   const totalDebit = entries.reduce((s, e) => s + e.debit, 0);
   const totalCredit = entries.reduce((s, e) => s + e.credit, 0);
-  const outstanding = totalDebit - totalCredit;
+  const closing = totalDebit - totalCredit; // >0 Dr, <0 Cr
 
   // Cash in hand running balance (Dr positive)
   const opening = cashTxns.find((t) => t.txn_type === "opening");
