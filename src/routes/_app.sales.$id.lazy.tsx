@@ -1,4 +1,4 @@
-import { createFileRoute } from "@tanstack/react-router";
+import { createLazyFileRoute } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Card } from "@/components/ui/card";
@@ -10,7 +10,7 @@ import { Printer, MessageCircle } from "lucide-react";
 // jspdf + jspdf-autotable (~250KB) loaded only when the user clicks Send.
 import { toast } from "sonner";
 
-export const Route = createFileRoute("/_app/sales/$id")({ component: SaleDetail });
+export const Route = createLazyFileRoute("/_app/sales/$id")({ component: SaleDetail });
 
 function SaleDetail() {
   const { id } = Route.useParams();
