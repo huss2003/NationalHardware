@@ -73,6 +73,38 @@ function LedgerPage() {
     },
   });
 
+  const { data: salesLedger = [], isFetching: salesLoading } = useQuery({
+    enabled: kind === "sales",
+    queryKey: ["ledger", "sales_ledger"],
+    staleTime: 5 * 60 * 1000,
+    queryFn: async () => {
+      const { data } = await (supabase as any)
+        .from("sales_ledger")
+        .select("id, txn_date, txn_type, vch_no, account_name, debit, credit, narration")
+        .order("txn_date", { ascending: true })
+        .order("created_at", { ascending: true })
+        .limit(5000);
+      return (data as CashTxn[]) ?? [];
+    },
+  });
+
+  const { data: purchaseLedger = [], isFetching: purchaseLoading } = useQuery({
+    enabled: kind === "purchase",
+    queryKey: ["ledger", "purchase_ledger"],
+    staleTime: 5 * 60 * 1000,
+    queryFn: async () => {
+      const { data } = await (supabase as any)
+        .from("purchase_ledger")
+        .select("id, txn_date, txn_type, vch_no, account_name, debit, credit, narration")
+        .order("txn_date", { ascending: true })
+        .order("created_at", { ascending: true })
+        .limit(5000);
+      return (data as CashTxn[]) ?? [];
+    },
+  });
+
+  const accountKind = kind === "cash" || kind === "sales" || kind === "purchase";
+
   const filtered = useMemo(() => {
     const q = search.trim().toLowerCase();
     if (!q) return parties;
