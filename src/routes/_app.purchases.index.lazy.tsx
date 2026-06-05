@@ -46,14 +46,14 @@ function Purchases() {
 
   const filtered = useMemo(() => {
     if (status === "all") return rows;
-    return rows.filter((r) => (r.status ?? "draft").toLowerCase() === status);
+    return rows.filter((r) => (r.status ?? "received").toLowerCase() === status);
   }, [rows, status]);
 
   const pageRows = filtered.slice(page * pageSize, page * pageSize + pageSize);
 
   // KPIs
   const kpis = useMemo(() => {
-    const active = rows.filter((r) => ["sent", "draft", "pending"].includes((r.status ?? "draft").toLowerCase())).length;
+    const active = rows.length;
     const pending = rows.filter((r) => ["sent", "pending"].includes((r.status ?? "").toLowerCase())).length;
     const now = new Date();
     const monthStart = new Date(now.getFullYear(), now.getMonth(), 1).toISOString();
@@ -200,7 +200,7 @@ function Purchases() {
                         {inr(r.grand_total)}
                       </TableCell>
                       <TableCell className="pr-5">
-                        <StatusPill status={(r.status ?? "draft").toLowerCase()} />
+                        <StatusPill status={(r.status ?? "received").toLowerCase()} />
                       </TableCell>
                     </TableRow>
                   ))}
