@@ -719,6 +719,48 @@ export type Database = {
           },
         ]
       }
+      purchase_ledger: {
+        Row: {
+          account_name: string
+          created_at: string
+          credit: number
+          debit: number
+          id: string
+          narration: string | null
+          source: string | null
+          txn_date: string
+          txn_type: string
+          updated_at: string
+          vch_no: string | null
+        }
+        Insert: {
+          account_name?: string
+          created_at?: string
+          credit?: number
+          debit?: number
+          id?: string
+          narration?: string | null
+          source?: string | null
+          txn_date: string
+          txn_type: string
+          updated_at?: string
+          vch_no?: string | null
+        }
+        Update: {
+          account_name?: string
+          created_at?: string
+          credit?: number
+          debit?: number
+          id?: string
+          narration?: string | null
+          source?: string | null
+          txn_date?: string
+          txn_type?: string
+          updated_at?: string
+          vch_no?: string | null
+        }
+        Relationships: []
+      }
       purchase_return_items: {
         Row: {
           created_at: string
@@ -1090,6 +1132,48 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      sales_ledger: {
+        Row: {
+          account_name: string
+          created_at: string
+          credit: number
+          debit: number
+          id: string
+          narration: string | null
+          source: string | null
+          txn_date: string
+          txn_type: string
+          updated_at: string
+          vch_no: string | null
+        }
+        Insert: {
+          account_name?: string
+          created_at?: string
+          credit?: number
+          debit?: number
+          id?: string
+          narration?: string | null
+          source?: string | null
+          txn_date: string
+          txn_type: string
+          updated_at?: string
+          vch_no?: string | null
+        }
+        Update: {
+          account_name?: string
+          created_at?: string
+          credit?: number
+          debit?: number
+          id?: string
+          narration?: string | null
+          source?: string | null
+          txn_date?: string
+          txn_type?: string
+          updated_at?: string
+          vch_no?: string | null
+        }
+        Relationships: []
       }
       sales_return_items: {
         Row: {
