@@ -432,6 +432,7 @@ function LedgerPage() {
                                 e.kind === "sales-return" ? "bg-rose-500/10 text-rose-600" :
                                 e.kind === "purchase-return" ? "bg-orange-500/10 text-orange-600" :
                                 e.kind === "refund-paid" ? "bg-muted text-muted-foreground" :
+                                e.kind === "payment" ? "bg-amber-500/10 text-amber-600" :
                                 "bg-emerald-500/10 text-emerald-600"
                               }`}>
                                 <Icon className="h-3 w-3" /> {e.kind}
