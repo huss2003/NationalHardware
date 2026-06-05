@@ -18,7 +18,7 @@ import { ReturnTimelineDialog } from "@/components/erp/ReturnTimelineDialog";
 import { ReprintLabelDialog } from "@/components/erp/ReprintLabelDialog";
 import { Checkbox } from "@/components/ui/checkbox";
 import { mintReprintForSale, type MintedSticker } from "@/lib/relabel";
-import { inr } from "@/lib/codes";
+import { inr, fmtDate } from "@/lib/codes";
 import { toast } from "sonner";
 import { useAuth } from "@/lib/auth-store";
 import {
@@ -129,9 +129,7 @@ function SalesReturns() {
                   <TableCell className="font-medium">{r.sales?.invoice_no ?? "—"}</TableCell>
                   <TableCell>{r.customers?.name ?? "Walk-in"}</TableCell>
                   <TableCell className="text-muted-foreground">
-                    {new Date(r.return_date).toLocaleDateString("en", {
-                      month: "short", day: "numeric", year: "numeric",
-                    })}
+                    {fmtDate(r.return_date)}
                   </TableCell>
                   <TableCell className="text-muted-foreground truncate max-w-[220px]">
                     {r.reason ?? "—"}

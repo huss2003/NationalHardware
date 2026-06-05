@@ -6,7 +6,7 @@ import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { PageHeader } from "@/components/erp/PageHeader";
-import { inr } from "@/lib/codes";
+import { inr, fmtDate } from "@/lib/codes";
 import {
   Plus, TrendingUp, Receipt, ShoppingBag, AlertCircle, MoreVertical, ArrowRight, Minus, Wallet,
 } from "lucide-react";
@@ -285,11 +285,7 @@ function Sales() {
                       </Link>
                     </TableCell>
                     <TableCell className="text-muted-foreground">
-                      {new Date(r.invoice_date).toLocaleDateString("en", {
-                        month: "short",
-                        day: "numeric",
-                        year: "numeric",
-                      })}
+                      {fmtDate(r.invoice_date)}
                     </TableCell>
                     <TableCell>{r.customers?.name ?? "Walk-in"}</TableCell>
                     <TableCell className="text-right font-semibold tabular-nums">

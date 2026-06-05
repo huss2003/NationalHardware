@@ -10,7 +10,7 @@ import {
   Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
 } from "@/components/ui/table";
 import { TableSkeleton } from "@/components/erp/Skeletons";
-import { inr } from "@/lib/codes";
+import { inr, fmtDate } from "@/lib/codes";
 import { ArrowLeft, Search } from "lucide-react";
 
 export const Route = createLazyFileRoute("/_app/sales/all")({ component: AllSales });
@@ -107,7 +107,7 @@ function AllSales() {
                     </Link>
                   </TableCell>
                   <TableCell className="text-muted-foreground whitespace-nowrap">
-                    {r.invoice_date ? new Date(r.invoice_date).toLocaleDateString() : "—"}
+                    {r.invoice_date ? fmtDate(r.invoice_date) : "—"}
                   </TableCell>
                   <TableCell>{r.customers?.name ?? "Walk-in"}</TableCell>
                   <TableCell className="capitalize text-muted-foreground">{r.payment_mode ?? "—"}</TableCell>

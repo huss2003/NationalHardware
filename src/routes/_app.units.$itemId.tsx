@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button";
 import { PageHeader } from "@/components/erp/PageHeader";
 import { DetailSkeleton, TableSkeleton } from "@/components/erp/Skeletons";
 import { StatusPill } from "@/components/erp/StatusPill";
-import { inr, makeBarcodeDataUrl, makeQrDataUrl } from "@/lib/codes";
+import { inr, makeBarcodeDataUrl, makeQrDataUrl, fmtDateTime } from "@/lib/codes";
 import { useAuth } from "@/lib/auth-store";
 import { toast } from "sonner";
 
@@ -111,7 +111,7 @@ function UnitPage() {
                 </div>
               </>
             )}
-            <div className="md:col-span-2"><div className="text-xs text-muted-foreground">Created</div><div className="text-base font-bold">{new Date(item.created_at).toLocaleString()}</div></div>
+            <div className="md:col-span-2"><div className="text-xs text-muted-foreground">Created</div><div className="text-base font-bold">{fmtDateTime(item.created_at)}</div></div>
           </div>
           {hasDims && (
             <div className="text-xs text-muted-foreground">
@@ -149,7 +149,7 @@ function UnitPage() {
                       <li key={h.id} className="relative">
                         <span className="absolute -left-[27px] top-1 h-4 w-4 rounded-full bg-primary"></span>
                         <div className="font-bold uppercase text-sm">{h.event.replace("_"," ")}</div>
-                        <div className="text-xs text-muted-foreground">{new Date(h.created_at).toLocaleString()}{h.notes ? ` • ${h.notes}` : ""}</div>
+                        <div className="text-xs text-muted-foreground">{fmtDateTime(h.created_at)}{h.notes ? ` • ${h.notes}` : ""}</div>
                       </li>
                     ))}
                   </ol>
