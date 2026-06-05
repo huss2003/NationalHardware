@@ -115,7 +115,6 @@ function ReceiptsPage() {
       toast.error(`WhatsApp share failed: ${e.message ?? e}`);
     }
   };
-  useEffect(() => { load(); }, []);
 
   // Pending per customer = sum(grand_total - paid_amount of credit sales) - sum(credit receipts)
   const pending = useMemo(() => {
