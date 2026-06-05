@@ -1,5 +1,6 @@
 import { createLazyFileRoute, Link } from "@tanstack/react-router";
-import { useEffect, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
+import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -15,25 +16,22 @@ import { ArrowLeft, Search } from "lucide-react";
 export const Route = createLazyFileRoute("/_app/purchases/all")({ component: AllPurchases });
 
 function AllPurchases() {
-  const [rows, setRows] = useState<any[]>([]);
-  const [loading, setLoading] = useState(true);
   const [q, setQ] = useState("");
   const [page, setPage] = useState(0);
   const pageSize = 25;
 
-  useEffect(() => {
-    (async () => {
-      setLoading(true);
+  const { data: rows = [], isLoading: loading } = useQuery<any[]>({
+    queryKey: ["purchases", "all"],
+    queryFn: async () => {
       const { data } = await supabase
         .from("purchases")
         .select("id, bill_no, bill_date, grand_total, suppliers(name)")
         .is("deleted_at", null)
         .order("bill_date", { ascending: false })
-        .limit(5000);
-      setRows(data ?? []);
-      setLoading(false);
-    })();
-  }, []);
+        .limit(1000);
+      return data ?? [];
+    },
+  });
 
   const filtered = useMemo(() => {
     const s = q.trim().toLowerCase();

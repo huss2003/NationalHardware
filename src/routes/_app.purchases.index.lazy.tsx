@@ -1,5 +1,6 @@
 import { createLazyFileRoute, Link } from "@tanstack/react-router";
-import { useEffect, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
+import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -26,25 +27,22 @@ function compactInr(n: number) {
 }
 
 function Purchases() {
-  const [rows, setRows] = useState<Row[]>([]);
-  const [loading, setLoading] = useState(true);
   const [status, setStatus] = useState<string>("all");
   const [page, setPage] = useState(0);
   const pageSize = 5;
 
-  useEffect(() => {
-    (async () => {
-      setLoading(true);
+  const { data: rows = [], isLoading: loading } = useQuery<Row[]>({
+    queryKey: ["purchases", "overview"],
+    queryFn: async () => {
       const { data } = await supabase
         .from("purchases")
-        .select("*, suppliers(name)")
+        .select("id, bill_no, bill_date, grand_total, status, suppliers(name)")
         .is("deleted_at", null)
         .order("created_at", { ascending: false })
         .limit(200);
-      setRows(data ?? []);
-      setLoading(false);
-    })();
-  }, []);
+      return data ?? [];
+    },
+  });
 
   const filtered = useMemo(() => {
     if (status === "all") return rows;
