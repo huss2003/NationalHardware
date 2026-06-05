@@ -1,5 +1,6 @@
 import { createLazyFileRoute, Link } from "@tanstack/react-router";
-import { useEffect, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
+import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -18,26 +19,23 @@ export const Route = createLazyFileRoute("/_app/sales/")({ component: Sales });
 type Range = "7D" | "30D" | "1Y";
 
 function Sales() {
-  const [rows, setRows] = useState<any[]>([]);
-  const [loading, setLoading] = useState(true);
   const [range, setRange] = useState<Range>("30D");
   const [paymentStatus, setPaymentStatus] = useState("all");
   const [customerCategory, setCustomerCategory] = useState("all");
   const [dateRange, setDateRange] = useState("");
 
-  useEffect(() => {
-    (async () => {
-      setLoading(true);
+  const { data: rows = [], isLoading: loading } = useQuery<any[]>({
+    queryKey: ["sales", "overview"],
+    queryFn: async () => {
       const { data } = await supabase
         .from("sales")
-        .select("*, customers(name)")
+        .select("id, invoice_no, invoice_date, grand_total, payment_status, customers(name)")
         .is("deleted_at", null)
         .order("invoice_date", { ascending: false })
         .limit(200);
-      setRows(data ?? []);
-      setLoading(false);
-    })();
-  }, []);
+      return data ?? [];
+    },
+  });
 
   // KPIs
   const kpis = useMemo(() => {
