@@ -1,4 +1,4 @@
-import { createFileRoute, Link } from "@tanstack/react-router";
+import { createLazyFileRoute, Link } from "@tanstack/react-router";
 import { useEffect, useMemo, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Card } from "@/components/ui/card";
@@ -13,7 +13,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { TableSkeleton } from "@/components/erp/Skeletons";
 import { BarChart, Bar, ResponsiveContainer, XAxis, Tooltip, Cell } from "recharts";
 
-export const Route = createFileRoute("/_app/sales/")({ component: Sales });
+export const Route = createLazyFileRoute("/_app/sales/")({ component: Sales });
 
 type Range = "7D" | "30D" | "1Y";
 

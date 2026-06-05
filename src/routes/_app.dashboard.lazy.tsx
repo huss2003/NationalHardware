@@ -1,4 +1,4 @@
-import { createFileRoute } from "@tanstack/react-router";
+import { createLazyFileRoute } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Card } from "@/components/ui/card";
@@ -12,7 +12,7 @@ import {
 import { BarChart, Bar, XAxis, YAxis, ResponsiveContainer, Tooltip, Cell } from "recharts";
 import { useUiConfig } from "@/lib/ui-config";
 
-export const Route = createFileRoute("/_app/dashboard")({ component: Dashboard });
+export const Route = createLazyFileRoute("/_app/dashboard")({ component: Dashboard });
 
 function compactInr(n: number) {
   if (n >= 1_00_00_000) return `₹${(n / 1_00_00_000).toFixed(1)}Cr`;

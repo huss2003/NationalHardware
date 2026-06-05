@@ -1,4 +1,4 @@
-import { createFileRoute } from "@tanstack/react-router";
+import { createLazyFileRoute } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Card } from "@/components/ui/card";
@@ -7,7 +7,7 @@ import { PageHeader } from "@/components/erp/PageHeader";
 import { inr } from "@/lib/codes";
 // XLSX is ~400KB. Loaded on demand only when the user clicks "Export Excel".
 
-export const Route = createFileRoute("/_app/reports")({ component: Reports });
+export const Route = createLazyFileRoute("/_app/reports")({ component: Reports });
 
 function Reports() {
   const [tab, setTab] = useState<"sales"|"purchase"|"stock"|"movement"|"damaged">("sales");

@@ -1,10 +1,10 @@
-import { createFileRoute } from "@tanstack/react-router";
+import { createLazyFileRoute } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { X, Plus } from "lucide-react";
 import { SaleBillForm, type ProductRow } from "@/components/erp/SaleBillForm";
 
-export const Route = createFileRoute("/_app/sales/new")({ component: NewSale });
+export const Route = createLazyFileRoute("/_app/sales/new")({ component: NewSale });
 
 const MAX_TABS = 5;
 const TABS_KEY = "sale_tabs";

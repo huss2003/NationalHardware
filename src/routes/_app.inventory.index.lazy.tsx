@@ -1,4 +1,4 @@
-import { createFileRoute, Link } from "@tanstack/react-router";
+import { createLazyFileRoute, Link } from "@tanstack/react-router";
 import { useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
@@ -24,7 +24,7 @@ import { SubCategoryPicker, type SubCategory } from "@/components/erp/SubCategor
 import { NewProductDialog } from "@/components/erp/NewProductDialog";
 import { Layers } from "lucide-react";
 
-export const Route = createFileRoute("/_app/inventory/")({ component: Inventory });
+export const Route = createLazyFileRoute("/_app/inventory/")({ component: Inventory });
 
 function Inventory() {
   const [expanded, setExpanded] = useState<Set<string>>(new Set());

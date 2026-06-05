@@ -1,4 +1,4 @@
-import { createFileRoute, Link } from "@tanstack/react-router";
+import { createLazyFileRoute, Link } from "@tanstack/react-router";
 import { useEffect, useMemo, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Card } from "@/components/ui/card";
@@ -12,7 +12,7 @@ import { TableSkeleton } from "@/components/erp/Skeletons";
 import { inr } from "@/lib/codes";
 import { ArrowLeft, Search } from "lucide-react";
 
-export const Route = createFileRoute("/_app/sales/all")({ component: AllSales });
+export const Route = createLazyFileRoute("/_app/sales/all")({ component: AllSales });
 
 function AllSales() {
   const [rows, setRows] = useState<any[]>([]);

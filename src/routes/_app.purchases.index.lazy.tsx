@@ -1,4 +1,4 @@
-import { createFileRoute, Link } from "@tanstack/react-router";
+import { createLazyFileRoute, Link } from "@tanstack/react-router";
 import { useEffect, useMemo, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Card } from "@/components/ui/card";
@@ -14,7 +14,7 @@ import {
   TrendingUp, SlidersHorizontal, Download, BarChart3, ChevronDown,
 } from "lucide-react";
 
-export const Route = createFileRoute("/_app/purchases/")({ component: Purchases });
+export const Route = createLazyFileRoute("/_app/purchases/")({ component: Purchases });
 
 type Row = any;
 

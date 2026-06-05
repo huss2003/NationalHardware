@@ -1,4 +1,4 @@
-import { createFileRoute, useNavigate } from "@tanstack/react-router";
+import { createLazyFileRoute, useNavigate } from "@tanstack/react-router";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Card } from "@/components/ui/card";
@@ -15,7 +15,7 @@ import { inr } from "@/lib/codes";
 import { QuickCreatePartyDialog } from "@/components/erp/QuickCreatePartyDialog";
 import { SubCategoryThenItemPicker } from "@/components/erp/SubCategoryThenItemPicker";
 
-export const Route = createFileRoute("/_app/purchases/new")({ component: NewPurchase });
+export const Route = createLazyFileRoute("/_app/purchases/new")({ component: NewPurchase });
 
 type Line = {
   product_id: string;
