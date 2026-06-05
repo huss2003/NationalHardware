@@ -5,7 +5,7 @@ import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { PageHeader } from "@/components/erp/PageHeader";
 import { DetailSkeleton, TableSkeleton } from "@/components/erp/Skeletons";
-import { inr } from "@/lib/codes";
+import { inr, fmtDate } from "@/lib/codes";
 import { LabelSheet, type LabelItem } from "@/components/erp/LabelSheet";
 import { Printer } from "lucide-react";
 
@@ -40,7 +40,7 @@ function PurchaseDetail() {
     <>
       <PageHeader
         title={`Bill ${pur.bill_no ?? pur.id.slice(0,8)}`}
-        subtitle={`${pur.suppliers?.name ?? "—"} • ${new Date(pur.bill_date).toLocaleDateString()}`}
+        subtitle={`${pur.suppliers?.name ?? "—"} • ${fmtDate(pur.bill_date)}`}
         actions={
           <div className="flex gap-2 no-print">
             <select className="h-12 rounded-md border bg-background px-3 font-semibold" value={format} onChange={(e) => setFormat(e.target.value as any)}>

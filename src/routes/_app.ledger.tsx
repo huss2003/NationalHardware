@@ -7,7 +7,7 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { PageHeader } from "@/components/erp/PageHeader";
 import { ReturnTimelineDialog } from "@/components/erp/ReturnTimelineDialog";
-import { inr } from "@/lib/codes";
+import { inr, fmtDate } from "@/lib/codes";
 import { Search, Users, Truck, FileText, ShoppingCart, Receipt as ReceiptIcon, RotateCcw, Wallet, Banknote, ArrowDownCircle, ArrowUpCircle } from "lucide-react";
 
 export const Route = createFileRoute("/_app/ledger")({ component: LedgerPage });
@@ -423,7 +423,7 @@ function LedgerPage() {
                             onClick={openReturn ?? undefined}
                           >
                             <td className="p-3 pl-5 text-muted-foreground whitespace-nowrap">
-                              {new Date(e.date).toLocaleDateString()}
+                              {fmtDate(e.date)}
                             </td>
                             <td className="p-3">
                               <span className={`inline-flex items-center gap-1.5 px-2 py-0.5 rounded-md text-xs font-semibold capitalize ${
@@ -553,7 +553,7 @@ function CashLedger({
                 return (
                   <tr key={e.id} className="border-t hover:bg-muted/30">
                     <td className="p-3 pl-5 text-muted-foreground whitespace-nowrap">
-                      {new Date(e.txn_date).toLocaleDateString()}
+                      {fmtDate(e.txn_date)}
                     </td>
                     <td className="p-3">
                       <span className={`inline-flex items-center gap-1.5 px-2 py-0.5 rounded-md text-xs font-semibold ${TYPE_STYLE[e.txn_type]}`}>

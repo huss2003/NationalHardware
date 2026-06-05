@@ -15,7 +15,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { Checkbox } from "@/components/ui/checkbox";
 import { Badge } from "@/components/ui/badge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { inr } from "@/lib/codes";
+import { inr, fmtDateTime } from "@/lib/codes";
 import { TableSkeleton } from "@/components/erp/Skeletons";
 import { NewProductDialog } from "@/components/erp/NewProductDialog";
 import { Layers } from "lucide-react";
@@ -433,7 +433,7 @@ function Inventory() {
                       {String(h.event).replace(/_/g, " ")}
                     </div>
                     <div className="text-xs text-muted-foreground mt-0.5">
-                      {new Date(h.created_at).toLocaleString()}
+                      {fmtDateTime(h.created_at)}
                       {h.notes ? ` • ${h.notes}` : ""}
                     </div>
                     <div className="text-[11px] font-mono text-muted-foreground/80 mt-0.5">
