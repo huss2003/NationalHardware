@@ -1,4 +1,4 @@
-import { createFileRoute } from "@tanstack/react-router";
+import { createLazyFileRoute } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Card } from "@/components/ui/card";
@@ -9,7 +9,7 @@ import { inr } from "@/lib/codes";
 import { LabelSheet, type LabelItem } from "@/components/erp/LabelSheet";
 import { Printer } from "lucide-react";
 
-export const Route = createFileRoute("/_app/purchases/$id")({ component: PurchaseDetail });
+export const Route = createLazyFileRoute("/_app/purchases/$id")({ component: PurchaseDetail });
 
 function PurchaseDetail() {
   const { id } = Route.useParams();
