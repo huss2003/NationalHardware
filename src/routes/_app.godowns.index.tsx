@@ -1,5 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { useEffect, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -29,29 +30,30 @@ type Godown = {
 };
 
 function Godowns() {
-  const [godowns, setGodowns] = useState<Godown[]>([]);
-  const [instances, setInstances] = useState<any[]>([]);
-  const [loading, setLoading] = useState(true);
+  const queryClient = useQueryClient();
   const [open, setOpen] = useState(false);
   const [selectedId, setSelectedId] = useState<string>("all");
   const [stockIn, setStockIn] = useState<{ id: string; name: string } | null>(null);
   const [stockOut, setStockOut] = useState<{ id: string; name: string } | null>(null);
 
-  const reload = async () => {
-    setLoading(true);
-    const [g, ii] = await Promise.all([
-      supabase.from("godowns").select("*").order("name"),
-      supabase
-        .from("item_instances")
-        .select("id, status, cost_price, godown_id, product_id, products(name, sku, image_url)")
-        .eq("status", "available")
-        .limit(2000),
-    ]);
-    setGodowns(g.data ?? []);
-    setInstances(ii.data ?? []);
-    setLoading(false);
-  };
-  useEffect(() => { reload(); }, []);
+  const { data, isLoading: loading } = useQuery({
+    queryKey: ["godowns-stock"],
+    queryFn: async () => {
+      const [g, ii] = await Promise.all([
+        supabase.from("godowns").select("*").order("name"),
+        supabase
+          .from("item_instances")
+          .select("id, status, cost_price, godown_id, product_id, products(name, sku, image_url)")
+          .eq("status", "available")
+          .limit(2000),
+      ]);
+      return { godowns: (g.data ?? []) as Godown[], instances: ii.data ?? [] };
+    },
+    staleTime: 60_000,
+  });
+  const godowns = data?.godowns ?? [];
+  const instances = data?.instances ?? [];
+  const reload = () => queryClient.invalidateQueries({ queryKey: ["godowns-stock"] });
 
   const byGodown = useMemo(() => {
     const map = new Map<string, { count: number; value: number }>();
