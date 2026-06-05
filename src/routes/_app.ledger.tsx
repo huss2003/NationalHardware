@@ -12,7 +12,7 @@ import { Search, Users, Truck, FileText, ShoppingCart, Receipt as ReceiptIcon, R
 
 export const Route = createFileRoute("/_app/ledger")({ component: LedgerPage });
 
-type Kind = "customer" | "supplier" | "cash" | "sales" | "purchase";
+type Kind = "customer" | "supplier" | "cash";
 type Party = { id: string; name: string; phone?: string | null };
 
 type LedgerTxnType =
@@ -99,37 +99,7 @@ function LedgerPage() {
     },
   });
 
-  const { data: salesLedger = [], isFetching: salesLoading } = useQuery({
-    enabled: kind === "sales",
-    queryKey: ["ledger", "sales_ledger"],
-    staleTime: 5 * 60 * 1000,
-    queryFn: async () => {
-      const { data } = await (supabase as any)
-        .from("sales_ledger")
-        .select("id, txn_date, txn_type, vch_no, account_name, debit, credit, narration")
-        .order("txn_date", { ascending: true })
-        .order("created_at", { ascending: true })
-        .limit(5000);
-      return (data as CashTxn[]) ?? [];
-    },
-  });
-
-  const { data: purchaseLedger = [], isFetching: purchaseLoading } = useQuery({
-    enabled: kind === "purchase",
-    queryKey: ["ledger", "purchase_ledger"],
-    staleTime: 5 * 60 * 1000,
-    queryFn: async () => {
-      const { data } = await (supabase as any)
-        .from("purchase_ledger")
-        .select("id, txn_date, txn_type, vch_no, account_name, debit, credit, narration")
-        .order("txn_date", { ascending: true })
-        .order("created_at", { ascending: true })
-        .limit(5000);
-      return (data as CashTxn[]) ?? [];
-    },
-  });
-
-  const accountKind = kind === "cash" || kind === "sales" || kind === "purchase";
+  const accountKind = kind === "cash";
 
   const filtered = useMemo(() => {
     const q = search.trim().toLowerCase();
@@ -271,20 +241,6 @@ function LedgerPage() {
   const cashOpening = opening ? Number(opening.debit) - Number(opening.credit) : 0;
   const cashClosing = cashOpening + cashDebit - cashCredit;
 
-  // Generic account-ledger running balance (Dr positive) for sales / purchase
-  const buildAccount = (txns: CashTxn[]) => {
-    let run = 0;
-    const rws = txns.map((t) => {
-      run += Number(t.debit) - Number(t.credit);
-      return { ...t, balance: run };
-    });
-    const deb = txns.reduce((s, t) => s + Number(t.debit), 0);
-    const cred = txns.reduce((s, t) => s + Number(t.credit), 0);
-    return { rws, deb, cred, closing: deb - cred };
-  };
-  const salesAcc = buildAccount(salesLedger);
-  const purchaseAcc = buildAccount(purchaseLedger);
-
   return (
     <>
       <PageHeader
@@ -299,8 +255,6 @@ function LedgerPage() {
               { v: "customer" as const, label: "Customers", icon: Users },
               { v: "supplier" as const, label: "Suppliers", icon: Truck },
               { v: "cash" as const, label: "Cash", icon: Banknote },
-              { v: "sales" as const, label: "Sales", icon: FileText },
-              { v: "purchase" as const, label: "Purchase", icon: ShoppingCart },
             ]).map((t) => {
               const active = kind === t.v;
               const Icon = t.icon;
@@ -320,16 +274,10 @@ function LedgerPage() {
           {accountKind ? (
             <div className="rounded-md bg-muted/40 p-3 text-sm">
               <div className="flex items-center gap-2 font-semibold mb-1">
-                {kind === "cash" ? <><Wallet className="h-4 w-4 text-primary" /> Cash in Hand</>
-                  : kind === "sales" ? <><FileText className="h-4 w-4 text-primary" /> Sales Ledger</>
-                  : <><ShoppingCart className="h-4 w-4 text-primary" /> Purchase Ledger</>}
+                <Wallet className="h-4 w-4 text-primary" /> Cash in Hand
               </div>
               <p className="text-xs text-muted-foreground">
-                {kind === "cash"
-                  ? "All cash account movements (receipts, cash sales, payments) with a running balance."
-                  : kind === "sales"
-                    ? "Imported Sales account ledger — every sale, return and journal entry with a running balance."
-                    : "Imported Purchase account ledger — every purchase, debit note and journal entry with a running balance."}
+                All cash account movements (receipts, cash sales, payments) with a running balance.
               </p>
             </div>
           ) : (
@@ -381,26 +329,6 @@ function LedgerPage() {
               debit={cashDebit}
               credit={cashCredit}
               closing={cashClosing}
-            />
-          ) : kind === "sales" ? (
-            <AccountLedger
-              title="Sales Ledger"
-              subtitle="Sales Account"
-              rows={salesAcc.rws}
-              loading={salesLoading}
-              debit={salesAcc.deb}
-              credit={salesAcc.cred}
-              closing={salesAcc.closing}
-            />
-          ) : kind === "purchase" ? (
-            <AccountLedger
-              title="Purchase Ledger"
-              subtitle="Purchase Account"
-              rows={purchaseAcc.rws}
-              loading={purchaseLoading}
-              debit={purchaseAcc.deb}
-              credit={purchaseAcc.cred}
-              closing={purchaseAcc.closing}
             />
           ) : !selected ? (
             <Card className="p-12 text-center text-muted-foreground">
@@ -627,101 +555,6 @@ function CashLedger({
               })}
               {rows.length === 0 && (
                 <tr><td colSpan={7} className="text-center py-12 text-muted-foreground">No cash transactions yet.</td></tr>
-              )}
-            </tbody>
-          </table>
-        )}
-      </Card>
-    </>
-  );
-}
-
-function AccountLedger({
-  title,
-  subtitle,
-  rows,
-  loading,
-  debit,
-  credit,
-  closing,
-}: {
-  title: string;
-  subtitle: string;
-  rows: (CashTxn & { balance: number })[];
-  loading: boolean;
-  debit: number;
-  credit: number;
-  closing: number;
-}) {
-  return (
-    <>
-      <Card className="p-5 flex flex-wrap items-center justify-between gap-4">
-        <div>
-          <div className="text-xs uppercase text-muted-foreground tracking-wider">{title}</div>
-          <div className="text-2xl font-bold">{subtitle}</div>
-          <div className="text-sm text-muted-foreground">Opening balance {drcr(0)}</div>
-        </div>
-        <div className="flex gap-4 items-center">
-          <div className="text-right">
-            <div className="text-[11px] uppercase text-muted-foreground">Total Debit</div>
-            <div className="font-semibold tabular-nums">{inr(debit)}</div>
-          </div>
-          <div className="text-right">
-            <div className="text-[11px] uppercase text-muted-foreground">Total Credit</div>
-            <div className="font-semibold tabular-nums">{inr(credit)}</div>
-          </div>
-          <div className="text-right border-l pl-4 ml-2">
-            <div className="text-[11px] uppercase text-muted-foreground">Closing Balance</div>
-            <div className="text-xl font-bold tabular-nums">{drcr(closing)}</div>
-          </div>
-        </div>
-      </Card>
-
-      <Card className="overflow-hidden">
-        <div className="px-5 pt-5 pb-3">
-          <h2 className="text-lg font-semibold">{title} Entries</h2>
-          <p className="text-xs text-muted-foreground">{rows.length} entries</p>
-        </div>
-        {loading ? (
-          <div className="p-8 text-center text-muted-foreground">Loading…</div>
-        ) : (
-          <table className="w-full text-sm">
-            <thead className="bg-muted/50 text-xs uppercase tracking-wider text-muted-foreground">
-              <tr>
-                <th className="text-left p-3 pl-5">Date</th>
-                <th className="text-left p-3">Type</th>
-                <th className="text-left p-3">Vch No</th>
-                <th className="text-left p-3">Account</th>
-                <th className="text-right p-3">Debit</th>
-                <th className="text-right p-3">Credit</th>
-                <th className="text-right p-3 pr-5">Balance</th>
-              </tr>
-            </thead>
-            <tbody>
-              {rows.map((e) => (
-                <tr key={e.id} className="border-t hover:bg-muted/30 align-top">
-                  <td className="p-3 pl-5 text-muted-foreground whitespace-nowrap">
-                    {new Date(e.txn_date).toLocaleDateString()}
-                  </td>
-                  <td className="p-3">
-                    <span className={`inline-flex items-center gap-1.5 px-2 py-0.5 rounded-md text-xs font-semibold ${TYPE_STYLE[e.txn_type]}`}>
-                      {TYPE_LABEL[e.txn_type]}
-                    </span>
-                  </td>
-                  <td className="p-3 text-muted-foreground">{e.vch_no ?? "—"}</td>
-                  <td className="p-3 font-medium max-w-[420px]">
-                    {e.account_name}
-                    {e.narration && (
-                      <div className="text-[11px] text-muted-foreground whitespace-pre-wrap mt-0.5">{e.narration}</div>
-                    )}
-                  </td>
-                  <td className="p-3 text-right tabular-nums">{Number(e.debit) > 0 ? inr(Number(e.debit)) : "—"}</td>
-                  <td className="p-3 text-right tabular-nums text-emerald-600">{Number(e.credit) > 0 ? inr(Number(e.credit)) : "—"}</td>
-                  <td className="p-3 pr-5 text-right tabular-nums font-semibold">{drcr(e.balance)}</td>
-                </tr>
-              ))}
-              {rows.length === 0 && (
-                <tr><td colSpan={7} className="text-center py-12 text-muted-foreground">No entries yet.</td></tr>
               )}
             </tbody>
           </table>

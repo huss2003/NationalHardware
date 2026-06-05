@@ -1,0 +1,1 @@
+DROP FUNCTION IF EXISTS public.import_sheet_bills(jsonb);
