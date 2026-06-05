@@ -4,6 +4,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { PageHeader } from "@/components/erp/PageHeader";
+import { fmtDateTime } from "@/lib/codes";
 
 export const Route = createFileRoute("/_app/alerts")({ component: Alerts });
 function Alerts() {
@@ -29,7 +30,7 @@ function Alerts() {
             <div className="flex justify-between gap-4">
               <div>
                 <div className="font-bold uppercase">{a.type}</div>
-                <div className="text-xs text-muted-foreground">{new Date(a.created_at).toLocaleString()}</div>
+                <div className="text-xs text-muted-foreground">{fmtDateTime(a.created_at)}</div>
                 <pre className="text-xs mt-1">{JSON.stringify(a.payload, null, 2)}</pre>
               </div>
               {!a.read_at && <Button variant="outline" onClick={() => markRead(a.id)}>Mark read</Button>}

@@ -1,5 +1,6 @@
 import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
+import { fmtDate } from "@/lib/codes";
 
 export type InvoicePdfInput = {
   shop: { shop_name?: string; address?: string | null; gstin?: string | null } | null;
@@ -35,7 +36,7 @@ export function buildInvoicePdf(input: InvoicePdfInput): jsPDF {
   doc.setFontSize(16);
   doc.text(input.sale.invoice_no ?? "—", W - 40, 54, { align: "right" });
   doc.setFont("helvetica", "normal"); doc.setFontSize(9);
-  doc.text(new Date(input.sale.invoice_date).toLocaleDateString(), W - 40, 70, { align: "right" });
+  doc.text(fmtDate(input.sale.invoice_date), W - 40, 70, { align: "right" });
 
   doc.setTextColor(20);
   let y = 118;
@@ -59,7 +60,7 @@ export function buildInvoicePdf(input: InvoicePdfInput): jsPDF {
   doc.setFont("helvetica", "bold"); doc.setFontSize(9); doc.setTextColor(100);
   doc.text("INVOICE DETAILS", mx + 12, my); my += 14;
   doc.setTextColor(20); doc.setFont("helvetica", "normal"); doc.setFontSize(9);
-  doc.text(`Date: ${new Date(input.sale.invoice_date).toLocaleDateString()}`, mx + 12, my); my += 12;
+  doc.text(`Date: ${fmtDate(input.sale.invoice_date)}`, mx + 12, my); my += 12;
   doc.text(`Payment: ${String(input.sale.payment_mode).toUpperCase()}`, mx + 12, my); my += 12;
   doc.text(`Invoice #: ${input.sale.invoice_no ?? "—"}`, mx + 12, my);
 
@@ -145,7 +146,7 @@ export function buildReceiptPdf(input: ReceiptPdfInput): jsPDF {
   doc.setFontSize(14);
   doc.text(`#${input.receipt.receipt_no}`, W - 32, 58, { align: "right" });
   doc.setFont("helvetica", "normal"); doc.setFontSize(9);
-  doc.text(new Date(input.receipt.created_at).toLocaleDateString(), W - 32, 72, { align: "right" });
+  doc.text(fmtDate(input.receipt.created_at), W - 32, 72, { align: "right" });
 
   y = Math.max(y, 84) + 18;
   doc.setDrawColor(220); doc.line(32, y, W - 32, y); y += 18;
@@ -237,7 +238,7 @@ export function buildDoorOrderPdf(input: DoorOrderPdfInput): jsPDF {
   doc.setFontSize(16);
   doc.text(input.order.order_no, W - 40, 54, { align: "right" });
   doc.setFont("helvetica", "normal"); doc.setFontSize(9);
-  doc.text(new Date(input.order.order_date).toLocaleDateString(), W - 40, 70, { align: "right" });
+  doc.text(fmtDate(input.order.order_date), W - 40, 70, { align: "right" });
 
   doc.setTextColor(20);
   let y = 118;
@@ -258,7 +259,7 @@ export function buildDoorOrderPdf(input: DoorOrderPdfInput): jsPDF {
   doc.setFont("helvetica", "bold"); doc.setFontSize(9); doc.setTextColor(100);
   doc.text("ORDER DETAILS", mx + 12, my); my += 14;
   doc.setTextColor(20); doc.setFont("helvetica", "normal"); doc.setFontSize(9);
-  doc.text(`Date: ${new Date(input.order.order_date).toLocaleDateString()}`, mx + 12, my); my += 12;
+  doc.text(`Date: ${fmtDate(input.order.order_date)}`, mx + 12, my); my += 12;
   doc.text(`Category: ${input.order.category}`, mx + 12, my); my += 12;
   doc.text(`Order #: ${input.order.order_no}`, mx + 12, my);
 

@@ -6,6 +6,7 @@ import {
 import {
   PackageCheck, Undo2, MoveRight, ShoppingCart, Wrench, AlertTriangle, History,
 } from "lucide-react";
+import { fmtDateTime } from "@/lib/codes";
 
 type Ev = {
   id: number;
@@ -104,7 +105,7 @@ export function ReturnTimelineDialog({
                           {meta.label}
                         </span>
                         <span className="text-xs text-muted-foreground">
-                          {new Date(e.created_at).toLocaleString("en", { dateStyle: "medium", timeStyle: "short" })}
+                          {fmtDateTime(e.created_at)}
                         </span>
                       </div>
                       {(e.notes || e.ref_table) && (
