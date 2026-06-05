@@ -1,5 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useEffect, useMemo, useState } from "react";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -29,24 +30,24 @@ export const Route = createFileRoute("/_app/purchase-returns/")({ component: Pur
 
 function PurchaseReturns() {
   const user = useAuth((s) => s.user);
-  const [rows, setRows] = useState<any[]>([]);
-  const [loading, setLoading] = useState(true);
+  const queryClient = useQueryClient();
   const [open, setOpen] = useState(false);
   const [timeline, setTimeline] = useState<{ id: string; no: string } | null>(null);
 
-  const reload = async () => {
-    setLoading(true);
-    const { data } = await supabase
-      .from("purchase_returns")
-      .select("*, purchases(bill_no), suppliers(name)")
-      .is("deleted_at", null)
-      .order("return_date", { ascending: false })
-      .limit(200);
-    setRows(data ?? []);
-    setLoading(false);
-  };
-
-  useEffect(() => { reload(); }, []);
+  const { data: rows = [], isLoading: loading } = useQuery({
+    queryKey: ["purchase-returns"],
+    queryFn: async () => {
+      const { data } = await supabase
+        .from("purchase_returns")
+        .select("*, purchases(bill_no), suppliers(name)")
+        .is("deleted_at", null)
+        .order("return_date", { ascending: false })
+        .limit(200);
+      return data ?? [];
+    },
+    staleTime: 30_000,
+  });
+  const reload = () => queryClient.invalidateQueries({ queryKey: ["purchase-returns"] });
 
   const kpis = useMemo(() => {
     const total = rows.reduce((s, r) => s + Number(r.grand_total ?? 0), 0);
