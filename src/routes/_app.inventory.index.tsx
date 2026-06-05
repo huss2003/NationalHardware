@@ -1,5 +1,6 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { useEffect, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
+import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -26,11 +27,7 @@ import { Layers } from "lucide-react";
 export const Route = createFileRoute("/_app/inventory/")({ component: Inventory });
 
 function Inventory() {
-  const [products, setProducts] = useState<any[]>([]);
-  const [subcats, setSubcats] = useState<any[]>([]);
   const [expanded, setExpanded] = useState<Set<string>>(new Set());
-  const [counts, setCounts] = useState<Record<string, number>>({});
-  const [loading, setLoading] = useState(true);
   const [q, setQ] = useState("");
   const [category, setCategory] = useState<string>("all");
   const [stockStatus, setStockStatus] = useState<string>("all");
@@ -43,23 +40,29 @@ function Inventory() {
   const [historyRows, setHistoryRows] = useState<any[] | null>(null);
   const nav = useNavigate();
 
-  const load = async () => {
-    setLoading(true);
-    const [prodsRes, stockRes, subRes] = await Promise.all([
-      supabase.from("products").select("*").eq("active", true).order("name"),
-      supabase.rpc("stock_by_product"),
-      supabase.from("product_subcategories").select("*").eq("active", true).order("category").order("name"),
-    ]);
-    const c: Record<string, number> = {};
-    (stockRes.data ?? []).forEach((r: any) => {
-      c[r.product_id] = Number(r.available_qty) || 0;
-    });
-    setProducts(prodsRes.data ?? []);
-    setSubcats(subRes.data ?? []);
-    setCounts(c);
-    setLoading(false);
-  };
-  useEffect(() => { load(); }, []);
+  const { data, isLoading: loading, refetch } = useQuery({
+    queryKey: ["inventory", "products"],
+    queryFn: async () => {
+      const [prodsRes, stockRes, subRes] = await Promise.all([
+        supabase.from("products").select("*").eq("active", true).order("name"),
+        supabase.rpc("stock_by_product"),
+        supabase.from("product_subcategories").select("*").eq("active", true).order("category").order("name"),
+      ]);
+      const c: Record<string, number> = {};
+      (stockRes.data ?? []).forEach((r: any) => {
+        c[r.product_id] = Number(r.available_qty) || 0;
+      });
+      return {
+        products: prodsRes.data ?? [],
+        subcats: subRes.data ?? [],
+        counts: c,
+      };
+    },
+  });
+  const products = data?.products ?? [];
+  const subcats = data?.subcats ?? [];
+  const counts = data?.counts ?? {};
+  const load = () => { void refetch(); };
 
   const categories = useMemo(
     () => Array.from(new Set(products.map((p) => p.category).filter(Boolean))),

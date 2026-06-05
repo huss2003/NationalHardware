@@ -31,37 +31,60 @@ export const useAuth = create<AuthState>()((set) => ({
 async function hydrate(supaUser: User | null) {
   if (!supaUser) {
     useAuth.setState({ user: null, ready: true });
+    cachedRoleUserId = null;
+    cachedRole = "employee";
     return;
   }
-  // Look up admin role; everyone else is treated as employee in this UI.
-  let role: ShopRole = "employee";
-  try {
-    const { data } = await supabase
-      .from("user_roles")
-      .select("role")
-      .eq("user_id", supaUser.id);
-    if (data?.some((r) => r.role === "admin")) role = "admin";
-  } catch {}
+  // Look up admin role once per user; everyone else is treated as employee.
+  let role: ShopRole = cachedRole;
+  if (cachedRoleUserId !== supaUser.id) {
+    role = "employee";
+    try {
+      const { data } = await supabase
+        .from("user_roles")
+        .select("role")
+        .eq("user_id", supaUser.id);
+      if (data?.some((r) => r.role === "admin")) role = "admin";
+    } catch {}
+    cachedRoleUserId = supaUser.id;
+    cachedRole = role;
+  }
   const name =
     (supaUser.user_metadata?.display_name as string | undefined) ||
     supaUser.email?.split("@")[0] ||
     "User";
+  const prev = useAuth.getState().user;
+  // Skip the state update (and the app-wide re-render) when nothing changed.
+  if (prev && prev.id === supaUser.id && prev.name === name && prev.role === role) {
+    if (!useAuth.getState().ready) useAuth.setState({ ready: true });
+    return;
+  }
   useAuth.setState({
     user: { id: supaUser.id, name, role },
     ready: true,
   });
 }
 
+let cachedRoleUserId: string | null = null;
+let cachedRole: ShopRole = "employee";
+
 let listenerInited = false;
 export function initAuthListener() {
   if (typeof window === "undefined" || listenerInited) return;
   listenerInited = true;
-  // Listener FIRST so we don't miss the initial event.
-  supabase.auth.onAuthStateChange((_event, session) => {
+  // Listener FIRST so we don't miss the initial event. Only react to real
+  // identity changes — TOKEN_REFRESHED (hourly + on tab focus) keeps the same
+  // user and would otherwise re-query roles and re-render the whole app.
+  supabase.auth.onAuthStateChange((event, session) => {
+    if (
+      event !== "INITIAL_SESSION" &&
+      event !== "SIGNED_IN" &&
+      event !== "SIGNED_OUT" &&
+      event !== "USER_UPDATED"
+    ) {
+      return;
+    }
     void hydrate(session?.user ?? null);
-  });
-  supabase.auth.getSession().then(({ data }) => {
-    void hydrate(data.session?.user ?? null);
   });
 }
 

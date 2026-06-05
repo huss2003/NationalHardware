@@ -1,5 +1,5 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { useEffect, useState } from "react";
+import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -50,66 +50,57 @@ function StatCard({
 function Dashboard() {
   const cfg = useUiConfig();
   const t = cfg.dashboard.tiles;
-  const [stats, setStats] = useState({
-    salesToday: 0, purchaseToday: 0, stockValue: 0, lowStock: 0, pendingCredit: 0,
-  });
-  const [chart, setChart] = useState<{ day: string; total: number }[]>([]);
-  const [alerts, setAlerts] = useState<any[]>([]);
-
-  useEffect(() => {
-    (async () => {
-      const today = new Date(); today.setHours(0,0,0,0);
+  const { data } = useQuery({
+    queryKey: ["dashboard", "overview"],
+    queryFn: async () => {
+      const today = new Date(); today.setHours(0, 0, 0, 0);
       const since = today.toISOString();
-      const [sales, purchases, items, alertsRes] = await Promise.all([
-        supabase.from("sales").select("grand_total, paid_amount, invoice_date").gte("invoice_date", since).is("deleted_at", null),
-        supabase.from("purchases").select("grand_total, created_at").gte("created_at", since).is("deleted_at", null),
-        supabase.from("item_instances").select("cost_price, status, product_id"),
-        supabase.from("alerts").select("*").is("read_at", null).order("created_at", { ascending: false }).limit(5),
-      ]);
-      const salesToday = (sales.data ?? []).reduce((a: number, r: any) => a + Number(r.grand_total), 0);
-      const purchaseToday = (purchases.data ?? []).reduce((a: number, r: any) => a + Number(r.grand_total), 0);
-      const available = (items.data ?? []).filter((i: any) => i.status === "available");
-      const stockValue = available.reduce((a: number, i: any) => a + Number(i.cost_price), 0);
+      const since14 = new Date(); since14.setDate(since14.getDate() - 13); since14.setHours(0, 0, 0, 0);
 
-      // Low stock: products under reorder_level
-      const { data: prodList } = await supabase.from("products").select("id, name, reorder_level");
+      // Fire every read in parallel — one network wave instead of four.
+      const [sales, purchases, items, alertsRes, prod, credit, chartRes] = await Promise.all([
+        supabase.from("sales").select("grand_total, paid_amount").gte("invoice_date", since).is("deleted_at", null),
+        supabase.from("purchases").select("grand_total").gte("created_at", since).is("deleted_at", null),
+        supabase.from("item_instances").select("cost_price, status, product_id").eq("status", "available"),
+        supabase.from("alerts").select("*").is("read_at", null).order("created_at", { ascending: false }).limit(5),
+        supabase.from("products").select("id, reorder_level"),
+        supabase.from("sales").select("grand_total, paid_amount").eq("payment_mode", "credit").is("deleted_at", null),
+        supabase.from("sales").select("grand_total, invoice_date").gte("invoice_date", since14.toISOString()).is("deleted_at", null),
+      ]);
+
+      const salesToday = (sales.data ?? []).reduce((a, r: any) => a + Number(r.grand_total), 0);
+      const purchaseToday = (purchases.data ?? []).reduce((a, r: any) => a + Number(r.grand_total), 0);
+      const available = items.data ?? [];
+      const stockValue = available.reduce((a, i: any) => a + Number(i.cost_price), 0);
+
       const counts: Record<string, number> = {};
       available.forEach((i: any) => { counts[i.product_id] = (counts[i.product_id] ?? 0) + 1; });
-      const lowStock = (prodList ?? []).filter((p: any) => (counts[p.id] ?? 0) <= p.reorder_level).length;
+      const lowStock = (prod.data ?? []).filter((p: any) => (counts[p.id] ?? 0) <= p.reorder_level).length;
 
-      // Pending credit
-      const { data: credit } = await supabase
-        .from("sales")
-        .select("grand_total, paid_amount")
-        .eq("payment_mode", "credit")
-        .is("deleted_at", null);
-      const pendingCredit = (credit ?? []).reduce((a: number, r: any) => a + (Number(r.grand_total) - Number(r.paid_amount)), 0);
+      const pendingCredit = (credit.data ?? []).reduce((a, r: any) => a + (Number(r.grand_total) - Number(r.paid_amount)), 0);
 
-      setStats({
-        salesToday, purchaseToday, stockValue, lowStock,
-        pendingCredit,
-      });
-      setAlerts(alertsRes.data ?? []);
-
-      // 14-day sales chart
-      const since14 = new Date(); since14.setDate(since14.getDate() - 13); since14.setHours(0,0,0,0);
-      const { data: chartData } = await supabase.from("sales")
-        .select("grand_total, invoice_date")
-        .gte("invoice_date", since14.toISOString())
-        .is("deleted_at", null);
       const buckets: Record<string, number> = {};
       for (let i = 0; i < 14; i++) {
         const d = new Date(since14); d.setDate(d.getDate() + i);
-        const k = d.toISOString().slice(0,10);
-        buckets[k] = 0;
+        buckets[d.toISOString().slice(0, 10)] = 0;
       }
-      (chartData ?? []).forEach((s: any) => {
+      (chartRes.data ?? []).forEach((s: any) => {
         const k = String(s.invoice_date).slice(0, 10);
         if (k in buckets) buckets[k] += Number(s.grand_total);
       });
-      setChart(Object.entries(buckets).map(([k, v]) => ({ day: k.slice(5), total: v })));
-    })();
-  }, []);
+      const chart = Object.entries(buckets).map(([k, v]) => ({ day: k.slice(5), total: v }));
+
+      return {
+        stats: { salesToday, purchaseToday, stockValue, lowStock, pendingCredit },
+        alerts: alertsRes.data ?? [],
+        chart,
+      };
+    },
+  });
+
+  const stats = data?.stats ?? { salesToday: 0, purchaseToday: 0, stockValue: 0, lowStock: 0, pendingCredit: 0 };
+  const chart = data?.chart ?? [];
+  const alerts: any[] = data?.alerts ?? [];
 
   return (
     <>
