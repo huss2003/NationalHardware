@@ -505,6 +505,7 @@ function LedgerPage() {
 }
 
 function CashLedger({
+  title,
   rows,
   loading,
   opening,
@@ -512,6 +513,7 @@ function CashLedger({
   credit,
   closing,
 }: {
+  title: string;
   rows: (CashTxn & { balance: number })[];
   loading: boolean;
   opening: number;
@@ -523,8 +525,8 @@ function CashLedger({
     <>
       <Card className="p-5 flex flex-wrap items-center justify-between gap-4">
         <div>
-          <div className="text-xs uppercase text-muted-foreground tracking-wider">Cash in Hand</div>
-          <div className="text-2xl font-bold">Cash Account</div>
+          <div className="text-xs uppercase text-muted-foreground tracking-wider">{title}</div>
+          <div className="text-2xl font-bold">{title}</div>
           <div className="text-sm text-muted-foreground">
             Opening balance {drcr(opening)}
           </div>
