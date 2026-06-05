@@ -1,5 +1,5 @@
 import { createLazyFileRoute, Link } from "@tanstack/react-router";
-import { useMemo, useState } from "react";
+import { lazy, Suspense, useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Card } from "@/components/ui/card";
@@ -12,7 +12,10 @@ import {
 } from "lucide-react";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { TableSkeleton } from "@/components/erp/Skeletons";
-import { BarChart, Bar, ResponsiveContainer, XAxis, Tooltip, Cell } from "recharts";
+
+const SalesTrendChart = lazy(() =>
+  import("@/components/erp/SalesTrendChart").then((m) => ({ default: m.SalesTrendChart })),
+);
 
 export const Route = createLazyFileRoute("/_app/sales/")({ component: Sales });
 
@@ -83,8 +86,6 @@ function Sales() {
     });
     return buckets;
   }, [rows, range]);
-
-  const maxValue = Math.max(...chartData.map((d) => d.value), 1);
 
   const recent = rows.slice(0, 5);
 
@@ -184,34 +185,9 @@ function Sales() {
               </div>
             </div>
             <div className="h-[300px]">
-              <ResponsiveContainer width="100%" height="100%">
-                <BarChart data={chartData} margin={{ top: 8, right: 0, left: 0, bottom: 0 }}>
-                  <XAxis
-                    dataKey="label"
-                    axisLine={false}
-                    tickLine={false}
-                    tick={{ fill: "var(--color-muted-foreground)", fontSize: 11 }}
-                  />
-                  <Tooltip
-                    cursor={{ fill: "var(--color-muted)", opacity: 0.4 }}
-                    contentStyle={{
-                      background: "var(--color-card)",
-                      border: "1px solid var(--color-border)",
-                      borderRadius: 8,
-                      fontSize: 12,
-                    }}
-                    formatter={(v: any) => [inr(Number(v)), "Revenue"]}
-                  />
-                  <Bar dataKey="value" radius={[6, 6, 0, 0]}>
-                    {chartData.map((d, i) => (
-                      <Cell
-                        key={i}
-                        fill={d.value === maxValue ? "var(--color-primary)" : "color-mix(in oklab, var(--color-primary) 60%, transparent)"}
-                      />
-                    ))}
-                  </Bar>
-                </BarChart>
-              </ResponsiveContainer>
+              <Suspense fallback={<div className="h-full rounded-md bg-muted animate-pulse" />}>
+                <SalesTrendChart data={chartData} />
+              </Suspense>
             </div>
           </Card>
 
