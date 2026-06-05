@@ -12,17 +12,22 @@ import { Search, Users, Truck, FileText, ShoppingCart, Receipt as ReceiptIcon, R
 
 export const Route = createFileRoute("/_app/ledger")({ component: LedgerPage });
 
-type Kind = "customer" | "supplier" | "cash";
+type Kind = "customer" | "supplier" | "cash" | "sales" | "purchase";
 type Party = { id: string; name: string; phone?: string | null };
+
+type LedgerTxnType =
+  | "opening" | "receipt" | "sale" | "payment" | "credit_note"
+  | "purchase" | "journal" | "debit_note" | "sales_return";
 
 type CashTxn = {
   id: string;
   txn_date: string;
-  txn_type: "opening" | "receipt" | "sale" | "payment" | "credit_note";
+  txn_type: LedgerTxnType;
   vch_no: string | null;
   account_name: string;
   debit: number;
   credit: number;
+  narration?: string | null;
 };
 
 type Entry = {
