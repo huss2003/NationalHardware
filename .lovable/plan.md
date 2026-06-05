@@ -1,48 +1,54 @@
-## Goal
+# Fix Ledger: Dates + Missing Debit/Credit
 
-Make every entry from the 5 sub-sheets of the workbook (`178Vg…qFw`, FY 2026‑27, 1‑Apr‑2026 → 11‑Jun‑2026) present in Supabase as real ledger records, inserted with **direct SQL**, and visible in the Ledger screen.
+## Problem found
+1. **Dates** show as `M/D/YYYY` (US format) everywhere because the code uses `new Date(x).toLocaleDateString()` with no locale.
+2. **692 sales (7-Oct-2025 → 31-Mar-2026)** have `grand_total = 0` and `subtotal = 0`, so the ledger shows `—` for both Debit and Credit and the balance never moves. This is because the Tally "List of Sales Vouchers" export used for those rows only contained item names + quantities — **no rupee amounts**. Receipts, payments and journals already have amounts and are fine.
 
-## What I found (important)
+The fix has two independent parts: a display fix (dates) and a data fix (sale amounts).
 
-The **Cash ledger is already complete**. A prior import (`cash import 2026-06-11`) already holds the cash-in-hand side of these vouchers for this exact date range: 68 cash receipts (₹23,18,552) and 20 cash payments (₹21,15,197), plus opening balance. Re-posting cash rows would **double-count cash**, so this plan does **not** touch `cash_transactions`.
+---
 
-What is missing is the **party side** of each voucher (Customer & Supplier ledgers). That is what this plan inserts.
+## Part 1 — Date format DD/MM/YYYY (whole app)
 
-## Sheet → destination mapping
+1. Add a shared helper in `src/lib/codes.ts`:
+   ```ts
+   export function fmtDate(d: string | number | Date | null | undefined): string {
+     if (!d) return "—";
+     const date = new Date(d);
+     if (isNaN(date.getTime())) return "—";
+     return date.toLocaleDateString("en-GB"); // DD/MM/YYYY
+   }
+   ```
+2. Replace every user-facing `new Date(...).toLocaleDateString()` / `.toLocaleString()` date display with `fmtDate(...)` across the ledger and all other screens:
+   - `src/routes/_app.ledger.tsx` (sale/receipt rows + cash rows)
+   - `_app.sales.index.lazy.tsx`, `_app.sales.all.lazy.tsx`, `_app.sales.$id.lazy.tsx`, `_app.sales.receipts.tsx`
+   - `_app.purchases.index.lazy.tsx`, `_app.purchases.all.lazy.tsx`, `_app.purchases.$id.lazy.tsx`, `_app.purchases.new.lazy.tsx`
+   - `_app.sales-returns.index.tsx`, `_app.purchase-returns.index.tsx`
+   - `_app.inventory.index.lazy.tsx`, `_app.inventory.$productId.tsx`, `_app.units.$itemId.tsx`, `_app.door.tsx`, `_app.alerts.tsx`, `_app.dashboard.lazy.tsx`
+   - `src/components/erp/ReturnTimelineDialog.tsx`, `src/components/erp/SaleBillForm.tsx`
+   - `src/lib/invoice-pdf.ts` (printed invoice date)
+3. Leave non-display date math untouched (`calendar.tsx`, `chart.tsx`, `seed.ts`, sorting/`localeCompare`, `.toISOString()`).
 
-| Sheet | Count | Destination table(s) | Ledger view |
-|-------|-------|----------------------|-------------|
-| Receipt | 77 | `receipts` | Customer (credit) |
-| Payments | 54 | new `supplier_payments` | Supplier (credit) |
-| Journal | 3 | `purchases` (header-only bill, note "Journal") | Supplier (debit) |
-| Credit Note | 8 | `sales_returns` + `sales_return_items` | Customer (credit, ₹0) |
-| Debit Note | 3 | `purchase_returns` + `purchase_return_items` | Supplier (credit, ₹0) |
+## Part 2 — Import the missing sale amounts (data fix)
 
-Per your answers: returns are imported **qty-only at ₹0 value**; supplier **payments will be shown inside the supplier ledger** (small UI change); only **cash-mode** vouchers affect cash-in-hand (already present, so nothing to add there).
+You will upload a file that contains each sale's rupee amount. Once uploaded:
 
-## Steps
+1. Parse the file and build a map of **bill/voucher number → amount** (the imported sales store the bill number in `invoice_no`, e.g. `443`).
+2. For each matched sale, UPDATE `public.sales`:
+   - `subtotal` and `grand_total` = the sale amount.
+   - For **cash** sales: set `paid_amount = grand_total` (paid on the spot, nets to zero outstanding). For **credit** sales: leave `paid_amount = 0` (settled later by receipts).
+3. After the update, the ledger automatically renders Debit = `grand_total` for every sale (it already maps `debit: grand_total`), so every sale, purchase and receipt row will carry a value. Sales-returns / purchase-returns remain allowed to be value-less, as you specified.
+4. Report any bill numbers in the file that did not match a sale (and vice-versa) so we can reconcile leftovers.
 
-1. **Migration — new `supplier_payments` table.** Columns: `supplier_id`, `payment_no`, `payment_date`, `amount`, `mode`, `notes`, plus standard `id/created_at/updated_at`. Includes GRANTs (authenticated + service_role), RLS (signed-in users can read/write, matching the pattern used by `purchase_returns`), and an `updated_at` trigger. This is the only schema change.
+### Notes on matching
+- I will match on `invoice_no` exactly first; if the file uses a different format (e.g. `2526/443`), I will normalize both sides (strip prefix) before matching.
+- I will only update rows where `grand_total = 0` so already-correct sales are never overwritten.
 
-2. **Insert Receipts (77) → `receipts`.** For each voucher: match the customer by normalized name (create the customer if absent), set `receipt_no` = voucher no, `amount`, `mode` (Cash→`cash`, HDFC/ICICI→`bank`, PhonePe→`upi`), `receipt_type` = `general`, `created_at` = voucher date, `notes` tagged `Ledger sheet import 178Vg`.
+---
 
-3. **Insert Payments (54) → `supplier_payments`.** Match/create the supplier, store `payment_no`, `amount`, `mode`, `payment_date`, tagged notes.
+## Result
+- All dates display as DD/MM/YYYY across the app.
+- Every sale, purchase and receipt in the ledger has a Debit or Credit and correctly moves the running balance; only sales/purchase returns may remain value-less.
 
-4. **Insert Journals (3) → `purchases`.** Each "Purchase Dr / supplier Cr" becomes a header-only purchase bill (no line items): match/create supplier, `grand_total` = subtotal = amount, `bill_no` = voucher no, `bill_date` = date, `notes` = "Journal (Ledger sheet import 178Vg)". Appears as a debit in the supplier ledger via the existing purchases query.
-
-5. **Insert Credit Notes (8) → `sales_returns` + `sales_return_items`.** Match/create the customer; one `sales_returns` header per voucher (`return_no` = voucher no, `grand_total` = 0, `refund_mode` = `credit_note`); one item row per listed product (match/create product, `qty` from sheet, `rate`/`line_total` = 0).
-
-6. **Insert Debit Notes (3) → `purchase_returns` + `purchase_return_items`.** Same shape on the supplier side.
-
-7. **Ledger UI — show supplier payments.** In `src/routes/_app.ledger.tsx`, extend the supplier branch to also query `supplier_payments` and push each as a `credit` entry (reduces payable), alongside the existing purchases/purchase-returns. Journals already surface through the purchases query. No change needed to the customer or cash views.
-
-8. **Verify.** Re-query counts and totals (receipts ₹28,68,446 across 77; supplier payments ₹44,29,598 across 54; 3 journals ₹11,74,840; 8 sales returns, 3 purchase returns with items), spot-check a customer (e.g. "Aditya Jain (ghar)") and a supplier (e.g. "Mohit Plywood Product") in the Ledger, and confirm the build is clean.
-
-## Technical notes
-
-- **Idempotency / rollback:** every inserted row is tagged with the marker `Ledger sheet import 178Vg` in `notes`/source so a re-run can first delete that marker set, avoiding duplicates.
-- **Dates** are Excel serials (e.g. 46113) → converted as `date '1899-12-30' + serial` (46113 = 2026‑04‑01).
-- **Party matching** is case/space-insensitive against existing `customers` (516) / `suppliers` (154); unmatched names are created. The existing 33 `receipts` are unrelated (manual + opening-balance entries), so all 77 voucher receipts are new.
-- **Product matching** for return items is normalized against existing `products` (~1,475); a missing product is created with name + a derived `prefix` (other required columns have defaults).
-- **Direct SQL only:** inserts are run with the SQL data tool (generated from the parsed sheet using match-or-create CTEs) — no edge function or app endpoint.
-- **Cash ledger is intentionally left untouched** because its rows already exist; this is called out so cash-in-hand is not inflated.
+## Next step
+Please upload the file with the sale amounts (Excel/CSV/Tally export). It needs at least the **bill/voucher number** and the **amount** per sale. Once it's attached I'll implement Part 1 immediately and run Part 2 against your file.
