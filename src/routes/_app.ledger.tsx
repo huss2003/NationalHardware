@@ -99,37 +99,7 @@ function LedgerPage() {
     },
   });
 
-  const { data: salesLedger = [], isFetching: salesLoading } = useQuery({
-    enabled: kind === "sales",
-    queryKey: ["ledger", "sales_ledger"],
-    staleTime: 5 * 60 * 1000,
-    queryFn: async () => {
-      const { data } = await (supabase as any)
-        .from("sales_ledger")
-        .select("id, txn_date, txn_type, vch_no, account_name, debit, credit, narration")
-        .order("txn_date", { ascending: true })
-        .order("created_at", { ascending: true })
-        .limit(5000);
-      return (data as CashTxn[]) ?? [];
-    },
-  });
-
-  const { data: purchaseLedger = [], isFetching: purchaseLoading } = useQuery({
-    enabled: kind === "purchase",
-    queryKey: ["ledger", "purchase_ledger"],
-    staleTime: 5 * 60 * 1000,
-    queryFn: async () => {
-      const { data } = await (supabase as any)
-        .from("purchase_ledger")
-        .select("id, txn_date, txn_type, vch_no, account_name, debit, credit, narration")
-        .order("txn_date", { ascending: true })
-        .order("created_at", { ascending: true })
-        .limit(5000);
-      return (data as CashTxn[]) ?? [];
-    },
-  });
-
-  const accountKind = kind === "cash" || kind === "sales" || kind === "purchase";
+  const accountKind = kind === "cash";
 
   const filtered = useMemo(() => {
     const q = search.trim().toLowerCase();
@@ -271,20 +241,6 @@ function LedgerPage() {
   const cashOpening = opening ? Number(opening.debit) - Number(opening.credit) : 0;
   const cashClosing = cashOpening + cashDebit - cashCredit;
 
-  // Generic account-ledger running balance (Dr positive) for sales / purchase
-  const buildAccount = (txns: CashTxn[]) => {
-    let run = 0;
-    const rws = txns.map((t) => {
-      run += Number(t.debit) - Number(t.credit);
-      return { ...t, balance: run };
-    });
-    const deb = txns.reduce((s, t) => s + Number(t.debit), 0);
-    const cred = txns.reduce((s, t) => s + Number(t.credit), 0);
-    return { rws, deb, cred, closing: deb - cred };
-  };
-  const salesAcc = buildAccount(salesLedger);
-  const purchaseAcc = buildAccount(purchaseLedger);
-
   return (
     <>
       <PageHeader
@@ -299,8 +255,6 @@ function LedgerPage() {
               { v: "customer" as const, label: "Customers", icon: Users },
               { v: "supplier" as const, label: "Suppliers", icon: Truck },
               { v: "cash" as const, label: "Cash", icon: Banknote },
-              { v: "sales" as const, label: "Sales", icon: FileText },
-              { v: "purchase" as const, label: "Purchase", icon: ShoppingCart },
             ]).map((t) => {
               const active = kind === t.v;
               const Icon = t.icon;
