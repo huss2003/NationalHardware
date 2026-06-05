@@ -245,6 +245,20 @@ function LedgerPage() {
   const cashOpening = opening ? Number(opening.debit) - Number(opening.credit) : 0;
   const cashClosing = cashOpening + cashDebit - cashCredit;
 
+  // Generic account-ledger running balance (Dr positive) for sales / purchase
+  const buildAccount = (txns: CashTxn[]) => {
+    let run = 0;
+    const rws = txns.map((t) => {
+      run += Number(t.debit) - Number(t.credit);
+      return { ...t, balance: run };
+    });
+    const deb = txns.reduce((s, t) => s + Number(t.debit), 0);
+    const cred = txns.reduce((s, t) => s + Number(t.credit), 0);
+    return { rws, deb, cred, closing: deb - cred };
+  };
+  const salesAcc = buildAccount(salesLedger);
+  const purchaseAcc = buildAccount(purchaseLedger);
+
   return (
     <>
       <PageHeader
