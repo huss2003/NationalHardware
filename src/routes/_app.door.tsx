@@ -198,7 +198,7 @@ function DoorPage() {
               doorTypes={selectableDoorTypes}
               nextOrderNoHint={nextOrderNo(orders, "general")}
               customers={customers}
-              onCustomerCreated={(c) => setCustomers((p) => [...p, c].sort((a, b) => a.name.localeCompare(b.name)))}
+              onCustomerCreated={addCustomer}
               onSaved={reload}
               isFromSale={isFromSale}
             />
@@ -210,7 +210,7 @@ function DoorPage() {
               doorTypes={selectableDoorTypes}
               nextOrderNoHint={nextOrderNo(orders, "vypaari")}
               customers={customers}
-              onCustomerCreated={(c) => setCustomers((p) => [...p, c].sort((a, b) => a.name.localeCompare(b.name)))}
+              onCustomerCreated={addCustomer}
               onSaved={reload}
               isFromSale={isFromSale}
             />
