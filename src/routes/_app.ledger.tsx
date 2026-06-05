@@ -12,12 +12,15 @@ import { Search, Users, Truck, FileText, ShoppingCart, Receipt as ReceiptIcon, R
 
 export const Route = createFileRoute("/_app/ledger")({ component: LedgerPage });
 
-type Kind = "customer" | "supplier" | "cash";
+type Kind = "customer" | "supplier" | "cash" | "bank";
 type Party = { id: string; name: string; phone?: string | null };
+
+const CUTOFF = "2026-04-01"; // FY25-26 comes from imported ledger; live data appends from here
 
 type LedgerTxnType =
   | "opening" | "receipt" | "sale" | "payment" | "credit_note"
-  | "purchase" | "journal" | "debit_note" | "sales_return";
+  | "purchase" | "journal" | "debit_note" | "sales_return"
+  | "purchase_return" | "refund";
 
 type CashTxn = {
   id: string;
@@ -40,6 +43,8 @@ const TYPE_LABEL: Record<LedgerTxnType, string> = {
   journal: "Journal",
   debit_note: "Debit Note",
   sales_return: "Sales Return",
+  purchase_return: "Purchase Return",
+  refund: "Refund",
 };
 
 const TYPE_STYLE: Record<LedgerTxnType, string> = {
@@ -52,20 +57,52 @@ const TYPE_STYLE: Record<LedgerTxnType, string> = {
   journal: "bg-violet-500/10 text-violet-600",
   debit_note: "bg-orange-500/10 text-orange-600",
   sales_return: "bg-rose-500/10 text-rose-600",
+  purchase_return: "bg-orange-500/10 text-orange-600",
+  refund: "bg-muted text-muted-foreground",
 };
 
 const drcr = (n: number) => `${inr(Math.abs(n))} ${n >= 0 ? "Dr" : "Cr"}`;
 
+type LedgerRow = {
+  txn_date: string;
+  txn_type: string;
+  vch_no: string | null;
+  account_name: string | null;
+  debit: number;
+  credit: number;
+  seq: number;
+};
+
 type Entry = {
   date: string;
-  kind: "sale" | "purchase" | "receipt" | "sales-return" | "purchase-return" | "refund-paid" | "payment";
+  type: LedgerTxnType;
   ref: string;
-  refId?: string;
-  refTable?: "sales_returns" | "purchase_returns";
-  debit: number;   // increases what party owes us (sale) / what we owe (purchase from supplier view = credit)
-  credit: number;  // payment received / payment made
+  saleId?: string;
+  purchaseId?: string;
+  returnId?: string;
+  returnTable?: "sales_returns" | "purchase_returns";
+  debit: number;
+  credit: number;
+  seq: number;
   notes?: string;
 };
+
+function ledgerRef(r: LedgerRow): string {
+  const v = r.vch_no ? ` ${r.vch_no}` : "";
+  const acct = r.account_name ? ` (${r.account_name})` : "";
+  switch (r.txn_type) {
+    case "opening": return "Opening Balance";
+    case "sale": return `Sale${v}`;
+    case "receipt": return `Receipt${v}${acct}`;
+    case "sales_return": return `Sales Return${v}`;
+    case "purchase": return `Purchase${v}`;
+    case "payment": return `Payment${v}${acct}`;
+    case "journal": return `Journal${v}`;
+    case "credit_note": return `Credit Note${v}`;
+    case "debit_note": return `Debit Note${v}`;
+    default: return `${r.txn_type}${v}`;
+  }
+}
 
 function LedgerPage() {
   const [kind, setKind] = useState<Kind>("customer");
@@ -75,7 +112,7 @@ function LedgerPage() {
 
   const { data: parties = [] } = useQuery({
     queryKey: ["ledger", "parties", kind],
-    enabled: kind !== "cash",
+    enabled: kind === "customer" || kind === "supplier",
     queryFn: async () => {
       const table = kind === "customer" ? "customers" : "suppliers";
       const { data } = await supabase.from(table).select("id, name, phone").order("name");
@@ -85,13 +122,14 @@ function LedgerPage() {
   });
 
   const { data: cashTxns = [], isFetching: cashLoading } = useQuery({
-    enabled: kind === "cash",
-    queryKey: ["ledger", "cash"],
+    enabled: kind === "cash" || kind === "bank",
+    queryKey: ["ledger", "cash", kind],
     staleTime: 5 * 60 * 1000,
     queryFn: async () => {
       const { data } = await supabase
         .from("cash_transactions")
         .select("id, txn_date, txn_type, vch_no, account_name, debit, credit")
+        .eq("ledger_account", kind === "bank" ? "bank" : "cash")
         .order("txn_date", { ascending: true })
         .order("created_at", { ascending: true })
         .limit(2000);
@@ -99,7 +137,7 @@ function LedgerPage() {
     },
   });
 
-  const accountKind = kind === "cash";
+  const accountKind = kind === "cash" || kind === "bank";
 
   const filtered = useMemo(() => {
     const q = search.trim().toLowerCase();
@@ -116,118 +154,113 @@ function LedgerPage() {
     queryFn: async () => {
       const p = selected!;
       const list: Entry[] = [];
+      const ledgerTable = kind === "customer" ? "sales_ledger" : "purchase_ledger";
+
+      // 1) Authoritative imported FY25-26 ledger (matches the Tally/Google-sheet export)
+      const { data: led } = await supabase
+        .from(ledgerTable)
+        .select("txn_date, txn_type, vch_no, account_name, debit, credit, seq")
+        .eq("party_id", p.id)
+        .order("seq", { ascending: true });
+      for (const r of (led as LedgerRow[]) ?? []) {
+        list.push({
+          date: r.txn_date,
+          type: r.txn_type as LedgerTxnType,
+          ref: ledgerRef(r),
+          debit: Number(r.debit),
+          credit: Number(r.credit),
+          seq: r.seq,
+        });
+      }
+
+      // 2) Live activity from 1-Apr-2026 onward (FY26-27+) appended after history
+      let liveSeq = 1_000_000;
       if (kind === "customer") {
-      const [s, r, sr] = await Promise.all([
-        supabase.from("sales")
-          .select("id, invoice_no, invoice_date, grand_total, paid_amount, payment_mode, notes")
-          .eq("customer_id", p.id).is("deleted_at", null)
-          .order("invoice_date", { ascending: true }),
-        supabase.from("receipts")
-          .select("id, receipt_no, amount, mode, created_at, receipt_type, notes")
-          .eq("customer_id", p.id)
-          .order("created_at", { ascending: true }),
-        supabase.from("sales_returns")
-          .select("id, return_no, return_date, grand_total, reason, refund_amount, refund_mode")
-          .eq("customer_id", p.id).is("deleted_at", null)
-          .order("return_date", { ascending: true }),
-      ]);
-      for (const x of s.data ?? []) {
-        const total = Number(x.grand_total);
-        const paid = Number(x.paid_amount);
-        list.push({
-          date: x.invoice_date as string,
-          kind: "sale",
-          ref: `Invoice ${x.invoice_no ?? ""}`.trim(),
-          refId: x.id,
-          debit: total,
-          credit: paid,
-          notes: x.notes ?? undefined,
-        });
-      }
-      for (const x of r.data ?? []) {
-        list.push({
-          date: x.created_at as string,
-          kind: "receipt",
-          ref: `Receipt ${x.receipt_no} (${x.mode})`,
-          debit: 0,
-          credit: Number(x.amount),
-          notes: x.notes ?? undefined,
-        });
-      }
-      for (const x of sr.data ?? []) {
-        const total = Number(x.grand_total);
-        const refund = Number((x as any).refund_amount ?? 0);
-        const mode = (x as any).refund_mode as string | null;
-        list.push({
-          date: x.return_date as string,
-          kind: "sales-return",
-          ref: `Sales Return ${x.return_no ?? ""}`.trim(),
-          refId: x.id,
-          refTable: "sales_returns",
-          debit: 0,
-          credit: total,
-          notes: x.reason ?? undefined,
-        });
-        if (refund > 0 && mode && mode !== "credit_note") {
+        const [s, r, sr] = await Promise.all([
+          supabase.from("sales")
+            .select("id, invoice_no, invoice_date, grand_total, paid_amount, notes")
+            .eq("customer_id", p.id).is("deleted_at", null)
+            .gte("invoice_date", CUTOFF).order("invoice_date", { ascending: true }),
+          supabase.from("receipts")
+            .select("id, receipt_no, amount, mode, created_at, notes")
+            .eq("customer_id", p.id)
+            .gte("created_at", CUTOFF).order("created_at", { ascending: true }),
+          supabase.from("sales_returns")
+            .select("id, return_no, return_date, grand_total, reason, refund_amount, refund_mode")
+            .eq("customer_id", p.id).is("deleted_at", null)
+            .gte("return_date", CUTOFF).order("return_date", { ascending: true }),
+        ]);
+        for (const x of s.data ?? []) {
           list.push({
-            date: x.return_date as string,
-            kind: "refund-paid",
-            ref: `Refund ${mode.toUpperCase()} for ${x.return_no ?? ""}`.trim(),
-            refId: x.id,
-            refTable: "sales_returns",
-            debit: refund,
-            credit: 0,
+            date: x.invoice_date as string, type: "sale",
+            ref: `Sale ${x.invoice_no ?? ""}`.trim(), saleId: x.id,
+            debit: Number(x.grand_total), credit: Number(x.paid_amount),
+            seq: ++liveSeq, notes: x.notes ?? undefined,
+          });
+        }
+        for (const x of r.data ?? []) {
+          list.push({
+            date: x.created_at as string, type: "receipt",
+            ref: `Receipt ${x.receipt_no} (${x.mode})`,
+            debit: 0, credit: Number(x.amount), seq: ++liveSeq, notes: x.notes ?? undefined,
+          });
+        }
+        for (const x of sr.data ?? []) {
+          const refund = Number((x as any).refund_amount ?? 0);
+          const mode = (x as any).refund_mode as string | null;
+          list.push({
+            date: x.return_date as string, type: "sales_return",
+            ref: `Sales Return ${x.return_no ?? ""}`.trim(), returnId: x.id, returnTable: "sales_returns",
+            debit: 0, credit: Number(x.grand_total), seq: ++liveSeq, notes: x.reason ?? undefined,
+          });
+          if (refund > 0 && mode && mode !== "credit_note") {
+            list.push({
+              date: x.return_date as string, type: "refund",
+              ref: `Refund ${mode.toUpperCase()} for ${x.return_no ?? ""}`.trim(),
+              returnId: x.id, returnTable: "sales_returns",
+              debit: refund, credit: 0, seq: ++liveSeq,
+            });
+          }
+        }
+      } else {
+        const [pu, pr, sp] = await Promise.all([
+          supabase.from("purchases")
+            .select("id, bill_no, bill_date, grand_total")
+            .eq("supplier_id", p.id).is("deleted_at", null)
+            .gte("bill_date", CUTOFF).order("bill_date", { ascending: true }),
+          supabase.from("purchase_returns")
+            .select("id, return_no, return_date, grand_total, reason")
+            .eq("supplier_id", p.id).is("deleted_at", null)
+            .gte("return_date", CUTOFF).order("return_date", { ascending: true }),
+          supabase.from("supplier_payments")
+            .select("id, payment_no, payment_date, amount, mode, notes")
+            .eq("supplier_id", p.id)
+            .gte("payment_date", CUTOFF).order("payment_date", { ascending: true }),
+        ]);
+        // Supplier (creditor) convention: purchase increases what we owe (credit), payment reduces it (debit)
+        for (const x of pu.data ?? []) {
+          list.push({
+            date: x.bill_date as string, type: "purchase",
+            ref: `Purchase ${x.bill_no ?? ""}`.trim(), purchaseId: x.id,
+            debit: 0, credit: Number(x.grand_total), seq: ++liveSeq,
+          });
+        }
+        for (const x of pr.data ?? []) {
+          list.push({
+            date: x.return_date as string, type: "purchase_return",
+            ref: `Purchase Return ${x.return_no ?? ""}`.trim(), returnId: x.id, returnTable: "purchase_returns",
+            debit: Number(x.grand_total), credit: 0, seq: ++liveSeq, notes: x.reason ?? undefined,
+          });
+        }
+        for (const x of sp.data ?? []) {
+          list.push({
+            date: x.payment_date as string, type: "payment",
+            ref: `Payment ${x.payment_no ?? ""} (${x.mode})`.trim(),
+            debit: Number(x.amount), credit: 0, seq: ++liveSeq,
           });
         }
       }
-      } else {
-      const [p_, pr, sp] = await Promise.all([
-        supabase.from("purchases")
-          .select("id, bill_no, bill_date, grand_total")
-          .eq("supplier_id", p.id).is("deleted_at", null)
-          .order("bill_date", { ascending: true }),
-        supabase.from("purchase_returns")
-          .select("id, return_no, return_date, grand_total, reason")
-          .eq("supplier_id", p.id).is("deleted_at", null)
-          .order("return_date", { ascending: true }),
-        supabase.from("supplier_payments")
-          .select("id, payment_no, payment_date, amount, mode, notes")
-          .eq("supplier_id", p.id)
-          .order("payment_date", { ascending: true }),
-      ]);
-      for (const x of p_.data ?? []) {
-        list.push({
-          date: x.bill_date as string,
-          kind: "purchase",
-          ref: `Bill ${x.bill_no ?? ""}`.trim(),
-          refId: x.id,
-          debit: Number(x.grand_total),
-          credit: 0,
-        });
-      }
-      for (const x of pr.data ?? []) {
-        list.push({
-          date: x.return_date as string,
-          kind: "purchase-return",
-          ref: `Purchase Return ${x.return_no ?? ""}`.trim(),
-          refId: x.id,
-          refTable: "purchase_returns",
-          debit: 0,
-          credit: Number(x.grand_total),
-          notes: x.reason ?? undefined,
-        });
-      }
-      for (const x of sp.data ?? []) {
-        list.push({
-          date: x.payment_date as string,
-          kind: "payment",
-          ref: `Payment ${x.payment_no ?? ""} (${x.mode})`.trim(),
-          debit: 0,
-          credit: Number(x.amount),
-        });
-      }
-      }
-      list.sort((a, b) => a.date.localeCompare(b.date));
+      list.sort((a, b) => (a.date === b.date ? a.seq - b.seq : a.date < b.date ? -1 : 1));
       return list;
     },
   });
@@ -239,7 +272,7 @@ function LedgerPage() {
   });
   const totalDebit = entries.reduce((s, e) => s + e.debit, 0);
   const totalCredit = entries.reduce((s, e) => s + e.credit, 0);
-  const outstanding = totalDebit - totalCredit;
+  const closing = totalDebit - totalCredit; // >0 Dr, <0 Cr
 
   // Cash in hand running balance (Dr positive)
   const opening = cashTxns.find((t) => t.txn_type === "opening");
@@ -268,6 +301,7 @@ function LedgerPage() {
               { v: "customer" as const, label: "Customers", icon: Users },
               { v: "supplier" as const, label: "Suppliers", icon: Truck },
               { v: "cash" as const, label: "Cash", icon: Banknote },
+              { v: "bank" as const, label: "Bank", icon: Wallet },
             ]).map((t) => {
               const active = kind === t.v;
               const Icon = t.icon;
@@ -287,10 +321,10 @@ function LedgerPage() {
           {accountKind ? (
             <div className="rounded-md bg-muted/40 p-3 text-sm">
               <div className="flex items-center gap-2 font-semibold mb-1">
-                <Wallet className="h-4 w-4 text-primary" /> Cash in Hand
+                <Wallet className="h-4 w-4 text-primary" /> {kind === "bank" ? "Bank (HDFC)" : "Cash in Hand"}
               </div>
               <p className="text-xs text-muted-foreground">
-                All cash account movements (receipts, cash sales, payments) with a running balance.
+                All {kind === "bank" ? "bank" : "cash"} account movements (receipts &amp; payments) with a running balance.
               </p>
             </div>
           ) : (
@@ -334,8 +368,9 @@ function LedgerPage() {
 
         {/* Ledger view */}
         <div className="space-y-4 min-w-0">
-          {kind === "cash" ? (
+          {accountKind ? (
             <CashLedger
+              title={kind === "bank" ? "Bank (HDFC)" : "Cash in Hand"}
               rows={cashRows}
               loading={cashLoading}
               opening={cashOpening}
@@ -365,11 +400,9 @@ function LedgerPage() {
                     <div className="font-semibold tabular-nums">{inr(totalCredit)}</div>
                   </div>
                   <div className="text-right border-l pl-4 ml-2">
-                    <div className="text-[11px] uppercase text-muted-foreground">Outstanding</div>
-                    <div className={`text-xl font-bold tabular-nums ${outstanding > 0.01 ? "text-destructive" : outstanding < -0.01 ? "text-emerald-600" : ""}`}>
-                      {inr(Math.abs(outstanding))}
-                      {outstanding > 0.01 && <span className="text-xs ml-1 font-normal">due</span>}
-                      {outstanding < -0.01 && <span className="text-xs ml-1 font-normal">advance</span>}
+                    <div className="text-[11px] uppercase text-muted-foreground">Closing</div>
+                    <div className={`text-xl font-bold tabular-nums ${Math.abs(closing) < 0.01 ? "" : closing > 0 ? "text-destructive" : "text-emerald-600"}`}>
+                      {drcr(closing)}
                     </div>
                   </div>
                   {kind === "customer" && (
@@ -401,20 +434,21 @@ function LedgerPage() {
                     <tbody>
                       {rows.map((e, i) => {
                         const Icon =
-                          e.kind === "sale" ? FileText :
-                          e.kind === "purchase" ? ShoppingCart :
-                          e.kind === "sales-return" || e.kind === "purchase-return" ? RotateCcw :
-                          e.kind === "refund-paid" ? Wallet :
-                          e.kind === "payment" ? Banknote :
+                          e.type === "sale" ? FileText :
+                          e.type === "purchase" ? ShoppingCart :
+                          e.type === "sales_return" || e.type === "purchase_return" ? RotateCcw :
+                          e.type === "refund" || e.type === "opening" ? Wallet :
+                          e.type === "payment" ? Banknote :
+                          e.type === "journal" || e.type === "credit_note" || e.type === "debit_note" ? FileText :
                           ReceiptIcon;
                         const linkProps =
-                          e.refId && e.kind === "sale"
-                            ? { to: "/sales/$id", params: { id: e.refId } }
-                            : e.refId && e.kind === "purchase"
-                              ? { to: "/purchases/$id", params: { id: e.refId } }
+                          e.saleId
+                            ? { to: "/sales/$id", params: { id: e.saleId } }
+                            : e.purchaseId
+                              ? { to: "/purchases/$id", params: { id: e.purchaseId } }
                               : null;
-                        const openReturn = (e.kind === "sales-return" || e.kind === "purchase-return") && e.refId && e.refTable
-                          ? () => setReturnView({ id: e.refId!, no: e.ref, refTable: e.refTable! })
+                        const openReturn = e.returnId && e.returnTable
+                          ? () => setReturnView({ id: e.returnId!, no: e.ref, refTable: e.returnTable! })
                           : null;
                         return (
                           <tr
@@ -426,16 +460,8 @@ function LedgerPage() {
                               {fmtDate(e.date)}
                             </td>
                             <td className="p-3">
-                              <span className={`inline-flex items-center gap-1.5 px-2 py-0.5 rounded-md text-xs font-semibold capitalize ${
-                                e.kind === "sale" ? "bg-blue-500/10 text-blue-600" :
-                                e.kind === "purchase" ? "bg-amber-500/10 text-amber-600" :
-                                e.kind === "sales-return" ? "bg-rose-500/10 text-rose-600" :
-                                e.kind === "purchase-return" ? "bg-orange-500/10 text-orange-600" :
-                                e.kind === "refund-paid" ? "bg-muted text-muted-foreground" :
-                                e.kind === "payment" ? "bg-amber-500/10 text-amber-600" :
-                                "bg-emerald-500/10 text-emerald-600"
-                              }`}>
-                                <Icon className="h-3 w-3" /> {e.kind}
+                              <span className={`inline-flex items-center gap-1.5 px-2 py-0.5 rounded-md text-xs font-semibold ${TYPE_STYLE[e.type]}`}>
+                                <Icon className="h-3 w-3" /> {TYPE_LABEL[e.type]}
                               </span>
                             </td>
                             <td className="p-3 font-medium">
@@ -450,8 +476,8 @@ function LedgerPage() {
                             </td>
                             <td className="p-3 text-right tabular-nums">{e.debit > 0 ? inr(e.debit) : "—"}</td>
                             <td className="p-3 text-right tabular-nums text-emerald-600">{e.credit > 0 ? inr(e.credit) : "—"}</td>
-                            <td className={`p-3 pr-5 text-right tabular-nums font-semibold ${e.balance > 0.01 ? "text-destructive" : ""}`}>
-                              {inr(e.balance)}
+                            <td className="p-3 pr-5 text-right tabular-nums font-semibold">
+                              {drcr(e.balance)}
                             </td>
                           </tr>
                         );
@@ -479,6 +505,7 @@ function LedgerPage() {
 }
 
 function CashLedger({
+  title,
   rows,
   loading,
   opening,
@@ -486,6 +513,7 @@ function CashLedger({
   credit,
   closing,
 }: {
+  title: string;
   rows: (CashTxn & { balance: number })[];
   loading: boolean;
   opening: number;
@@ -497,8 +525,8 @@ function CashLedger({
     <>
       <Card className="p-5 flex flex-wrap items-center justify-between gap-4">
         <div>
-          <div className="text-xs uppercase text-muted-foreground tracking-wider">Cash in Hand</div>
-          <div className="text-2xl font-bold">Cash Account</div>
+          <div className="text-xs uppercase text-muted-foreground tracking-wider">{title}</div>
+          <div className="text-2xl font-bold">{title}</div>
           <div className="text-sm text-muted-foreground">
             Opening balance {drcr(opening)}
           </div>
