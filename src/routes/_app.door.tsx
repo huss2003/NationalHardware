@@ -1,5 +1,6 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useEffect, useMemo, useRef, useState } from "react";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -133,25 +134,32 @@ function DoorPage() {
   const isFromSale = search.returnTo === "sale";
   const nav = useNavigate();
   const [tab, setTab] = useState<Category>("general");
-  const [doorTypes, setDoorTypes] = useState<DoorType[]>([]);
-  const [orders, setOrders] = useState<DoorOrder[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [customers, setCustomers] = useState<Customer[]>([]);
-
-  const reload = async () => {
-    setLoading(true);
-    await ensureDefaultDoorTypes();
-    const [dt, oo, cu] = await Promise.all([
-      supabase.from("door_types").select("*").eq("active", true).order("name"),
-      supabase.from("door_orders").select("*").order("created_at", { ascending: false }).limit(200),
-      supabase.from("customers").select("id,name,phone").order("name"),
-    ]);
-    setDoorTypes((dt.data as any) ?? []);
-    setOrders((oo.data as any) ?? []);
-    setCustomers((cu.data as any) ?? []);
-    setLoading(false);
-  };
-  useEffect(() => { reload(); }, []);
+  const queryClient = useQueryClient();
+  const { data, isLoading: loading } = useQuery({
+    queryKey: ["door-data"],
+    queryFn: async () => {
+      await ensureDefaultDoorTypes();
+      const [dt, oo, cu] = await Promise.all([
+        supabase.from("door_types").select("*").eq("active", true).order("name"),
+        supabase.from("door_orders").select("*").order("created_at", { ascending: false }).limit(200),
+        supabase.from("customers").select("id,name,phone").order("name"),
+      ]);
+      return {
+        doorTypes: ((dt.data as any) ?? []) as DoorType[],
+        orders: ((oo.data as any) ?? []) as DoorOrder[],
+        customers: ((cu.data as any) ?? []) as Customer[],
+      };
+    },
+    staleTime: 60_000,
+  });
+  const doorTypes = data?.doorTypes ?? [];
+  const orders = data?.orders ?? [];
+  const customers = data?.customers ?? [];
+  const reload = () => queryClient.invalidateQueries({ queryKey: ["door-data"] });
+  const addCustomer = (c: Customer) =>
+    queryClient.setQueryData(["door-data"], (prev: any) =>
+      prev ? { ...prev, customers: [...prev.customers, c].sort((a: Customer, b: Customer) => a.name.localeCompare(b.name)) } : prev,
+    );
 
   const selectableDoorTypes = useMemo(() => mergeDefaultDoorTypes(doorTypes), [doorTypes]);
 
