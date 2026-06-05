@@ -12,12 +12,15 @@ import { Search, Users, Truck, FileText, ShoppingCart, Receipt as ReceiptIcon, R
 
 export const Route = createFileRoute("/_app/ledger")({ component: LedgerPage });
 
-type Kind = "customer" | "supplier" | "cash";
+type Kind = "customer" | "supplier" | "cash" | "bank";
 type Party = { id: string; name: string; phone?: string | null };
+
+const CUTOFF = "2026-04-01"; // FY25-26 comes from imported ledger; live data appends from here
 
 type LedgerTxnType =
   | "opening" | "receipt" | "sale" | "payment" | "credit_note"
-  | "purchase" | "journal" | "debit_note" | "sales_return";
+  | "purchase" | "journal" | "debit_note" | "sales_return"
+  | "purchase_return" | "refund";
 
 type CashTxn = {
   id: string;
@@ -40,6 +43,8 @@ const TYPE_LABEL: Record<LedgerTxnType, string> = {
   journal: "Journal",
   debit_note: "Debit Note",
   sales_return: "Sales Return",
+  purchase_return: "Purchase Return",
+  refund: "Refund",
 };
 
 const TYPE_STYLE: Record<LedgerTxnType, string> = {
@@ -52,20 +57,52 @@ const TYPE_STYLE: Record<LedgerTxnType, string> = {
   journal: "bg-violet-500/10 text-violet-600",
   debit_note: "bg-orange-500/10 text-orange-600",
   sales_return: "bg-rose-500/10 text-rose-600",
+  purchase_return: "bg-orange-500/10 text-orange-600",
+  refund: "bg-muted text-muted-foreground",
 };
 
 const drcr = (n: number) => `${inr(Math.abs(n))} ${n >= 0 ? "Dr" : "Cr"}`;
 
+type LedgerRow = {
+  txn_date: string;
+  txn_type: string;
+  vch_no: string | null;
+  account_name: string | null;
+  debit: number;
+  credit: number;
+  seq: number;
+};
+
 type Entry = {
   date: string;
-  kind: "sale" | "purchase" | "receipt" | "sales-return" | "purchase-return" | "refund-paid" | "payment";
+  type: LedgerTxnType;
   ref: string;
-  refId?: string;
-  refTable?: "sales_returns" | "purchase_returns";
-  debit: number;   // increases what party owes us (sale) / what we owe (purchase from supplier view = credit)
-  credit: number;  // payment received / payment made
+  saleId?: string;
+  purchaseId?: string;
+  returnId?: string;
+  returnTable?: "sales_returns" | "purchase_returns";
+  debit: number;
+  credit: number;
+  seq: number;
   notes?: string;
 };
+
+function ledgerRef(r: LedgerRow): string {
+  const v = r.vch_no ? ` ${r.vch_no}` : "";
+  const acct = r.account_name ? ` (${r.account_name})` : "";
+  switch (r.txn_type) {
+    case "opening": return "Opening Balance";
+    case "sale": return `Sale${v}`;
+    case "receipt": return `Receipt${v}${acct}`;
+    case "sales_return": return `Sales Return${v}`;
+    case "purchase": return `Purchase${v}`;
+    case "payment": return `Payment${v}${acct}`;
+    case "journal": return `Journal${v}`;
+    case "credit_note": return `Credit Note${v}`;
+    case "debit_note": return `Debit Note${v}`;
+    default: return `${r.txn_type}${v}`;
+  }
+}
 
 function LedgerPage() {
   const [kind, setKind] = useState<Kind>("customer");
