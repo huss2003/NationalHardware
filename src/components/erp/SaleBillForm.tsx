@@ -784,7 +784,7 @@ export function SaleBillForm({
                                     )}
                               </div>
                             </div>
-                            {(draftSub || p.__kind === "item") && (
+                            {(p.__kind === "finish" || p.__kind === "item" || (draftSub && p.__kind !== "group")) && (
                               <div className="text-sm font-bold tabular-nums text-[#3b82f6] shrink-0">
                                 {inr(Number(p.default_price))}
                               </div>
