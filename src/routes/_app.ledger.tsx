@@ -15,7 +15,13 @@ export const Route = createFileRoute("/_app/ledger")({ component: LedgerPage });
 type Kind = "customer" | "supplier" | "cash" | "bank";
 type Party = { id: string; name: string; phone?: string | null };
 
-const CUTOFF = "2026-04-01"; // FY25-26 comes from imported ledger; live data appends from here
+// FY25-26 ledger and FY26-27 ledger both come from imported Tally sheets (each with its
+// own opening balance). Live in-app activity is authoritative only AFTER the FY26-27 sheet's
+// coverage window (1-Apr-2026 .. 11-Jun-2026), so it appends from the day after.
+const LIVE_CUTOFF = "2026-06-12";
+
+type FY = "2526" | "2627";
+const FY_SOURCE: Record<FY, string> = { "2526": "gsheet_fy2526", "2627": "gsheet_fy2627" };
 
 type LedgerTxnType =
   | "opening" | "receipt" | "sale" | "payment" | "credit_note"
