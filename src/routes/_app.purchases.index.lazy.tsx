@@ -168,15 +168,15 @@ function Purchases() {
                     <TableHead className="pl-5">PO ID</TableHead>
                     <TableHead>Supplier</TableHead>
                     <TableHead>Date</TableHead>
-                    <TableHead className="text-right">Amount</TableHead>
+                    {isAdmin && <TableHead className="text-right">Amount</TableHead>}
                     <TableHead className="pr-5">Status</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
                   {loading && (
                     <TableRow>
-                      <TableCell colSpan={5} className="p-0">
-                        <TableSkeleton rows={5} columns={5} showHeader={false} />
+                      <TableCell colSpan={isAdmin ? 5 : 4} className="p-0">
+                        <TableSkeleton rows={5} columns={isAdmin ? 5 : 4} showHeader={false} />
                       </TableCell>
                     </TableRow>
                   )}
@@ -196,9 +196,11 @@ function Purchases() {
                       <TableCell className="text-muted-foreground">
                         {r.bill_date ? fmtDate(r.bill_date) : "—"}
                       </TableCell>
-                      <TableCell className="text-right font-semibold tabular-nums">
-                        {inr(r.grand_total)}
-                      </TableCell>
+                      {isAdmin && (
+                        <TableCell className="text-right font-semibold tabular-nums">
+                          {inr(r.grand_total)}
+                        </TableCell>
+                      )}
                       <TableCell className="pr-5">
                         <StatusPill status={(r.status ?? "received").toLowerCase()} />
                       </TableCell>
@@ -206,7 +208,7 @@ function Purchases() {
                   ))}
                   {!loading && pageRows.length === 0 && (
                     <TableRow>
-                      <TableCell colSpan={5} className="text-center py-12 text-muted-foreground">
+                      <TableCell colSpan={isAdmin ? 5 : 4} className="text-center py-12 text-muted-foreground">
                         No purchase orders.
                       </TableCell>
                     </TableRow>
