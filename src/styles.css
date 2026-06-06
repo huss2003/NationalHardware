@@ -58,7 +58,7 @@
   --secondary-foreground: oklch(0.25 0.005 286);
   --muted: oklch(0.96 0.002 286);
   /* Apple secondary text #6E6E73 */
-  --muted-foreground: oklch(0.55 0.005 286);
+  --muted-foreground: oklch(0.44 0.006 286);
   --accent: oklch(0.955 0.012 256);
   --accent-foreground: oklch(0.4 0.16 256);
   /* Apple system red #FF3B30 — softened */
@@ -107,11 +107,12 @@
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
     letter-spacing: -0.011em;
+    font-weight: 500;
   }
   h1, h2, h3, h4, h5 {
     font-family: -apple-system, BlinkMacSystemFont, "SF Pro Display", "Inter", system-ui, sans-serif;
     letter-spacing: -0.022em;
-    font-weight: 600;
+    font-weight: 700;
   }
   /* Big-touch defaults */
   button, [role="button"] { -webkit-tap-highlight-color: transparent; }
