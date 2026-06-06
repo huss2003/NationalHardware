@@ -133,7 +133,7 @@ function Godowns() {
           </div>
         }
       />
-      <div className="px-8 pb-10 max-w-[1400px] mx-auto w-full space-y-5">
+      <div className="px-4 sm:px-6 lg:px-8 pb-10 max-w-[1400px] mx-auto w-full space-y-5">
         <div className="grid gap-4 grid-cols-2 lg:grid-cols-3">
           <KpiCard icon={Warehouse} iconBg="bg-primary/10 text-primary"
             label="Godowns" value={String(totals.godownCount)} hint="Active locations" />

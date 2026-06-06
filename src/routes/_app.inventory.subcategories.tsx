@@ -60,7 +60,7 @@ function SubCategoriesPage() {
           </>
         }
       />
-      <div className="px-8 pb-10 max-w-[1100px] mx-auto w-full">
+      <div className="px-4 sm:px-6 lg:px-8 pb-10 max-w-[1100px] mx-auto w-full">
         <Card className="overflow-hidden">
           <Table>
             <TableHeader>

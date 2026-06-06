@@ -182,7 +182,7 @@ function Inventory() {
           </>
         }
       />
-      <div className="px-8 pb-10 max-w-[1400px] mx-auto w-full space-y-5">
+      <div className="px-4 sm:px-6 lg:px-8 pb-10 max-w-[1400px] mx-auto w-full space-y-5">
         {/* Filter bar */}
         <Card className="p-3 flex flex-wrap items-center gap-3">
           <div className="relative flex-1 min-w-[260px]">

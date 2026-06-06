@@ -326,7 +326,7 @@ function LedgerPage() {
         title="Ledger"
         subtitle="Search a customer or supplier to view their full transaction history and outstanding balance."
       />
-      <div className="px-8 pb-10 max-w-[1400px] mx-auto w-full grid grid-cols-1 lg:grid-cols-[320px_1fr] gap-5">
+      <div className="px-4 sm:px-6 lg:px-8 pb-10 max-w-[1400px] mx-auto w-full grid grid-cols-1 lg:grid-cols-[320px_1fr] gap-5">
         {/* Party picker */}
         <Card className="p-4 h-fit lg:sticky lg:top-4">
           <div className="flex flex-wrap rounded-lg border border-input bg-card p-1 w-full mb-3 gap-1">

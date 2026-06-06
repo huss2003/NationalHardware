@@ -148,7 +148,7 @@ function ReceiptsPage() {
           </Button>
         }
       />
-      <div className="px-8 pb-10 max-w-[1400px] mx-auto w-full space-y-5">
+      <div className="px-4 sm:px-6 lg:px-8 pb-10 max-w-[1400px] mx-auto w-full space-y-5">
         <div className="inline-flex rounded-lg border border-input bg-card p-1">
           {[
             { v: "credit" as const, label: "Pending Credits", icon: Wallet },

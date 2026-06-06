@@ -69,7 +69,7 @@ function SaleDetail() {
           <Button className="h-11 gap-2" onClick={() => window.print()}><Printer className="h-4 w-4" />Print</Button>
         </div>
       } />
-      <div className="px-8 pb-8">
+      <div className="px-4 sm:px-6 lg:px-8 pb-8">
         <Card className="print-area max-w-3xl mx-auto overflow-hidden shadow-lg">
           {/* Brand band */}
           <div className="bg-slate-900 text-white px-8 py-6 flex justify-between items-start">
@@ -103,7 +103,7 @@ function SaleDetail() {
           </div>
 
           {/* Items */}
-          <div className="px-8 pb-4">
+          <div className="px-4 sm:px-6 lg:px-8 pb-4">
             <table className="w-full text-sm border rounded-md overflow-hidden">
               <thead>
                 <tr className="bg-slate-900 text-white text-left text-xs uppercase tracking-wider">
@@ -134,7 +134,7 @@ function SaleDetail() {
           </div>
 
           {/* Totals */}
-          <div className="px-8 pb-8 flex justify-end">
+          <div className="px-4 sm:px-6 lg:px-8 pb-8 flex justify-end">
             <div className="w-full max-w-sm bg-muted/50 rounded-lg p-5 space-y-2 text-sm">
               <div className="flex justify-between"><span className="text-muted-foreground">Subtotal</span><b className="tabular-nums">{inr(s.subtotal)}</b></div>
               {Number(s.discount) > 0 && <div className="flex justify-between"><span className="text-muted-foreground">Discount</span><b className="tabular-nums text-destructive">− {inr(s.discount)}</b></div>}

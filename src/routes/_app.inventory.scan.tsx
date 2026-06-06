@@ -42,7 +42,7 @@ function ScanPage() {
   return (
     <>
       <PageHeader title="Scan unit" subtitle="Scan a label or type the ID to view item history" />
-      <div className="px-8 pb-8 max-w-2xl space-y-4">
+      <div className="px-4 sm:px-6 lg:px-8 pb-8 max-w-2xl space-y-4">
         <ScanInput onScan={onScan} />
 
         {result?.kind === "ok" && (

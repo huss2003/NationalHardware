@@ -44,7 +44,7 @@ function Settings() {
   return (
     <>
       <PageHeader title="Settings" />
-      <div className="px-8 pb-8 grid grid-cols-1 lg:grid-cols-2 gap-5">
+      <div className="px-4 sm:px-6 lg:px-8 pb-8 grid grid-cols-1 lg:grid-cols-2 gap-5">
         <div className="lg:col-span-2"><AppConfigPanel /></div>
         <Card className="p-5 space-y-3">
           <div className="font-bold text-lg">Shop info</div>
