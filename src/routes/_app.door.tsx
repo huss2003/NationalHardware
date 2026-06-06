@@ -492,7 +492,7 @@ function GeneralOrderForm({
             </div>
           </div>
         </div>
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+        <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-3">
           <Field label="Order No.">
             <Input value={orderNo} onChange={(e) => setOrderNo(e.target.value)} />
           </Field>
@@ -500,9 +500,9 @@ function GeneralOrderForm({
             <Input value={fmtDate(new Date())} disabled />
           </Field>
           <Field label={isFromSale ? "Customer (optional — sale already has one)" : "Customer / Name"}>
-            <div className="flex gap-2">
+            <div className="flex gap-2 min-w-0">
               <select
-                className="h-9 flex-1 rounded-md border border-input bg-background px-3 text-sm"
+                className="h-9 flex-1 min-w-0 rounded-md border border-input bg-background px-3 text-sm"
                 value={customerId}
                 onChange={(e) => { setCustomerId(e.target.value); setCustomerName(""); }}
               >
@@ -511,7 +511,7 @@ function GeneralOrderForm({
                   <option key={c.id} value={c.id}>{c.name}</option>
                 ))}
               </select>
-              <Button type="button" variant="outline" size="sm" className="h-9 gap-1" onClick={() => setCreateCustomerOpen(true)}>
+              <Button type="button" variant="outline" size="sm" className="h-9 gap-1 shrink-0" onClick={() => setCreateCustomerOpen(true)}>
                 <Plus className="h-4 w-4" /> New
               </Button>
             </div>
@@ -522,7 +522,7 @@ function GeneralOrderForm({
       {/* Line draft card */}
       <Card className="p-5 space-y-4">
         <div className="font-semibold text-sm">Add door</div>
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+        <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-3">
           <Field label="Party Door Size (inches, e.g. 72.05*32.28)">
             <Input
               value={draft.party_door_size}
