@@ -74,7 +74,7 @@ function NewSale() {
     supabase.from("godowns").select("id, name").eq("active", true).order("name")
       .then(({ data }) => setGodowns((data ?? []) as any));
     supabase.from("products")
-      .select("id,name,prefix,hsn,default_price,gst_rate,unit,alt_unit,alt_conversion,subcategory_id")
+      .select("id,name,prefix,hsn,default_price,gst_rate,unit,alt_unit,alt_conversion,subcategory_id,item_group,finish")
       .eq("active", true)
       .order("name")
       .then(({ data }) => {
