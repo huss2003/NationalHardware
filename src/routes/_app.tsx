@@ -22,6 +22,14 @@ function AppLayout() {
   // Close the mobile drawer whenever the route changes.
   useEffect(() => { setMenuOpen(false); }, [pathname]);
 
+  // Close the drawer if the viewport grows to the desktop breakpoint (lg).
+  useEffect(() => {
+    const mql = window.matchMedia("(min-width: 1024px)");
+    const onChange = () => { if (mql.matches) setMenuOpen(false); };
+    mql.addEventListener("change", onChange);
+    return () => mql.removeEventListener("change", onChange);
+  }, []);
+
   useEffect(() => {
     if (ready && !user) navigate({ to: "/login" });
   }, [ready, user, navigate]);
