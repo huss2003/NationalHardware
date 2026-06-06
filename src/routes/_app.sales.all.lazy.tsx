@@ -12,10 +12,12 @@ import {
 import { TableSkeleton } from "@/components/erp/Skeletons";
 import { inr, fmtDate } from "@/lib/codes";
 import { ArrowLeft, Search } from "lucide-react";
+import { useAuth } from "@/lib/auth-store";
 
 export const Route = createLazyFileRoute("/_app/sales/all")({ component: AllSales });
 
 function AllSales() {
+  const isAdmin = useAuth((s) => s.user)?.role === "admin";
   const [q, setQ] = useState("");
   const [page, setPage] = useState(0);
   const pageSize = 25;
@@ -61,7 +63,7 @@ function AllSales() {
     <>
       <PageHeader
         title="All Sales Bills"
-        subtitle={`${count} invoices • ${inr(total)} on this page`}
+        subtitle={isAdmin ? `${count} invoices • ${inr(total)} on this page` : `${count} invoices`}
         actions={
           <Button asChild variant="outline" size="sm" className="gap-2">
             <Link to="/sales"><ArrowLeft className="h-4 w-4" /> Back to Overview</Link>
@@ -88,14 +90,14 @@ function AllSales() {
                 <TableHead>Date</TableHead>
                 <TableHead>Customer</TableHead>
                 <TableHead>Payment</TableHead>
-                <TableHead className="text-right pr-5">Amount</TableHead>
+                {isAdmin && <TableHead className="text-right pr-5">Amount</TableHead>}
               </TableRow>
             </TableHeader>
             <TableBody>
               {loading && (
                 <TableRow>
-                  <TableCell colSpan={5} className="p-0">
-                    <TableSkeleton rows={8} columns={5} showHeader={false} />
+                  <TableCell colSpan={isAdmin ? 5 : 4} className="p-0">
+                    <TableSkeleton rows={8} columns={isAdmin ? 5 : 4} showHeader={false} />
                   </TableCell>
                 </TableRow>
               )}
@@ -111,12 +113,14 @@ function AllSales() {
                   </TableCell>
                   <TableCell>{r.customers?.name ?? "Walk-in"}</TableCell>
                   <TableCell className="capitalize text-muted-foreground">{r.payment_mode ?? "—"}</TableCell>
-                  <TableCell className="text-right pr-5 font-semibold tabular-nums">{inr(r.grand_total)}</TableCell>
+                  {isAdmin && (
+                    <TableCell className="text-right pr-5 font-semibold tabular-nums">{inr(r.grand_total)}</TableCell>
+                  )}
                 </TableRow>
               ))}
               {!loading && pageRows.length === 0 && (
                 <TableRow>
-                  <TableCell colSpan={5} className="text-center py-12 text-muted-foreground">
+                  <TableCell colSpan={isAdmin ? 5 : 4} className="text-center py-12 text-muted-foreground">
                     No sales bills found.
                   </TableCell>
                 </TableRow>
