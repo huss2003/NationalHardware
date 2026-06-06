@@ -30,6 +30,7 @@ export const Route = createFileRoute("/_app/purchase-returns/")({ component: Pur
 
 function PurchaseReturns() {
   const user = useAuth((s) => s.user);
+  const isAdmin = user?.role === "admin";
   const queryClient = useQueryClient();
   const [open, setOpen] = useState(false);
   const [timeline, setTimeline] = useState<{ id: string; no: string } | null>(null);
@@ -79,17 +80,19 @@ function PurchaseReturns() {
         }
       />
       <div className="px-8 pb-10 max-w-[1400px] mx-auto w-full space-y-5">
-        <div className="grid gap-4 grid-cols-2 lg:grid-cols-4">
-          <KpiCard icon={RotateCcw} iconBg="bg-warning/10 text-warning"
-            label="Total Returns" value={String(kpis.count)} hint="All-time recorded" />
-          <KpiCard icon={Calendar} iconBg="bg-primary/10 text-primary"
-            label="This Month" value={String(kpis.monthCount)} hint="Recent activity" />
-          <KpiCard icon={ClipboardList} iconBg="bg-warning/10 text-warning"
-            label="Awaiting Credit" value={String(kpis.pending)} hint="Pending supplier confirmation" />
-          <KpiCard icon={TrendingDown} iconBg="bg-destructive/10 text-destructive"
-            label="Return Value" value={inr(kpis.total)}
-            hint="Total amount returned" hintColor="text-destructive" />
-        </div>
+        {isAdmin && (
+          <div className="grid gap-4 grid-cols-2 lg:grid-cols-4">
+            <KpiCard icon={RotateCcw} iconBg="bg-warning/10 text-warning"
+              label="Total Returns" value={String(kpis.count)} hint="All-time recorded" />
+            <KpiCard icon={Calendar} iconBg="bg-primary/10 text-primary"
+              label="This Month" value={String(kpis.monthCount)} hint="Recent activity" />
+            <KpiCard icon={ClipboardList} iconBg="bg-warning/10 text-warning"
+              label="Awaiting Credit" value={String(kpis.pending)} hint="Pending supplier confirmation" />
+            <KpiCard icon={TrendingDown} iconBg="bg-destructive/10 text-destructive"
+              label="Return Value" value={inr(kpis.total)}
+              hint="Total amount returned" hintColor="text-destructive" />
+          </div>
+        )}
 
         <Card className="overflow-hidden">
           <div className="flex items-center justify-between px-5 pt-5 pb-3">
@@ -105,13 +108,13 @@ function PurchaseReturns() {
                 <TableHead>Date</TableHead>
                 <TableHead>Reason</TableHead>
                 <TableHead>Status</TableHead>
-                <TableHead className="text-right pr-5">Amount</TableHead>
+                {isAdmin && <TableHead className="text-right pr-5">Amount</TableHead>}
               </TableRow>
             </TableHeader>
             <TableBody>
               {loading && (
-                <TableRow><TableCell colSpan={7} className="p-0">
-                  <TableSkeleton rows={5} columns={7} showHeader={false} />
+                <TableRow><TableCell colSpan={isAdmin ? 7 : 6} className="p-0">
+                  <TableSkeleton rows={5} columns={isAdmin ? 7 : 6} showHeader={false} />
                 </TableCell></TableRow>
               )}
               {!loading && rows.map((r) => (
@@ -133,12 +136,12 @@ function PurchaseReturns() {
                   </TableCell>
                   <TableCell className="text-muted-foreground truncate max-w-[220px]">{r.reason ?? "—"}</TableCell>
                   <TableCell><StatusPill status={(r.status ?? "sent").toLowerCase()} /></TableCell>
-                  <TableCell className="text-right pr-5 font-semibold tabular-nums">{inr(r.grand_total)}</TableCell>
+                  {isAdmin && <TableCell className="text-right pr-5 font-semibold tabular-nums">{inr(r.grand_total)}</TableCell>}
                 </TableRow>
               ))}
               {!loading && rows.length === 0 && (
                 <TableRow>
-                  <TableCell colSpan={7} className="text-center py-14 text-muted-foreground">
+                  <TableCell colSpan={isAdmin ? 7 : 6} className="text-center py-14 text-muted-foreground">
                     <RotateCcw className="h-7 w-7 mx-auto mb-2 opacity-50" />
                     No purchase returns yet.
                   </TableCell>
