@@ -1,33 +1,65 @@
-# Fix Door page tablet / 9-inch UX
+# Parameterized Stock: Item → Finish (P1)
 
-## Problem
-On a ~9-inch device (viewport ≈1000px), the Door page scrolls horizontally and content gets cut off on the left (as in the screenshot). Verified in the preview: at 1024×768 the page's `scrollWidth` (1050) exceeds the viewport (1000) → unwanted sideways scroll.
+## Goal
+In your Google Sheet each **Item** (e.g. `10" CHANNEL`) has several **finishes** under *P1 (Finesh)* (e.g. `BQ`, `GODREJ`, `HATTICH`…), each with its own unit. You want: when billing/purchasing, the user first picks an item, then must pick a finish — and each item+finish keeps its **own separate stock**.
 
-Two causes:
-1. **Native `<select>` won't shrink.** The "Customer / Name" dropdown sits in a `flex` row inside a grid column with no `min-w-0`. A native select keeps the intrinsic width of its longest option (e.g. a long customer name), pushing its grid column — and the whole page — wider than the screen.
-2. **Forms are too dense for the width.** Both the General "Add door" form and the Vypaari form use `md:grid-cols-3`, which is tight on a 9-inch screen and contributes to overflow.
+## How it will work
+Each **item + finish** becomes its own stock line in your catalog (its own on‑hand quantity, its own purchases/sales history). The current app already tracks stock per catalog item, so making each finish its own catalog entry gives you "separate stock per finish" automatically, without rebuilding the inventory/scanning engine.
 
-## Fix
+The item picker in **New Sale** and **New Purchase** gets one extra step:
 
-### 1. Stop the horizontal overflow (`src/routes/_app.door.tsx`)
-- Add `min-w-0` to the flex wrappers around the customer dropdowns (both General and Vypaari forms).
-- Give the native `<select>` elements `w-full min-w-0` so they shrink to their track instead of forcing width.
-- Add `min-w-0` to grid item wrappers (the `Field` component) so no field can blow out its column.
+```text
+Sub-category  ─▶  Item (e.g. 10" CHANNEL)  ─▶  Finish (BQ / GODREJ / …)  ─▶ added to bill
+```
 
-### 2. Make the forms breathe on tablet / 9-inch
-- Change the dense form grids from `grid-cols-1 md:grid-cols-3` to a progressive `grid-cols-1 sm:grid-cols-2 xl:grid-cols-3` so a 9-inch screen shows a comfortable 2-column layout and only very wide screens get 3 columns. Applies to:
-  - General header card (Order No. / Date / Customer)
-  - General "Add door" draft grid
-  - Vypaari form grid
-- Let the "Add door" footer (sqft summary + button) and the order footer (Notes + Grand total + actions) wrap gracefully with `flex-wrap` and full-width notes on small screens, so the action buttons never get pushed off-screen.
+- Picking a finish is **required** for any item that has finishes (you cannot add the bare item).
+- Items that have no finishes keep working exactly as today (no extra step).
+- Each line shows the item with its finish, e.g. `10" CHANNEL — GODREJ`, on screen, on bills and in reports.
 
-### 3. Keep wide data tables contained
-- The "Doors in this order" and "Recent orders" tables already live in an `overflow-auto` wrapper, so they scroll *inside their card* rather than stretching the page. Add `min-w-[640px]` (or similar) to those tables so columns stay readable while scrolling happens only within the card — never at the page level.
+## What gets imported
+All ~116 items and ~584 finishes from the sheet:
+- Where an item already exists in your catalog, it is reused as that item's **first** finish (so its existing history and stock stay intact), and the remaining finishes are added as new entries copied from it (same unit, GST, HSN, prices, sub-category).
+- Items not yet in your catalog are created fresh from the sheet (using the sheet's Unit), grouped under the item, one entry per finish.
+- The sheet's per-row Unit is applied to each finish.
 
-## Verification
-- Reload `/door` in the preview at 1024×768 (9-inch) and confirm `scrollWidth == clientWidth` (no page-level horizontal scroll).
-- Check at 768px (portrait tablet) and ~390px (phone) that the forms stack to 1–2 columns, the customer dropdown + "New" button fit, and the Save/Add buttons stay on screen.
-- Confirm the data tables scroll horizontally only within their own card.
+## Steps
+
+### 1. Database (migration)
+Add two columns to the `products` table:
+- `item_group` (text) — the parent item name used for grouping (e.g. `10" CHANNEL`).
+- `finish` (text) — the P1 finish value (e.g. `GODREJ`); empty for items without finishes.
+
+Add an index on `item_group` for fast grouping. No changes to sales, purchases, stock, scanning or minting logic are required — those already key on the catalog item.
+
+### 2. Import the sheet data
+A one-time import (run with admin credentials, reading the sheet through the connected Google Sheets connection):
+- Parse the sheet into item → [finishes] with each finish's unit.
+- Match items to existing products by normalized name.
+- Update the matched product: set `item_group` and the first `finish`.
+- Insert new product rows for the remaining finishes (cloning prefix/category/unit/HSN/GST/prices/sub-category from the matched item).
+- Create brand-new grouped products for unmatched sheet items.
+- Newly created finishes start at 0 stock; you build stock per finish through normal purchases.
+
+### 3. Sales screen (`SaleBillForm` inline picker)
+- Add a finish stage: after an item with finishes is chosen, show that item's finishes; selecting one adds the line.
+- Block adding an item that has finishes until a finish is selected (required).
+- Show `item — finish` as the line name.
+
+### 4. Purchase screen (`SubCategoryThenItemPicker`, used by New Purchase)
+- Same three-stage flow (sub-category → item → finish), with finish required for items that have finishes.
+- Selecting a finish adds the purchase line for that finish's catalog entry, so minted units stock that specific finish.
+- Show `item — finish` as the line name.
+
+### 5. Verify
+- New Purchase: pick an item with finishes, confirm finish is required, save, and confirm units mint against the chosen finish only.
+- New Sale: confirm the same item's other finishes have independent stock and the finish appears on the line.
+- Confirm items without finishes still add in one step.
+
+## Technical notes
+- Model: finish is a product-level variant. `products.item_group` + `products.finish` identify a variant; stock stays per `product_id` via `item_instances`, so `record_sale`, `mint_item_instances`, and `stock_by_product` are untouched.
+- Pickers group candidate products by `item_group`; a group with >1 finish (or any non-empty `finish`) renders the extra finish stage; single, finish-less items skip it.
+- Line display composes `name` + `finish`; stored `sales_items`/`purchase_items` rows continue to reference only `product_id`.
+- Inventory and product-list pages keep working unchanged; finishes simply appear as distinct catalog entries (a later enhancement could group them visually if desired).
 
 ## Scope
-Frontend-only, limited to `src/routes/_app.door.tsx`. No data, schema, or business-logic changes. The same `min-w-0` safeguard pattern can be rolled out to other form-heavy pages later if you see the same issue elsewhere.
+DB: add two columns + index to `products` (additive, non-breaking). Data: one-time import from the sheet. Frontend: item-picker changes in the Sales and Purchase entry screens plus line-name display. No changes to stock math, scanning, returns, or reports logic.
