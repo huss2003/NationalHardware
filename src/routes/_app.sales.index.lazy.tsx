@@ -272,7 +272,7 @@ function Sales() {
                 <TableHead className="pl-5">Order ID</TableHead>
                 <TableHead>Date</TableHead>
                 <TableHead>Customer Name</TableHead>
-                <TableHead className="text-right">Amount</TableHead>
+                {isAdmin && <TableHead className="text-right">Amount</TableHead>}
                 <TableHead>Status</TableHead>
                 <TableHead className="text-right pr-5">Actions</TableHead>
               </TableRow>
@@ -280,8 +280,8 @@ function Sales() {
             <TableBody>
               {loading && (
                 <TableRow>
-                  <TableCell colSpan={6} className="p-0">
-                    <TableSkeleton rows={5} columns={6} showHeader={false} />
+                  <TableCell colSpan={isAdmin ? 6 : 5} className="p-0">
+                    <TableSkeleton rows={5} columns={isAdmin ? 6 : 5} showHeader={false} />
                   </TableCell>
                 </TableRow>
               )}
@@ -298,9 +298,11 @@ function Sales() {
                       {fmtDate(r.invoice_date)}
                     </TableCell>
                     <TableCell>{r.customers?.name ?? "Walk-in"}</TableCell>
-                    <TableCell className="text-right font-semibold tabular-nums">
-                      {inr(r.grand_total)}
-                    </TableCell>
+                    {isAdmin && (
+                      <TableCell className="text-right font-semibold tabular-nums">
+                        {inr(r.grand_total)}
+                      </TableCell>
+                    )}
                     <TableCell>
                       <StatusPill status={status} />
                     </TableCell>
@@ -314,7 +316,7 @@ function Sales() {
               })}
               {!loading && recent.length === 0 && (
                 <TableRow>
-                  <TableCell colSpan={6} className="text-center py-12 text-muted-foreground">
+                  <TableCell colSpan={isAdmin ? 6 : 5} className="text-center py-12 text-muted-foreground">
                     No sales yet.
                   </TableCell>
                 </TableRow>
