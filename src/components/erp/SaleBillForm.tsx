@@ -180,14 +180,41 @@ export function SaleBillForm({
     return () => window.removeEventListener("keydown", h);
   }, [active]);
 
-  // Stage A: when no sub picked -> suggest sub-categories + standalone items. Stage B: items in chosen sub.
+  // Group a list of products into multi-finish "groups" + finish-less "items".
+  const buildItemPool = (list: ProductRow[]): any[] => {
+    const groups = new Map<string, ProductRow[]>();
+    const items: any[] = [];
+    for (const p of list) {
+      if (p.finish && p.item_group) {
+        const arr = groups.get(p.item_group) ?? [];
+        arr.push(p);
+        groups.set(p.item_group, arr);
+      } else {
+        items.push({ ...p, __kind: "item" as const });
+      }
+    }
+    const groupObjs = Array.from(groups.entries()).map(([name, prods]) => ({
+      __kind: "group" as const,
+      id: `grp_${name}`,
+      name,
+      prefix: prods[0].prefix,
+      products: prods,
+    }));
+    return [...groupObjs, ...items].sort((a, b) => a.name.localeCompare(b.name));
+  };
+
+  // Stage A: sub-categories + standalone items/groups. Stage B: items/groups in a sub.
+  // Stage C (draftGroup): the finishes inside a chosen item group.
   const draftSuggestions = useMemo<any[]>(() => {
     const q = draftQuery.trim().toLowerCase();
+    if (draftGroup) {
+      let pool = draftGroup.products;
+      if (q) pool = pool.filter((p) => (p.finish ?? "").toLowerCase().includes(q));
+      return pool.map((p) => ({ ...p, __kind: "finish" as const })).slice(0, 30);
+    }
     if (!draftSub) {
       const subPool = subcats.map((s) => ({ ...s, __kind: "sub" as const }));
-      const itemPool = products
-        .filter((p) => !p.subcategory_id)
-        .map((p) => ({ ...p, __kind: "item" as const }));
+      const itemPool = buildItemPool(products.filter((p) => !p.subcategory_id));
       const pool = [...subPool, ...itemPool];
       const filtered = q
         ? pool.filter((s: any) =>
@@ -197,12 +224,12 @@ export function SaleBillForm({
         : pool;
       return filtered.slice(0, 14);
     }
-    const pool = products.filter((p) => p.subcategory_id === draftSub.id);
-    if (!q) return pool.slice(0, 10);
-    return pool.filter((p) =>
-      p.name.toLowerCase().includes(q) || p.prefix.toLowerCase().includes(q),
-    ).slice(0, 10);
-  }, [products, subcats, draftSub, draftQuery]);
+    const pool = buildItemPool(products.filter((p) => p.subcategory_id === draftSub.id));
+    if (!q) return pool.slice(0, 12);
+    return pool.filter((p: any) =>
+      p.name.toLowerCase().includes(q) || (p.prefix ? String(p.prefix).toLowerCase().includes(q) : false),
+    ).slice(0, 12);
+  }, [products, subcats, draftSub, draftGroup, draftQuery]);
 
   const looksLikeCode = (s: string) => /-/.test(s) && /^[A-Za-z0-9-]+$/.test(s);
 
