@@ -6,8 +6,9 @@ import { createClient } from "@supabase/supabase-js";
 // and admin logins both sign into this single account. The employee/admin
 // distinction is handled on the client (see auth-store + login page).
 //
-// These credentials live only in the server bundle (this handler is replaced by
-// an RPC stub in the browser), so the password never ships to the client.
+// The account itself is provisioned by a migration. These credentials live only
+// in the server bundle (this handler is replaced by an RPC stub in the browser),
+// so the password never ships to the client.
 const DEVICE_EMAIL = "device@scanflow.app";
 const DEVICE_PASSWORD = "ScanFlow!Device!2026#shared";
 
@@ -23,27 +24,10 @@ export const startDeviceSession = createServerFn({ method: "POST" }).handler(
       auth: { persistSession: false, autoRefreshToken: false },
     });
 
-    const signIn = () =>
-      authClient.auth.signInWithPassword({
-        email: DEVICE_EMAIL,
-        password: DEVICE_PASSWORD,
-      });
-
-    let { data, error } = await signIn();
-
-    // First run (or account missing): create the device account, then retry.
-    if (error || !data?.session) {
-      const { supabaseAdmin } = await import(
-        "@/integrations/supabase/client.server"
-      );
-      await supabaseAdmin.auth.admin.createUser({
-        email: DEVICE_EMAIL,
-        password: DEVICE_PASSWORD,
-        email_confirm: true,
-        user_metadata: { display_name: "ScanFlow Device" },
-      });
-      ({ data, error } = await signIn());
-    }
+    const { data, error } = await authClient.auth.signInWithPassword({
+      email: DEVICE_EMAIL,
+      password: DEVICE_PASSWORD,
+    });
 
     if (error || !data?.session) {
       throw new Error(error?.message || "Could not start a session.");
