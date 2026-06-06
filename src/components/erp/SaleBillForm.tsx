@@ -302,8 +302,9 @@ export function SaleBillForm({
   };
 
   const addProductLine = (p: ProductRow, qty = 1) => {
+    const display = p.finish ? `${p.name} — ${p.finish}` : p.name;
     setLines(prev => [...prev, {
-      product_id: p.id, item_instance_id: null, name: p.name,
+      product_id: p.id, item_instance_id: null, name: display,
       qty, rate: Number(p.default_price), gst_rate: 0,
       hsn: p.hsn, unit: p.unit ?? 'pcs', alt_unit: p.alt_unit, alt_conversion: p.alt_conversion,
       is_lot: true, max_qty: undefined,
@@ -318,22 +319,36 @@ export function SaleBillForm({
     setTimeout(() => draftRef.current?.focus(), 0);
   };
 
+  const openDraftGroup = (g: any) => {
+    setDraftGroup({ name: g.name, products: g.products });
+    setDraftQuery(""); setActiveSuggest(0);
+    setTimeout(() => draftRef.current?.focus(), 0);
+  };
+
+  const addFinishAndReset = (p: ProductRow) => {
+    addProductLine(p, 1);
+    setDraftGroup(null);
+  };
+
   const handleDraftCommit = () => {
     const s = draftQuery.trim();
     if (s && looksLikeCode(s)) { onScan(s); setDraftQuery(""); return; }
     const pick = draftSuggestions[activeSuggest] ?? draftSuggestions[0];
-    if (!pick) { toast.error(draftSub ? "No matching item" : "No matching sub-category"); return; }
+    if (!pick) { toast.error(draftGroup ? "No matching finish" : draftSub ? "No matching item" : "No matching sub-category"); return; }
+    if (draftGroup) { addFinishAndReset(pick as ProductRow); return; }
     if (!draftSub) {
-      if (pick.__kind === "item") addProductLine(pick as ProductRow, 1);
+      if (pick.__kind === "group") openDraftGroup(pick);
+      else if (pick.__kind === "item") addProductLine(pick as ProductRow, 1);
       else pickDraftSub(pick);
     } else {
-      addProductLine(pick as ProductRow, 1);
+      if (pick.__kind === "group") openDraftGroup(pick);
+      else addProductLine(pick as ProductRow, 1);
     }
   };
 
   const addAndReset = (p: ProductRow) => {
     addProductLine(p, 1);
-    setDraftSub(null);
+    setDraftSub(null); setDraftGroup(null);
   };
 
   const rm = (i: number) => setLines(lines.filter((_, idx) => idx !== i));
