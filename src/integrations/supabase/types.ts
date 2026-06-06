@@ -591,10 +591,12 @@ export type Database = {
           created_at: string
           default_cost: number
           default_price: number
+          finish: string | null
           gst_rate: number
           hsn: string | null
           id: string
           image_url: string | null
+          item_group: string | null
           name: string
           prefix: string
           reorder_level: number
@@ -611,10 +613,12 @@ export type Database = {
           created_at?: string
           default_cost?: number
           default_price?: number
+          finish?: string | null
           gst_rate?: number
           hsn?: string | null
           id?: string
           image_url?: string | null
+          item_group?: string | null
           name: string
           prefix: string
           reorder_level?: number
@@ -631,10 +635,12 @@ export type Database = {
           created_at?: string
           default_cost?: number
           default_price?: number
+          finish?: string | null
           gst_rate?: number
           hsn?: string | null
           id?: string
           image_url?: string | null
+          item_group?: string | null
           name?: string
           prefix?: string
           reorder_level?: number
