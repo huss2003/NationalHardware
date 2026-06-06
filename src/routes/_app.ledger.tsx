@@ -112,6 +112,7 @@ function ledgerRef(r: LedgerRow): string {
 
 function LedgerPage() {
   const [kind, setKind] = useState<Kind>("customer");
+  const [fy, setFy] = useState<FY>("2627");
   const [search, setSearch] = useState("");
   const [selected, setSelected] = useState<Party | null>(null);
   const [returnView, setReturnView] = useState<{ id: string; no: string; refTable: "sales_returns" | "purchase_returns" } | null>(null);
