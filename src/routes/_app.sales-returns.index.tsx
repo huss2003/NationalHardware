@@ -29,6 +29,7 @@ export const Route = createFileRoute("/_app/sales-returns/")({ component: SalesR
 
 function SalesReturns() {
   const user = useAuth((s) => s.user);
+  const isAdmin = user?.role === "admin";
   const queryClient = useQueryClient();
   const [open, setOpen] = useState(false);
   const [timeline, setTimeline] = useState<{ id: string; no: string } | null>(null);
@@ -78,18 +79,20 @@ function SalesReturns() {
         }
       />
       <div className="px-8 pb-10 max-w-[1400px] mx-auto w-full space-y-5">
-        <div className="grid gap-4 grid-cols-2 lg:grid-cols-4">
-          <KpiCard icon={Undo2} iconBg="bg-warning/10 text-warning"
-            label="Total Returns" value={String(kpis.count)} hint="All-time recorded" />
-          <KpiCard icon={Calendar} iconBg="bg-primary/10 text-primary"
-            label="This Month" value={String(kpis.monthCount)} hint="Returns in current month" />
-          <KpiCard icon={Receipt} iconBg="bg-destructive/10 text-destructive"
-            label="Return Value" value={inr(kpis.total)}
-            hint={<><TrendingDown className="h-3 w-3" /> Across all returns</>}
-            hintColor="text-destructive" />
-          <KpiCard icon={Wallet} iconBg="bg-success/10 text-success"
-            label="Refunded" value={inr(kpis.refunded)} hint="Settled to customers" />
-        </div>
+        {isAdmin && (
+          <div className="grid gap-4 grid-cols-2 lg:grid-cols-4">
+            <KpiCard icon={Undo2} iconBg="bg-warning/10 text-warning"
+              label="Total Returns" value={String(kpis.count)} hint="All-time recorded" />
+            <KpiCard icon={Calendar} iconBg="bg-primary/10 text-primary"
+              label="This Month" value={String(kpis.monthCount)} hint="Returns in current month" />
+            <KpiCard icon={Receipt} iconBg="bg-destructive/10 text-destructive"
+              label="Return Value" value={inr(kpis.total)}
+              hint={<><TrendingDown className="h-3 w-3" /> Across all returns</>}
+              hintColor="text-destructive" />
+            <KpiCard icon={Wallet} iconBg="bg-success/10 text-success"
+              label="Refunded" value={inr(kpis.refunded)} hint="Settled to customers" />
+          </div>
+        )}
 
         <Card className="overflow-hidden">
           <div className="flex items-center justify-between px-5 pt-5 pb-3">
@@ -104,14 +107,14 @@ function SalesReturns() {
                 <TableHead>Customer</TableHead>
                 <TableHead>Date</TableHead>
                 <TableHead>Reason</TableHead>
-                <TableHead className="text-right">Refund</TableHead>
-                <TableHead className="text-right pr-5">Total</TableHead>
+                {isAdmin && <TableHead className="text-right">Refund</TableHead>}
+                {isAdmin && <TableHead className="text-right pr-5">Total</TableHead>}
               </TableRow>
             </TableHeader>
             <TableBody>
               {loading && (
-                <TableRow><TableCell colSpan={7} className="p-0">
-                  <TableSkeleton rows={5} columns={7} showHeader={false} />
+                <TableRow><TableCell colSpan={isAdmin ? 7 : 5} className="p-0">
+                  <TableSkeleton rows={5} columns={isAdmin ? 7 : 5} showHeader={false} />
                 </TableCell></TableRow>
               )}
               {!loading && rows.map((r) => (
@@ -134,13 +137,13 @@ function SalesReturns() {
                   <TableCell className="text-muted-foreground truncate max-w-[220px]">
                     {r.reason ?? "—"}
                   </TableCell>
-                  <TableCell className="text-right tabular-nums">{inr(r.refund_amount)}</TableCell>
-                  <TableCell className="text-right pr-5 font-semibold tabular-nums">{inr(r.grand_total)}</TableCell>
+                  {isAdmin && <TableCell className="text-right tabular-nums">{inr(r.refund_amount)}</TableCell>}
+                  {isAdmin && <TableCell className="text-right pr-5 font-semibold tabular-nums">{inr(r.grand_total)}</TableCell>}
                 </TableRow>
               ))}
               {!loading && rows.length === 0 && (
                 <TableRow>
-                  <TableCell colSpan={7} className="text-center py-14 text-muted-foreground">
+                  <TableCell colSpan={isAdmin ? 7 : 5} className="text-center py-14 text-muted-foreground">
                     <Undo2 className="h-7 w-7 mx-auto mb-2 opacity-50" />
                     No sales returns yet.
                   </TableCell>

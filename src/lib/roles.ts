@@ -12,7 +12,6 @@ export const EMPLOYEE_NAV_KEYS = [
   "sales_returns",
   "godowns",
   "door",
-  "reports",
   "alerts",
 ] as const;
 
@@ -26,7 +25,6 @@ export const EMPLOYEE_ALLOWED_PREFIXES = [
   "/sales-returns",
   "/godowns",
   "/door",
-  "/reports",
   "/alerts",
 ] as const;
 
