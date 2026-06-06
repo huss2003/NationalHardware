@@ -1,46 +1,38 @@
-# Import FY 2026-27 Creditors Ledger
+# Fix empty FY 2026-27 ledgers (carry forward opening balance)
 
-## Goal
-Load the FY 2026-27 ledger from the new Google Sheet as the authoritative source for that year, excluding the "Closing Balance" summary rows that break reconciliation, and present each financial year so it matches the Tally export exactly.
+## Problem
 
-## What the sheet contains
-- One tab, **Creditors** (titled "26-27"), covering **1-Apr-2026 to 11-Jun-2026**.
-- **95 party ledgers**: 13 suppliers (Purchase/Payment), 5 customers (Sales/Receipt), and 76 opening-balance-only parties.
-- Each active block ends with a **"Closing Balance"** summary row plus dashed separators — these are totals, not transactions.
+The Ledger page defaults to **FY 2026-27**. That view only shows rows tagged `source = gsheet_fy2627`, which were created from the *Creditors* sheet — covering only **90 suppliers and 5 customers**. Every other party (517 customers, 70 suppliers) has no FY26-27 row and no live activity yet (live cutoff is 12-Jun-2026), so their ledger shows "No transactions yet" even though they had a real FY25-26 balance.
 
-## Decisions (confirmed)
-1. The sheet is the **source of truth** for FY 2026-27.
-2. Route by entry type: blocks with Sales/Receipt go to the **customer** ledger; everything else (Purchase/Payment/Journal/Return and opening-only) goes to the **supplier** ledger. Missing parties are auto-created.
-3. **Exclude** every "Closing Balance" row and separator on import.
+Example: *Abizer Bhai Barwani* has no FY26-27 entry, so the page shows ₹0.00 / empty.
 
-## How it will work
+## Fix
 
-### 1. Import the data
-Parse the sheet and write rows tagged with a new source `gsheet_fy2627`:
-- **Opening balance** row per party (Dr/Cr taken from the Balance column).
-- **Transactions** for the year (Sale, Receipt, Sales Return, Purchase, Payment, Purchase Return, Journal).
-- Customer blocks → `sales_ledger`; supplier and opening-only blocks → `purchase_ledger`.
-- Parties matched to existing customers/suppliers by normalized name; missing ones created.
-- "Closing Balance" rows and dashed separators are skipped entirely.
+In FY 2026-27, when a party has **no imported FY26-27 ledger rows**, synthesize an **Opening Balance** entry equal to that party's **FY 2025-26 closing balance**, then append live in-app activity as today. Parties that *do* have FY26-27 sheet rows are left unchanged (their sheet already contains its own opening row, so we must not double it).
 
-Cash & bank are **not** rebuilt from this tab: a dedicated FY 2026-27 cash import already exists, and the creditors tab would only contribute partial contra entries (avoids double counting).
+This is the standard year-end carry-forward and ensures no party with prior history looks empty. Default year stays **FY 2026-27**.
 
-### 2. Add a Financial Year toggle to the Ledger page
-The Ledger currently stacks the FY 2025-26 import with live app data, which would double-count the new year's opening balance. To keep each year exact:
-- Add an **FY 2025-26 / FY 2026-27** switch (defaults to FY 2026-27).
-- **FY 2025-26** shows only the `gsheet_fy2526` import (its own opening + transactions).
-- **FY 2026-27** shows the `gsheet_fy2627` import (its own opening + transactions) plus live in-app activity dated **on/after 12-Jun-2026** (the day after the sheet's coverage), so nothing in the sheet's window is duplicated.
+## Implementation
 
-Because each year starts from its own sheet opening balance and the running balance is computed independently, every party's balance column will line up with the Tally export, and the spurious "Closing Balance" line disappears.
+Single file: `src/routes/_app.ledger.tsx` — inside the `["ledger","entries",...]` query (`queryFn`). No database or schema changes.
 
-Cash & Bank tabs are unchanged in this work.
+1. After fetching the FY26-27 imported rows (`led`) for the selected party:
+   - If `led` has rows → behave exactly as today (push them, then append live activity).
+   - If `led` is empty AND `fy === "2627"` → fetch that party's FY 2025-26 rows from the same ledger table (`sales_ledger` for customers, `purchase_ledger` for suppliers) filtered by `source = "gsheet_fy2526"`, and compute the closing balance:
+     ```text
+     closing2526 = sum(debit) - sum(credit)   // over all gsheet_fy2526 rows for the party
+     ```
+   - Push a single synthetic opening entry at the top (`seq = 0`, date = `2026-04-01`, type `opening`, ref "Opening Balance"):
+     - if `closing2526 >= 0` → `debit = closing2526, credit = 0` (Dr)
+     - else → `debit = 0, credit = -closing2526` (Cr)
+   - Only add the opening row when `closing2526 !== 0` (skip truly zero-balance parties so they still read empty, which is correct).
+
+2. Keep the existing live-activity appending (sales/receipts/returns for customers, purchases/payments/returns for suppliers) unchanged — it already runs for `fy === "2627"` and stacks on top of the opening row.
+
+3. The running-balance, totals (`totalDebit`/`totalCredit`/`closing`) and header card already derive from `entries`, so they update automatically once the opening row is included.
 
 ## Verification
-After import, spot-check several parties against the sheet (e.g. ADARSH MARKETING → 1,77,678 Cr; ANIL RAGUVANSHI (ADITYA JAIN) → 1,97,969 Dr; GARAVJAIN → 18,318 Cr; BKG INTERNATIONAL SCHOOL → 39,400 Dr) and confirm the running balance matches with no closing-balance row.
 
----
-
-### Technical notes
-- New import is a one-off (edge-function/script with service role) reading the sheet via the connector gateway, mirroring the existing `import-ledger-fy2526` flow; source tag `gsheet_fy2627`; idempotent (deletes `source='gsheet_fy2627'` before re-inserting).
-- Direct debit/credit mapping (no sign flip) — the view's `running = debit - credit` reproduces the sheet's Dr/Cr Balance column.
-- UI change is confined to `src/routes/_app.ledger.tsx`: add FY state, filter the ledger query by source, and switch the live-append cutoff to `2026-06-12` for the FY26-27 view (no live append for FY25-26).
+- Select *Abizer Bhai Barwani* (FY26-27): should now show an Opening Balance row matching their FY25-26 closing, instead of empty.
+- Select a supplier already in the FY26-27 sheet (e.g. *Anil Raguvanshi*): unchanged — single opening from the sheet, no duplicate.
+- Spot-check a customer with FY25-26 history: FY26-27 opens with the correct Dr/Cr carry-forward.
