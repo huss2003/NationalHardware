@@ -17,36 +17,44 @@ interface AuthState {
   logout: () => void;
 }
 
+const ROLE_KEY = "scanflow_role";
+
+function getStoredRole(): ShopRole {
+  if (typeof window === "undefined") return "employee";
+  return localStorage.getItem(ROLE_KEY) === "admin" ? "admin" : "employee";
+}
+
+/** Persist the chosen role and update the active user immediately. */
+export function setStoredRole(role: ShopRole) {
+  if (typeof window !== "undefined") localStorage.setItem(ROLE_KEY, role);
+  const u = useAuth.getState().user;
+  if (u && u.role !== role) {
+    useAuth.setState({ user: { ...u, role, name: role === "admin" ? "Admin" : "Employee" } });
+  }
+}
+
 export const useAuth = create<AuthState>()((set) => ({
   user: null,
   ready: false,
   setUser: (user) => set({ user }),
   setReady: (ready) => set({ ready }),
   logout: () => {
+    if (typeof window !== "undefined") localStorage.removeItem(ROLE_KEY);
     void supabase.auth.signOut();
     set({ user: null });
   },
 }));
 
-async function hydrate(supaUser: User | null) {
+function hydrate(supaUser: User | null) {
   if (!supaUser) {
     useAuth.setState({ user: null, ready: true });
-    cachedRoleUserId = null;
-    cachedRole = "employee";
     return;
   }
-  // Look up admin role once per user; everyone else is treated as employee.
-  let role: ShopRole = cachedRole;
-  if (cachedRoleUserId !== supaUser.id) {
-    role = await loadRole(supaUser.id);
-  }
-  const name =
-    (supaUser.user_metadata?.display_name as string | undefined) ||
-    supaUser.email?.split("@")[0] ||
-    "User";
+  // Role is chosen at login time and stored on the device (admin vs employee).
+  const role = getStoredRole();
+  const name = role === "admin" ? "Admin" : "Employee";
   const prev = useAuth.getState().user;
-  // Skip the state update (and the app-wide re-render) when nothing changed.
-  if (prev && prev.id === supaUser.id && prev.name === name && prev.role === role) {
+  if (prev && prev.id === supaUser.id && prev.role === role && prev.name === name) {
     if (!useAuth.getState().ready) useAuth.setState({ ready: true });
     return;
   }
@@ -56,43 +64,10 @@ async function hydrate(supaUser: User | null) {
   });
 }
 
-let cachedRoleUserId: string | null = null;
-let cachedRole: ShopRole = "employee";
-let rolePromiseUserId: string | null = null;
-let rolePromise: Promise<ShopRole> | null = null;
-
-async function loadRole(userId: string): Promise<ShopRole> {
-  if (cachedRoleUserId === userId) return cachedRole;
-  if (rolePromise && rolePromiseUserId === userId) return rolePromise;
-  rolePromiseUserId = userId;
-  rolePromise = (async () => {
-    let role: ShopRole = "employee";
-    try {
-      const { data } = await supabase
-        .from("user_roles")
-        .select("role")
-        .eq("user_id", userId);
-      if (data?.some((r) => r.role === "admin")) role = "admin";
-    } catch {}
-    cachedRoleUserId = userId;
-    cachedRole = role;
-    return role;
-  })();
-  try {
-    return await rolePromise;
-  } finally {
-    rolePromise = null;
-    rolePromiseUserId = null;
-  }
-}
-
 let listenerInited = false;
 export function initAuthListener() {
   if (typeof window === "undefined" || listenerInited) return;
   listenerInited = true;
-  // Listener FIRST so we don't miss the initial event. Only react to real
-  // identity changes — TOKEN_REFRESHED (hourly + on tab focus) keeps the same
-  // user and would otherwise re-query roles and re-render the whole app.
   supabase.auth.onAuthStateChange((event, session) => {
     if (
       event !== "INITIAL_SESSION" &&
@@ -102,7 +77,7 @@ export function initAuthListener() {
     ) {
       return;
     }
-    void hydrate(session?.user ?? null);
+    hydrate(session?.user ?? null);
   });
 }
 
