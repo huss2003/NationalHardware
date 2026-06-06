@@ -1,26 +1,39 @@
 ## Goal
+Make ScanFlow comfortable to use on phones and tablets — primarily 9-inch devices — and make text darker and bolder for easy reading. Desktop stays essentially the same.
 
-Hide additional summary tiles/blocks from the **employee** view (admin view unchanged), and remove **Reports** from the employee experience entirely.
+## Current problems
+- The sidebar is a fixed 240px column always on screen (`_app.tsx` → `AppSidebar`). On a 9" portrait/phone it eats most of the width and there's no way to hide it.
+- Page padding is a hard `px-8` (2rem each side) and the page titles are a fixed 32px — too wide/large on small screens.
+- `--muted-foreground` (gray secondary text) is fairly light and body/sidebar text weight is light, hurting visibility.
 
 ## Changes
 
-### 1. Purchases overview (`src/routes/_app.purchases.index.lazy.tsx`)
-- Gate the **"Total Bills"** KPI card behind `isAdmin` (currently always shown). For employees the KPI strip will then show only Pending Deliveries and Late Shipments.
-- Adjust the grid column count so the remaining tiles still lay out cleanly for employees.
+### 1. Responsive app shell (`src/routes/_app.tsx` + `src/components/layout/AppSidebar.tsx`)
+- Keep the fixed sidebar on large screens (`lg` / 1024px+ — covers 9" landscape).
+- Below `lg` (9" portrait, phones): hide the fixed sidebar and add a slim sticky top bar with the ScanFlow logo and a hamburger button.
+- Tapping the hamburger opens the existing sidebar inside a slide-out `Sheet` (shadcn drawer already in the project). Selecting any nav link or signing out closes the drawer.
+- Refactor `AppSidebar` so the same nav list renders both in the static desktop column and inside the mobile drawer (extract the inner content; add an `onNavigate` callback to close the sheet on click).
 
-### 2. Sales overview (`src/routes/_app.sales.index.lazy.tsx`)
-- Gate the **"Total Sales Count"** KPI card behind `isAdmin` (currently the only tile employees see). Employees will then see no KPI strip on this page.
+### 2. Responsive page chrome
+- `src/components/erp/PageHeader.tsx`: padding `px-4 sm:px-6 lg:px-8`, top/bottom padding reduced on small screens, and title scales (`text-2xl sm:text-3xl lg:text-[32px]`). Actions wrap cleanly.
+- Page content wrappers: replace the hard `px-8` with `px-4 sm:px-6 lg:px-8` across the route files (≈22 files) so content isn't cramped against the edges on small screens. KPI/stat grids already use responsive `grid-cols-*`, so they reflow automatically.
 
-### 3. Purchase Returns (`src/routes/_app.purchase-returns.index.tsx`)
-- Read role via `useAuth`. For employees, hide the entire KPI strip — **Total Returns**, **This Month**, **Awaiting Credit**, and **Return Value** — and the **Amount** column in the Recent Returns table (monetary). Admin view unchanged.
+### 3. Tables on small screens
+- Data tables already render inside a horizontally-scrollable wrapper, so they stay usable. I'll verify the key list pages (Sales, Purchases, Inventory, Ledger) scroll rather than clip, and adjust any `overflow-hidden` card that traps the scroll.
 
-### 4. Sales Returns (`src/routes/_app.sales-returns.index.tsx`)
-- Same pattern: for employees hide the KPI strip — **Total Returns**, **This Month**, **Return Value**, **Refunded** — and the monetary **Refund** / **Total** columns in the Recent Returns table. Admin view unchanged.
+### 4. Darker, bolder fonts (`src/styles.css`)
+- Darken secondary text: `--muted-foreground` from `oklch(0.55 …)` to about `oklch(0.44 …)` so hints/labels are clearly readable.
+- Increase base body weight (≈500) and bump heading weight to 700, and make sidebar links a touch bolder.
+- Keep antialiasing/letter-spacing tweaks so bolder text still looks clean.
 
-### 5. Remove Reports from employee view
-- `src/lib/roles.ts`: remove `"reports"` from `EMPLOYEE_NAV_KEYS` and `"/reports"` from `EMPLOYEE_ALLOWED_PREFIXES`. This removes the Reports link from the sidebar for employees and redirects them to `/inventory` if they type `/reports` manually.
+### 5. 9-inch / tablet tuning
+- Treat `lg` (1024px) as the "full layout" breakpoint so a 9" tablet in landscape gets the desktop sidebar, while portrait/phone use the drawer.
+- Make primary action buttons and nav rows comfortable touch targets (min ~44px height) on small screens.
+
+## Verification
+- Preview at mobile (~390px), tablet portrait (~768px), and 9" landscape (~1024px) to confirm the drawer toggles, content has breathing room, tables scroll, and text reads darker/bolder. Adjust spacing where anything overflows.
 
 ## Technical notes
-- All gating uses the existing `const isAdmin = useAuth((s) => s.user)?.role === "admin"` pattern already used elsewhere.
-- Return pages currently have no role check; I'll add the `useAuth` selector and conditionally render the KPI grid and money columns/`colSpan` values.
-- No backend, schema, or RLS changes.
+- No backend, schema, or data changes — purely layout/styling.
+- Reuses existing `Sheet` component and `useIsMobile` hook; no new dependencies.
+- Design tokens stay in `src/styles.css` (Tailwind v4 `@theme`/`:root`).

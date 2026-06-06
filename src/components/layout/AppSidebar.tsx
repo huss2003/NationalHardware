@@ -29,7 +29,7 @@ const items = [
   { key: "settings",   to: "/settings",        label: "Settings",   icon: Settings },
 ] as const;
 
-export function AppSidebar() {
+export function AppSidebar({ onNavigate }: { onNavigate?: () => void } = {}) {
   const pathname = useRouterState({ select: (r) => r.location.pathname });
   const user = useAuth((s) => s.user);
   const logout = useAuth((s) => s.logout);
@@ -53,7 +53,7 @@ export function AppSidebar() {
     .sort((a, b) => b.length - a.length)[0];
 
   return (
-    <aside className="w-60 shrink-0 bg-sidebar text-sidebar-foreground flex flex-col min-h-screen border-r border-sidebar-border sticky top-0 h-screen">
+    <aside className="w-60 shrink-0 bg-sidebar text-sidebar-foreground flex flex-col h-full min-h-screen border-r border-sidebar-border lg:sticky lg:top-0 lg:h-screen">
       <div className="px-5 py-5 border-b border-sidebar-border">
         <div className="flex items-center gap-2.5">
           <div className="h-8 w-8 rounded-lg bg-primary grid place-content-center text-primary-foreground text-sm font-semibold">
@@ -69,7 +69,7 @@ export function AppSidebar() {
         {visible.map((it) => {
           const active = it.to === activeTo;
           return (
-            <Link key={it.to} to={it.to} className="sidebar-link" data-active={active}>
+            <Link key={it.to} to={it.to} className="sidebar-link" data-active={active} onClick={onNavigate}>
               <it.icon className="h-5 w-5" />
               <span>{it.label}</span>
             </Link>
@@ -84,7 +84,7 @@ export function AppSidebar() {
             <div className="text-xs uppercase opacity-70">{user.role}</div>
           </div>
         )}
-        <Button variant="secondary" className="w-full" onClick={logout}>Sign out</Button>
+        <Button variant="secondary" className="w-full" onClick={() => { onNavigate?.(); logout(); }}>Sign out</Button>
       </div>
     </aside>
   );
