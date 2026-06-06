@@ -104,13 +104,15 @@ function Purchases() {
       />
       <div className="px-8 pb-10 max-w-[1400px] mx-auto w-full space-y-5">
         {/* KPI strip */}
-        <div className={`grid gap-4 grid-cols-2 ${isAdmin ? "lg:grid-cols-4" : "lg:grid-cols-3"}`}>
-          <KpiCard
-            icon={ClipboardList} iconBg="bg-primary/10 text-primary"
-            label="Total Bills" value={String(kpis.active)}
-            hint={<><TrendingUp className="h-3 w-3" /> recorded purchase bills</>}
-            hintColor="text-success"
-          />
+        <div className={`grid gap-4 grid-cols-2 ${isAdmin ? "lg:grid-cols-4" : "lg:grid-cols-2"}`}>
+          {isAdmin && (
+            <KpiCard
+              icon={ClipboardList} iconBg="bg-primary/10 text-primary"
+              label="Total Bills" value={String(kpis.active)}
+              hint={<><TrendingUp className="h-3 w-3" /> recorded purchase bills</>}
+              hintColor="text-success"
+            />
+          )}
           <KpiCard
             icon={Truck} iconBg="bg-warning/10 text-warning"
             label="Pending Deliveries" value={String(kpis.pending)}

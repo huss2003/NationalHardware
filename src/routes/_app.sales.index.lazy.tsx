@@ -144,17 +144,19 @@ function Sales() {
               }
             />
           )}
-          <KpiCard
-            label="Total Sales Count"
-            value={String(kpis.count)}
-            icon={<ShoppingBag className="h-4 w-4 text-primary" />}
-            iconBg="bg-primary/10"
-            trend={
-              <span className="text-success inline-flex items-center gap-1">
-                <TrendingUp className="h-3 w-3" /> +8.2% from last month
-              </span>
-            }
-          />
+          {isAdmin && (
+            <KpiCard
+              label="Total Sales Count"
+              value={String(kpis.count)}
+              icon={<ShoppingBag className="h-4 w-4 text-primary" />}
+              iconBg="bg-primary/10"
+              trend={
+                <span className="text-success inline-flex items-center gap-1">
+                  <TrendingUp className="h-3 w-3" /> +8.2% from last month
+                </span>
+              }
+            />
+          )}
           {isAdmin && (
             <KpiCard
               label="Pending Payments"
