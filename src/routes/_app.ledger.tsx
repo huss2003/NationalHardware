@@ -338,6 +338,25 @@ function LedgerPage() {
             </div>
           ) : (
           <>
+          <div className="flex rounded-lg border border-input bg-card p-1 w-full mb-3 gap-1">
+            {([
+              { v: "2526" as const, label: "FY 2025-26" },
+              { v: "2627" as const, label: "FY 2026-27" },
+            ]).map((f) => {
+              const active = fy === f.v;
+              return (
+                <button
+                  key={f.v}
+                  onClick={() => setFy(f.v)}
+                  className={`flex-1 h-8 px-2 rounded-md text-xs font-semibold transition-colors ${
+                    active ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:text-foreground"
+                  }`}
+                >
+                  {f.label}
+                </button>
+              );
+            })}
+          </div>
           <div className="relative mb-3">
             <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
             <Input
