@@ -917,7 +917,7 @@ function OrdersTable({ rows, loading }: { rows: DoorOrder[]; loading: boolean })
   return (
     <Card className="overflow-hidden">
       <div className="px-5 pt-5 pb-3 font-semibold">Recent orders</div>
-      <Table>
+      <Table className="min-w-[640px]">
         <TableHeader>
           <TableRow>
             <TableHead className="pl-5">Order No.</TableHead>
