@@ -12,6 +12,7 @@ import {
 } from "lucide-react";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { TableSkeleton } from "@/components/erp/Skeletons";
+import { useAuth } from "@/lib/auth-store";
 
 const SalesTrendChart = lazy(() =>
   import("@/components/erp/SalesTrendChart").then((m) => ({ default: m.SalesTrendChart })),
@@ -22,6 +23,7 @@ export const Route = createLazyFileRoute("/_app/sales/")({ component: Sales });
 type Range = "7D" | "30D" | "1Y";
 
 function Sales() {
+  const isAdmin = useAuth((s) => s.user)?.role === "admin";
   const [range, setRange] = useState<Range>("30D");
   const [paymentStatus, setPaymentStatus] = useState("all");
   const [customerCategory, setCustomerCategory] = useState("all");
@@ -116,28 +118,32 @@ function Sales() {
       <div className="px-8 pb-10 max-w-[1400px] mx-auto w-full space-y-5">
         {/* KPI cards */}
         <div className="grid gap-4 grid-cols-1 sm:grid-cols-2 lg:grid-cols-4">
-          <KpiCard
-            label="Total Revenue"
-            value={inr(kpis.total)}
-            icon={<TrendingUp className="h-4 w-4 text-success" />}
-            iconBg="bg-success/10"
-            trend={
-              <span className="text-success inline-flex items-center gap-1">
-                <TrendingUp className="h-3 w-3" /> +12.5% from last month
-              </span>
-            }
-          />
-          <KpiCard
-            label="Avg. Order Value"
-            value={inr(kpis.avg)}
-            icon={<Receipt className="h-4 w-4 text-primary" />}
-            iconBg="bg-primary/10"
-            trend={
-              <span className="text-muted-foreground inline-flex items-center gap-1">
-                <Minus className="h-3 w-3" /> Stable
-              </span>
-            }
-          />
+          {isAdmin && (
+            <KpiCard
+              label="Total Revenue"
+              value={inr(kpis.total)}
+              icon={<TrendingUp className="h-4 w-4 text-success" />}
+              iconBg="bg-success/10"
+              trend={
+                <span className="text-success inline-flex items-center gap-1">
+                  <TrendingUp className="h-3 w-3" /> +12.5% from last month
+                </span>
+              }
+            />
+          )}
+          {isAdmin && (
+            <KpiCard
+              label="Avg. Order Value"
+              value={inr(kpis.avg)}
+              icon={<Receipt className="h-4 w-4 text-primary" />}
+              iconBg="bg-primary/10"
+              trend={
+                <span className="text-muted-foreground inline-flex items-center gap-1">
+                  <Minus className="h-3 w-3" /> Stable
+                </span>
+              }
+            />
+          )}
           <KpiCard
             label="Total Sales Count"
             value={String(kpis.count)}
@@ -149,21 +155,24 @@ function Sales() {
               </span>
             }
           />
-          <KpiCard
-            label="Pending Payments"
-            value={inr(kpis.pending)}
-            icon={<AlertCircle className="h-4 w-4 text-warning" />}
-            iconBg="bg-warning/10"
-            trend={
-              <span className="text-destructive inline-flex items-center gap-1">
-                <AlertCircle className="h-3 w-3" /> {kpis.overdueCount} invoices overdue
-              </span>
-            }
-          />
+          {isAdmin && (
+            <KpiCard
+              label="Pending Payments"
+              value={inr(kpis.pending)}
+              icon={<AlertCircle className="h-4 w-4 text-warning" />}
+              iconBg="bg-warning/10"
+              trend={
+                <span className="text-destructive inline-flex items-center gap-1">
+                  <AlertCircle className="h-3 w-3" /> {kpis.overdueCount} invoices overdue
+                </span>
+              }
+            />
+          )}
         </div>
 
         {/* Trends + Filters */}
         <div className="grid gap-5 grid-cols-1 lg:grid-cols-3">
+          {isAdmin && (
           <Card className="lg:col-span-2 p-5">
             <div className="flex items-center justify-between mb-4">
               <h2 className="text-lg font-semibold">Sales Trends</h2>
@@ -189,8 +198,9 @@ function Sales() {
               </Suspense>
             </div>
           </Card>
+          )}
 
-          <Card className="p-5">
+          <Card className={isAdmin ? "p-5" : "lg:col-span-3 p-5"}>
             <h2 className="text-lg font-semibold mb-4">Filter Transactions</h2>
             <div className="space-y-4">
               <div>
@@ -262,7 +272,7 @@ function Sales() {
                 <TableHead className="pl-5">Order ID</TableHead>
                 <TableHead>Date</TableHead>
                 <TableHead>Customer Name</TableHead>
-                <TableHead className="text-right">Amount</TableHead>
+                {isAdmin && <TableHead className="text-right">Amount</TableHead>}
                 <TableHead>Status</TableHead>
                 <TableHead className="text-right pr-5">Actions</TableHead>
               </TableRow>
@@ -270,8 +280,8 @@ function Sales() {
             <TableBody>
               {loading && (
                 <TableRow>
-                  <TableCell colSpan={6} className="p-0">
-                    <TableSkeleton rows={5} columns={6} showHeader={false} />
+                  <TableCell colSpan={isAdmin ? 6 : 5} className="p-0">
+                    <TableSkeleton rows={5} columns={isAdmin ? 6 : 5} showHeader={false} />
                   </TableCell>
                 </TableRow>
               )}
@@ -288,9 +298,11 @@ function Sales() {
                       {fmtDate(r.invoice_date)}
                     </TableCell>
                     <TableCell>{r.customers?.name ?? "Walk-in"}</TableCell>
-                    <TableCell className="text-right font-semibold tabular-nums">
-                      {inr(r.grand_total)}
-                    </TableCell>
+                    {isAdmin && (
+                      <TableCell className="text-right font-semibold tabular-nums">
+                        {inr(r.grand_total)}
+                      </TableCell>
+                    )}
                     <TableCell>
                       <StatusPill status={status} />
                     </TableCell>
@@ -304,7 +316,7 @@ function Sales() {
               })}
               {!loading && recent.length === 0 && (
                 <TableRow>
-                  <TableCell colSpan={6} className="text-center py-12 text-muted-foreground">
+                  <TableCell colSpan={isAdmin ? 6 : 5} className="text-center py-12 text-muted-foreground">
                     No sales yet.
                   </TableCell>
                 </TableRow>

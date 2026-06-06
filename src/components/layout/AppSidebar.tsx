@@ -10,6 +10,7 @@ import {
 import { useAuth } from "@/lib/auth-store";
 import { Button } from "@/components/ui/button";
 import { useUiConfig } from "@/lib/ui-config";
+import { EMPLOYEE_NAV_KEYS } from "@/lib/roles";
 
 const items = [
   { key: "dashboard",  to: "/dashboard",       label: "Dashboard",  icon: LayoutDashboard },
@@ -34,8 +35,15 @@ export function AppSidebar() {
   const logout = useAuth((s) => s.logout);
   const cfg = useUiConfig();
 
-  // Settings tile is always visible so users can re-enable hidden modules.
-  const visible = items.filter((it) => it.key === "settings" || cfg.nav[it.key] !== false);
+  const isEmployee = user?.role !== "admin";
+  const employeeKeys = new Set<string>(EMPLOYEE_NAV_KEYS);
+
+  // Employees only see an allowlisted set of pages. Admins see everything that
+  // isn't disabled in UI config (Settings stays visible so modules can be re-enabled).
+  const visible = items.filter((it) => {
+    if (isEmployee) return employeeKeys.has(it.key);
+    return it.key === "settings" || cfg.nav[it.key] !== false;
+  });
 
   // Pick the single best-matching nav item (longest `to` that matches the
   // current pathname) so nested routes don't highlight two tiles at once.

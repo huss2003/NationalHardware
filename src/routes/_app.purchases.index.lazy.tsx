@@ -10,6 +10,7 @@ import {
 } from "@/components/ui/table";
 import { TableSkeleton } from "@/components/erp/Skeletons";
 import { inr, fmtDate } from "@/lib/codes";
+import { useAuth } from "@/lib/auth-store";
 import {
   Plus, ClipboardList, Truck, Wallet, AlertTriangle,
   TrendingUp, SlidersHorizontal, Download, BarChart3, ChevronDown,
@@ -27,6 +28,7 @@ function compactInr(n: number) {
 }
 
 function Purchases() {
+  const isAdmin = useAuth((s) => s.user)?.role === "admin";
   const [status, setStatus] = useState<string>("all");
   const [page, setPage] = useState(0);
   const pageSize = 5;
@@ -102,7 +104,7 @@ function Purchases() {
       />
       <div className="px-8 pb-10 max-w-[1400px] mx-auto w-full space-y-5">
         {/* KPI strip */}
-        <div className="grid gap-4 grid-cols-2 lg:grid-cols-4">
+        <div className={`grid gap-4 grid-cols-2 ${isAdmin ? "lg:grid-cols-4" : "lg:grid-cols-3"}`}>
           <KpiCard
             icon={ClipboardList} iconBg="bg-primary/10 text-primary"
             label="Total Bills" value={String(kpis.active)}
@@ -114,12 +116,14 @@ function Purchases() {
             label="Pending Deliveries" value={String(kpis.pending)}
             hint={<>12 arriving today</>}
           />
-          <KpiCard
-            icon={Wallet} iconBg="bg-primary/10 text-primary"
-            label="Total Spend (MTD)" value={compactInr(kpis.spend)}
-            hint={<><TrendingUp className="h-3 w-3" /> +4.5% vs budget</>}
-            hintColor="text-destructive"
-          />
+          {isAdmin && (
+            <KpiCard
+              icon={Wallet} iconBg="bg-primary/10 text-primary"
+              label="Total Spend (MTD)" value={compactInr(kpis.spend)}
+              hint={<><TrendingUp className="h-3 w-3" /> +4.5% vs budget</>}
+              hintColor="text-destructive"
+            />
+          )}
           <KpiCard
             icon={AlertTriangle} iconBg="bg-destructive/10 text-destructive"
             label="Late Shipments" value={String(kpis.late)}
@@ -164,15 +168,15 @@ function Purchases() {
                     <TableHead className="pl-5">PO ID</TableHead>
                     <TableHead>Supplier</TableHead>
                     <TableHead>Date</TableHead>
-                    <TableHead className="text-right">Amount</TableHead>
+                    {isAdmin && <TableHead className="text-right">Amount</TableHead>}
                     <TableHead className="pr-5">Status</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
                   {loading && (
                     <TableRow>
-                      <TableCell colSpan={5} className="p-0">
-                        <TableSkeleton rows={5} columns={5} showHeader={false} />
+                      <TableCell colSpan={isAdmin ? 5 : 4} className="p-0">
+                        <TableSkeleton rows={5} columns={isAdmin ? 5 : 4} showHeader={false} />
                       </TableCell>
                     </TableRow>
                   )}
@@ -192,9 +196,11 @@ function Purchases() {
                       <TableCell className="text-muted-foreground">
                         {r.bill_date ? fmtDate(r.bill_date) : "—"}
                       </TableCell>
-                      <TableCell className="text-right font-semibold tabular-nums">
-                        {inr(r.grand_total)}
-                      </TableCell>
+                      {isAdmin && (
+                        <TableCell className="text-right font-semibold tabular-nums">
+                          {inr(r.grand_total)}
+                        </TableCell>
+                      )}
                       <TableCell className="pr-5">
                         <StatusPill status={(r.status ?? "received").toLowerCase()} />
                       </TableCell>
@@ -202,7 +208,7 @@ function Purchases() {
                   ))}
                   {!loading && pageRows.length === 0 && (
                     <TableRow>
-                      <TableCell colSpan={5} className="text-center py-12 text-muted-foreground">
+                      <TableCell colSpan={isAdmin ? 5 : 4} className="text-center py-12 text-muted-foreground">
                         No purchase orders.
                       </TableCell>
                     </TableRow>
@@ -257,10 +263,12 @@ function Purchases() {
                     <div className="text-sm font-semibold text-foreground truncate">{s.name}</div>
                     <div className="text-xs text-muted-foreground">{s.count} Active POs</div>
                   </div>
-                  <div className="text-right">
-                    <div className="text-sm font-semibold tabular-nums">{compactInr(s.total)}</div>
-                    <div className="text-[11px] text-muted-foreground">YTD</div>
-                  </div>
+                  {isAdmin && (
+                    <div className="text-right">
+                      <div className="text-sm font-semibold tabular-nums">{compactInr(s.total)}</div>
+                      <div className="text-[11px] text-muted-foreground">YTD</div>
+                    </div>
+                  )}
                 </li>
               ))}
             </ul>
