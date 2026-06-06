@@ -704,19 +704,21 @@ export function SaleBillForm({
                           e.preventDefault();
                           setActiveSuggest((n) => Math.max(0, n - 1));
                         } else if (e.key === "Escape") {
-                          setDraftQuery(""); setDraftSub(null);
-                        } else if (e.key === "Backspace" && !draftQuery && draftSub) {
-                          e.preventDefault(); setDraftSub(null);
+                          setDraftQuery(""); setDraftGroup(null); setDraftSub(null);
+                        } else if (e.key === "Backspace" && !draftQuery && (draftGroup || draftSub)) {
+                          e.preventDefault();
+                          if (draftGroup) setDraftGroup(null);
+                          else setDraftSub(null);
                         }
                       }}
-                      placeholder={draftSub ? `Pick item in ${draftSub.name}…` : "Scan barcode or type item / sub-category…"}
+                      placeholder={draftGroup ? `Pick finish in ${draftGroup.name}…` : draftSub ? `Pick item in ${draftSub.name}…` : "Scan barcode or type item / sub-category…"}
                       className="w-full h-full px-2 py-1.5 bg-transparent focus:outline-none focus:bg-white focus:ring-2 focus:ring-inset focus:ring-[#3b82f6] placeholder:text-slate-400 font-sans"
                       aria-label="Add new line"
                     />
-                    {draftSub && (
+                    {(draftGroup || draftSub) && (
                       <div className="absolute left-1.5 top-0.5 flex items-center gap-1 text-[10px] font-bold uppercase bg-[#3b82f6]/10 text-[#3b82f6] px-1.5 py-0.5 rounded">
-                        {draftSub.name}
-                        <button type="button" className="ml-0.5 hover:text-red-500" onMouseDown={(e) => { e.preventDefault(); setDraftSub(null); }}>×</button>
+                        {draftGroup ? draftGroup.name : draftSub!.name}
+                        <button type="button" className="ml-0.5 hover:text-red-500" onMouseDown={(e) => { e.preventDefault(); if (draftGroup) setDraftGroup(null); else setDraftSub(null); }}>×</button>
                       </div>
                     )}
                     {draftFocused && draftSuggestions.length > 0 && (
@@ -731,9 +733,9 @@ export function SaleBillForm({
                         }}
                       >
                         <div className="px-3 py-1.5 text-[10px] font-bold uppercase tracking-wider text-slate-500 bg-slate-50 border-b border-slate-200 flex items-center justify-between">
-                          <span>{draftSub ? `Items in ${draftSub.name}` : "Items & Sub-categories"}</span>
-                          {draftSub && (
-                            <button type="button" onMouseDown={(e) => { e.preventDefault(); setDraftSub(null); }} className="text-[#3b82f6] hover:underline normal-case font-semibold">← back</button>
+                          <span>{draftGroup ? `Finishes in ${draftGroup.name}` : draftSub ? `Items in ${draftSub.name}` : "Items & Sub-categories"}</span>
+                          {(draftGroup || draftSub) && (
+                            <button type="button" onMouseDown={(e) => { e.preventDefault(); if (draftGroup) setDraftGroup(null); else setDraftSub(null); }} className="text-[#3b82f6] hover:underline normal-case font-semibold">← back</button>
                           )}
                         </div>
                         {draftSuggestions.map((p: any, idx: number) => (
@@ -742,11 +744,14 @@ export function SaleBillForm({
                             type="button"
                             onMouseDown={(e) => {
                               e.preventDefault();
+                              if (draftGroup) { addFinishAndReset(p as ProductRow); return; }
                               if (!draftSub) {
-                                if (p.__kind === "item") addAndReset(p as ProductRow);
+                                if (p.__kind === "group") openDraftGroup(p);
+                                else if (p.__kind === "item") addAndReset(p as ProductRow);
                                 else pickDraftSub(p);
                               } else {
-                                addAndReset(p as ProductRow);
+                                if (p.__kind === "group") openDraftGroup(p);
+                                else addAndReset(p as ProductRow);
                               }
                             }}
                             className={`w-full text-left px-3 py-2 border-b border-slate-100 last:border-0 flex items-center justify-between gap-2 ${
@@ -754,9 +759,20 @@ export function SaleBillForm({
                             }`}
                           >
                             <div className="min-w-0">
-                              <div className="text-sm font-semibold text-slate-800 truncate">{p.name}</div>
+                              <div className="text-sm font-semibold text-slate-800 truncate">
+                                {p.__kind === "finish" ? p.finish : p.name}
+                              </div>
                               <div className="text-[11px] text-slate-500">
-                                {draftSub
+                                {p.__kind === "finish"
+                                  ? `${p.prefix} · ${p.gst_rate}% GST · ${p.unit}${p.alt_unit ? ` / ${p.alt_unit}` : ""}`
+                                  : p.__kind === "group"
+                                  ? (
+                                      <span className="inline-flex items-center gap-1.5">
+                                        <span className="px-1.5 py-0.5 rounded bg-amber-100 text-amber-700 font-bold text-[9px]">FINISH</span>
+                                        <span>{p.products.length} finishes →</span>
+                                      </span>
+                                    )
+                                  : draftSub
                                   ? `${p.prefix} · ${p.gst_rate}% GST · ${p.unit}${p.alt_unit ? ` / ${p.alt_unit}` : ""}`
                                   : (
                                       <span className="inline-flex items-center gap-1.5">
