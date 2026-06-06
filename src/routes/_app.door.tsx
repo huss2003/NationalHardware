@@ -600,12 +600,12 @@ function GeneralOrderForm({
           </Field>
         </div>
 
-        <div className="flex items-center justify-between pt-1">
+        <div className="flex flex-wrap items-center justify-between gap-3 pt-1">
           <div className="text-xs text-muted-foreground">
             Party {partySqft.toFixed(2)} sqft · Taken {takenSqft.toFixed(2)} sqft · Line total{" "}
             <span className="font-semibold text-foreground">{inr(previewTotal)}</span>
           </div>
-          <Button onClick={addLine} className="gap-2">
+          <Button onClick={addLine} className="gap-2 ml-auto">
             <Plus className="h-4 w-4" /> Add door
           </Button>
         </div>
@@ -614,7 +614,7 @@ function GeneralOrderForm({
       {/* Lines table */}
       <Card className="overflow-hidden">
         <div className="px-5 pt-5 pb-3 font-semibold">Doors in this order</div>
-        <Table>
+        <Table className="min-w-[760px]">
           <TableHeader>
             <TableRow>
               <TableHead className="pl-5">#</TableHead>
@@ -661,15 +661,15 @@ function GeneralOrderForm({
             )}
           </TableBody>
         </Table>
-        <div className="flex items-end justify-between gap-3 p-5 border-t">
-          <div className="w-full max-w-md">
+        <div className="flex flex-wrap items-end justify-between gap-4 p-5 border-t">
+          <div className="w-full sm:max-w-md min-w-0">
             <label className="text-xs font-medium text-muted-foreground mb-1.5 block">Notes</label>
             <Textarea value={notes} onChange={(e) => setNotes(e.target.value)} rows={2} placeholder="Optional" />
           </div>
-          <div className="text-right">
+          <div className="text-right ml-auto">
             <div className="text-xs text-muted-foreground">Grand total</div>
             <div className="text-2xl font-semibold tabular-nums">{inr(grandTotal)}</div>
-            <div className="flex gap-2 mt-3 justify-end">
+            <div className="flex flex-wrap gap-2 mt-3 justify-end">
               <Button variant="ghost" onClick={resetAll}>Reset</Button>
               <Button onClick={save} disabled={busy || lines.length === 0} className="gap-2">
                 <Plus className="h-4 w-4" /> {busy ? "Saving…" : (isFromSale ? "Add to sale" : "Save order")}
