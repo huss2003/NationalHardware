@@ -263,10 +263,12 @@ function Purchases() {
                     <div className="text-sm font-semibold text-foreground truncate">{s.name}</div>
                     <div className="text-xs text-muted-foreground">{s.count} Active POs</div>
                   </div>
-                  <div className="text-right">
-                    <div className="text-sm font-semibold tabular-nums">{compactInr(s.total)}</div>
-                    <div className="text-[11px] text-muted-foreground">YTD</div>
-                  </div>
+                  {isAdmin && (
+                    <div className="text-right">
+                      <div className="text-sm font-semibold tabular-nums">{compactInr(s.total)}</div>
+                      <div className="text-[11px] text-muted-foreground">YTD</div>
+                    </div>
+                  )}
                 </li>
               ))}
             </ul>
