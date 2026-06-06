@@ -2,3 +2,6 @@ project_id = "eikpfkucykfmioiqpiux"
 
 [functions.import-ledger-fy2526]
 verify_jwt = false
+
+[functions.import-creditors-fy2627]
+verify_jwt = false

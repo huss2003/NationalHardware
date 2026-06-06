@@ -15,7 +15,13 @@ export const Route = createFileRoute("/_app/ledger")({ component: LedgerPage });
 type Kind = "customer" | "supplier" | "cash" | "bank";
 type Party = { id: string; name: string; phone?: string | null };
 
-const CUTOFF = "2026-04-01"; // FY25-26 comes from imported ledger; live data appends from here
+// FY25-26 ledger and FY26-27 ledger both come from imported Tally sheets (each with its
+// own opening balance). Live in-app activity is authoritative only AFTER the FY26-27 sheet's
+// coverage window (1-Apr-2026 .. 11-Jun-2026), so it appends from the day after.
+const LIVE_CUTOFF = "2026-06-12";
+
+type FY = "2526" | "2627";
+const FY_SOURCE: Record<FY, string> = { "2526": "gsheet_fy2526", "2627": "gsheet_fy2627" };
 
 type LedgerTxnType =
   | "opening" | "receipt" | "sale" | "payment" | "credit_note"
@@ -106,6 +112,7 @@ function ledgerRef(r: LedgerRow): string {
 
 function LedgerPage() {
   const [kind, setKind] = useState<Kind>("customer");
+  const [fy, setFy] = useState<FY>("2627");
   const [search, setSearch] = useState("");
   const [selected, setSelected] = useState<Party | null>(null);
   const [returnView, setReturnView] = useState<{ id: string; no: string; refTable: "sales_returns" | "purchase_returns" } | null>(null);
@@ -149,18 +156,19 @@ function LedgerPage() {
 
   const { data: entries = [], isFetching: loading } = useQuery({
     enabled: !!selected,
-    queryKey: ["ledger", "entries", kind, selected?.id, selected?.name],
+    queryKey: ["ledger", "entries", kind, fy, selected?.id, selected?.name],
     staleTime: 5 * 60 * 1000,
     queryFn: async () => {
       const p = selected!;
       const list: Entry[] = [];
       const ledgerTable = kind === "customer" ? "sales_ledger" : "purchase_ledger";
 
-      // 1) Authoritative imported FY25-26 ledger (matches the Tally/Google-sheet export)
+      // 1) Authoritative imported ledger for the selected FY (matches the Tally/Google-sheet export)
       const { data: led } = await supabase
         .from(ledgerTable)
         .select("txn_date, txn_type, vch_no, account_name, debit, credit, seq")
         .eq("party_id", p.id)
+        .eq("source", FY_SOURCE[fy])
         .order("seq", { ascending: true });
       for (const r of (led as LedgerRow[]) ?? []) {
         list.push({
@@ -173,22 +181,23 @@ function LedgerPage() {
         });
       }
 
-      // 2) Live activity from 1-Apr-2026 onward (FY26-27+) appended after history
+      // 2) Live in-app activity is appended only to FY26-27, after the imported sheet's
+      //    coverage window (so nothing inside the sheet's window is double-counted).
       let liveSeq = 1_000_000;
-      if (kind === "customer") {
+      if (fy === "2627" && kind === "customer") {
         const [s, r, sr] = await Promise.all([
           supabase.from("sales")
             .select("id, invoice_no, invoice_date, grand_total, paid_amount, notes")
             .eq("customer_id", p.id).is("deleted_at", null)
-            .gte("invoice_date", CUTOFF).order("invoice_date", { ascending: true }),
+            .gte("invoice_date", LIVE_CUTOFF).order("invoice_date", { ascending: true }),
           supabase.from("receipts")
             .select("id, receipt_no, amount, mode, created_at, notes")
             .eq("customer_id", p.id)
-            .gte("created_at", CUTOFF).order("created_at", { ascending: true }),
+            .gte("created_at", LIVE_CUTOFF).order("created_at", { ascending: true }),
           supabase.from("sales_returns")
             .select("id, return_no, return_date, grand_total, reason, refund_amount, refund_mode")
             .eq("customer_id", p.id).is("deleted_at", null)
-            .gte("return_date", CUTOFF).order("return_date", { ascending: true }),
+            .gte("return_date", LIVE_CUTOFF).order("return_date", { ascending: true }),
         ]);
         for (const x of s.data ?? []) {
           list.push({
@@ -222,20 +231,20 @@ function LedgerPage() {
             });
           }
         }
-      } else {
+      } else if (fy === "2627") {
         const [pu, pr, sp] = await Promise.all([
           supabase.from("purchases")
             .select("id, bill_no, bill_date, grand_total")
             .eq("supplier_id", p.id).is("deleted_at", null)
-            .gte("bill_date", CUTOFF).order("bill_date", { ascending: true }),
+            .gte("bill_date", LIVE_CUTOFF).order("bill_date", { ascending: true }),
           supabase.from("purchase_returns")
             .select("id, return_no, return_date, grand_total, reason")
             .eq("supplier_id", p.id).is("deleted_at", null)
-            .gte("return_date", CUTOFF).order("return_date", { ascending: true }),
+            .gte("return_date", LIVE_CUTOFF).order("return_date", { ascending: true }),
           supabase.from("supplier_payments")
             .select("id, payment_no, payment_date, amount, mode, notes")
             .eq("supplier_id", p.id)
-            .gte("payment_date", CUTOFF).order("payment_date", { ascending: true }),
+            .gte("payment_date", LIVE_CUTOFF).order("payment_date", { ascending: true }),
         ]);
         // Supplier (creditor) convention: purchase increases what we owe (credit), payment reduces it (debit)
         for (const x of pu.data ?? []) {
@@ -329,6 +338,25 @@ function LedgerPage() {
             </div>
           ) : (
           <>
+          <div className="flex rounded-lg border border-input bg-card p-1 w-full mb-3 gap-1">
+            {([
+              { v: "2526" as const, label: "FY 2025-26" },
+              { v: "2627" as const, label: "FY 2026-27" },
+            ]).map((f) => {
+              const active = fy === f.v;
+              return (
+                <button
+                  key={f.v}
+                  onClick={() => setFy(f.v)}
+                  className={`flex-1 h-8 px-2 rounded-md text-xs font-semibold transition-colors ${
+                    active ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:text-foreground"
+                  }`}
+                >
+                  {f.label}
+                </button>
+              );
+            })}
+          </div>
           <div className="relative mb-3">
             <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
             <Input

@@ -1,46 +1,46 @@
-# Make the Ledger match the FY25-26 Google Sheet exactly
+# Import FY 2026-27 Creditors Ledger
 
-## Source of truth
-The shared Google Sheet "Ledger" has two tabs that are Tally account-ledger exports for **1-Apr-2025 → 31-Mar-2026**:
-- **Debtors** — 262 customer ledgers (202 with opening balance), 923 sales, 346 receipts, 62 sales-returns, plus some payments/journals.
-- **Creditors** — 93 supplier ledgers (80 with opening balance), 243 purchases, 199 payments, plus returns/journals.
+## Goal
+Load the FY 2026-27 ledger from the new Google Sheet as the authoritative source for that year, excluding the "Closing Balance" summary rows that break reconciliation, and present each financial year so it matches the Tally export exactly.
 
-Each party block has an opening balance, every transaction row (Date, Type, Vch No, Account, Debit, Credit) and a running balance with `Dr`/`Cr`.
+## What the sheet contains
+- One tab, **Creditors** (titled "26-27"), covering **1-Apr-2026 to 11-Jun-2026**.
+- **95 party ledgers**: 13 suppliers (Purchase/Payment), 5 customers (Sales/Receipt), and 76 opening-balance-only parties.
+- Each active block ends with a **"Closing Balance"** summary row plus dashed separators — these are totals, not transactions.
 
-## Approach
-Import the sheet rows verbatim into the purpose-built (currently empty) `sales_ledger` (customers) and `purchase_ledger` (suppliers) tables, plus a rebuilt cash/bank ledger, and render the Ledger page from this authoritative data. FY26-27 (≥ 1-Apr-2026) activity entered live in the app keeps appending after, so the current outstanding stays live — only the **FY25-26 portion** is guaranteed to match the sheet (closing balance will differ by FY26-27 activity, as you noted).
+## Decisions (confirmed)
+1. The sheet is the **source of truth** for FY 2026-27.
+2. Route by entry type: blocks with Sales/Receipt go to the **customer** ledger; everything else (Purchase/Payment/Journal/Return and opening-only) goes to the **supplier** ledger. Missing parties are auto-created.
+3. **Exclude** every "Closing Balance" row and separator on import.
 
-To avoid wiping inventory/sales history, existing `sales`/`receipts`/`purchases` rows are **kept**; double-counting is prevented by the 1-Apr-2026 cutoff (everything ≤ 31-Mar-2026 comes from the imported ledger, everything ≥ 1-Apr-2026 from the live tables). Only the ledger tables and cash/bank ledger are rebuilt.
+## How it will work
 
-## Steps
+### 1. Import the data
+Parse the sheet and write rows tagged with a new source `gsheet_fy2627`:
+- **Opening balance** row per party (Dr/Cr taken from the Balance column).
+- **Transactions** for the year (Sale, Receipt, Sales Return, Purchase, Payment, Purchase Return, Journal).
+- Customer blocks → `sales_ledger`; supplier and opening-only blocks → `purchase_ledger`.
+- Parties matched to existing customers/suppliers by normalized name; missing ones created.
+- "Closing Balance" rows and dashed separators are skipped entirely.
 
-### 1. Schema (migration)
-- Add to `sales_ledger` and `purchase_ledger`: `party_id uuid`, `party_name text`, plus an ordering column `seq int` and index on `party_id`. (`txn_date, txn_type, vch_no, account_name, debit, credit, narration, source` already exist.)
-- Keep existing RLS/grants (tables already have policies).
+Cash & bank are **not** rebuilt from this tab: a dedicated FY 2026-27 cash import already exists, and the creditors tab would only contribute partial contra entries (avoids double counting).
 
-### 2. Import script (run in build mode)
-Parse both tabs via the Google Sheets connector:
-- Split into party blocks on `*** NAME ***`; strip the markers.
-- Keep rows dated **01-04-2025 … 31-03-2026** only; drop FY26-27 rows, separators and "Closing Balance" rows.
-- Parse the opening-balance row (amount + `Dr`/`Cr`) into an `opening` row: `Dr` → debit side, `Cr` → credit side.
-- Map types: `OpBal→opening, Sale→sale, Rcpt→receipt, SlRt→sales_return, Purc→purchase, Pymt→payment, Jrnl→journal, CrNt→credit_note, DrNt→debit_note`.
-- Match party to an existing customer/supplier by normalized name; **auto-create** missing ones (name only).
-- Insert all rows into `sales_ledger` (Debtors) / `purchase_ledger` (Creditors) with `party_id`, `party_name`, `seq`, `source='gsheet_fy2526'`.
+### 2. Add a Financial Year toggle to the Ledger page
+The Ledger currently stacks the FY 2025-26 import with live app data, which would double-count the new year's opening balance. To keep each year exact:
+- Add an **FY 2025-26 / FY 2026-27** switch (defaults to FY 2026-27).
+- **FY 2025-26** shows only the `gsheet_fy2526` import (its own opening + transactions).
+- **FY 2026-27** shows the `gsheet_fy2627` import (its own opening + transactions) plus live in-app activity dated **on/after 12-Jun-2026** (the day after the sheet's coverage), so nothing in the sheet's window is duplicated.
 
-### 3. Cash & Bank ledger rebuild
-- Clear FY25-26 rows from `cash_transactions` and rebuild from every sheet row whose Account is `Cash` or `Hdfc Bank`, taking the contra side (party-credit → account debit/inflow; party-debit → account credit/outflow).
-- Store both accounts, distinguished by `account_name`.
+Because each year starts from its own sheet opening balance and the running balance is computed independently, every party's balance column will line up with the Tally export, and the spurious "Closing Balance" line disappears.
 
-### 4. Ledger page rendering (`src/routes/_app.ledger.tsx`)
-- **Customer/Supplier:** read FY25-26 rows from `sales_ledger`/`purchase_ledger` by `party_id`, append live `sales`/`receipts`/`sales_returns` (or `purchases`/`purchase_returns`/`supplier_payments`) dated ≥ 1-Apr-2026, order by date then `seq`, and compute running balance as `Σ(debit − credit)` with a `Dr`/`Cr` suffix by sign — reproducing the sheet's balance column exactly (including suppliers shown in `Cr` terms).
-- **Cash:** filter `cash_transactions` to `Cash`; add a new **Bank** tab filtering `Hdfc Bank`. Each shows opening (if known), movements, running balance, and totals.
-- Dates already display as DD/MM/YYYY via `fmtDate`.
+Cash & Bank tabs are unchanged in this work.
 
 ## Verification
-- Spot-check several parties (e.g. AAROGIYM, ABDUL REHMAN MANDU, ACE MICA, ADARSH MARKETING) so opening balance, each row's debit/credit, and the running `Dr/Cr` balance match the sheet line-for-line through 31-Mar-2026.
-- Confirm every imported row has a debit or credit (only sales/purchase returns may be one-sided), satisfying the earlier "no empty entries" requirement.
+After import, spot-check several parties against the sheet (e.g. ADARSH MARKETING → 1,77,678 Cr; ANIL RAGUVANSHI (ADITYA JAIN) → 1,97,969 Dr; GARAVJAIN → 18,318 Cr; BKG INTERNATIONAL SCHOOL → 39,400 Dr) and confirm the running balance matches with no closing-balance row.
 
-## Notes / Technical details
-- Cash/Bank **opening** balances aren't in the sheet (no cash/bank account tab), so their closing won't be absolute — only the movements match. Confirmed acceptable.
-- Rendering reads ledger tables for history; the app stays live for new transactions.
-- Import uses `psql` (insert access) for the ~3,500 rows; schema change goes through a migration.
+---
+
+### Technical notes
+- New import is a one-off (edge-function/script with service role) reading the sheet via the connector gateway, mirroring the existing `import-ledger-fy2526` flow; source tag `gsheet_fy2627`; idempotent (deletes `source='gsheet_fy2627'` before re-inserting).
+- Direct debit/credit mapping (no sign flip) — the view's `running = debit - credit` reproduces the sheet's Dr/Cr Balance column.
+- UI change is confined to `src/routes/_app.ledger.tsx`: add FY state, filter the ledger query by source, and switch the live-append cutoff to `2026-06-12` for the FY26-27 view (no live append for FY25-26).
