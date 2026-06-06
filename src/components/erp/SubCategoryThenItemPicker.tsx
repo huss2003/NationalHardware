@@ -25,6 +25,7 @@ export function SubCategoryThenItemPicker({
   const [standalone, setStandalone] = useState<any[]>([]);
   const [items, setItems] = useState<any[]>([]);
   const [sub, setSub] = useState<any | null>(null);
+  const [group, setGroup] = useState<{ name: string; products: any[] } | null>(null);
   const [query, setQuery] = useState("");
   const [focus, setFocus] = useState(false);
   const [active, setActive] = useState(0);
@@ -44,7 +45,7 @@ export function SubCategoryThenItemPicker({
     // Standalone products (no sub-category) — show alongside sub-categories
     supabase
       .from("products")
-      .select("id,name,prefix,hsn,default_price,default_cost,gst_rate,unit,alt_unit,alt_conversion,category,subcategory_id")
+      .select("id,name,prefix,hsn,default_price,default_cost,gst_rate,unit,alt_unit,alt_conversion,category,subcategory_id,item_group,finish")
       .eq("active", true)
       .is("subcategory_id", null)
       .order("name")
@@ -67,7 +68,7 @@ export function SubCategoryThenItemPicker({
     if (!sub) { setItems([]); return; }
     supabase
       .from("products")
-      .select("id,name,prefix,hsn,default_price,default_cost,gst_rate,unit,alt_unit,alt_conversion,category,subcategory_id")
+      .select("id,name,prefix,hsn,default_price,default_cost,gst_rate,unit,alt_unit,alt_conversion,category,subcategory_id,item_group,finish")
       .eq("active", true)
       .eq("subcategory_id" as any, sub.id)
       .order("name")
@@ -82,29 +83,71 @@ export function SubCategoryThenItemPicker({
     return () => document.removeEventListener("mousedown", h);
   }, []);
 
+  // Group a list of products into multi-finish "groups" + finish-less "items".
+  const buildItemPool = (list: any[]): any[] => {
+    const groups = new Map<string, any[]>();
+    const plain: any[] = [];
+    for (const p of list) {
+      if (p.finish && p.item_group) {
+        const arr = groups.get(p.item_group) ?? [];
+        arr.push(p);
+        groups.set(p.item_group, arr);
+      } else {
+        plain.push({ ...p, __kind: "item" as const });
+      }
+    }
+    const groupObjs = Array.from(groups.entries()).map(([name, prods]) => ({
+      __kind: "group" as const,
+      id: `grp_${name}`,
+      name,
+      category: prods[0].category,
+      products: prods,
+    }));
+    return [...groupObjs, ...plain].sort((a, b) => a.name.localeCompare(b.name));
+  };
+
   const suggestions = useMemo(() => {
     const q = query.trim().toLowerCase();
+    if (group) {
+      let pool = group.products;
+      if (q) pool = pool.filter((p) => (p.finish ?? "").toLowerCase().includes(q));
+      return pool.map((p) => ({ ...p, __kind: "finish" as const })).slice(0, 30);
+    }
     if (!sub) {
       const subPool = subs.map((s) => ({ ...s, __kind: "sub" as const }));
-      const itemPool = standalone.map((p) => ({ ...p, __kind: "item" as const }));
+      const itemPool = buildItemPool(standalone);
       const pool = [...subPool, ...itemPool];
       const filtered = q
         ? pool.filter((s) => s.name.toLowerCase().includes(q))
         : pool;
       return filtered.slice(0, 14);
     }
-    if (!q) return items.slice(0, 12);
-    return items.filter((p) => p.name.toLowerCase().includes(q)).slice(0, 12);
-  }, [sub, subs, standalone, items, query]);
+    const pool = buildItemPool(items);
+    if (!q) return pool.slice(0, 12);
+    return pool.filter((p) => p.name.toLowerCase().includes(q)).slice(0, 12);
+  }, [sub, group, subs, standalone, items, query]);
 
-  useEffect(() => { setActive(0); }, [query, sub]);
+  useEffect(() => { setActive(0); }, [query, sub, group]);
 
-  const reset = () => { setSub(null); setQuery(""); setActive(0); };
+  const reset = () => { setSub(null); setGroup(null); setQuery(""); setActive(0); };
+
+  const openGroup = (g: any) => {
+    setGroup({ name: g.name, products: g.products });
+    setQuery(""); setActive(0);
+    setTimeout(() => inputRef.current?.focus(), 0);
+  };
 
   const commit = (idx = active) => {
     const pick = suggestions[idx];
     if (!pick) return;
+    if (group) {
+      onPickItem(pick);
+      reset();
+      setTimeout(() => inputRef.current?.focus(), 0);
+      return;
+    }
     if (!sub) {
+      if (pick.__kind === "group") { openGroup(pick); return; }
       if (pick.__kind === "item") {
         onPickItem(pick);
         reset();
@@ -116,6 +159,7 @@ export function SubCategoryThenItemPicker({
       setActive(0);
       setTimeout(() => inputRef.current?.focus(), 0);
     } else {
+      if (pick.__kind === "group") { openGroup(pick); return; }
       onPickItem(pick);
       reset();
       setTimeout(() => inputRef.current?.focus(), 0);
