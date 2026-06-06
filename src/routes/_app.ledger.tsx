@@ -181,6 +181,30 @@ function LedgerPage() {
         });
       }
 
+      // 1b) Carry-forward: for FY26-27, if this party has NO imported FY26-27 ledger
+      //     rows, synthesize an Opening Balance from their FY25-26 closing balance.
+      if (fy === "2627" && list.length === 0) {
+        const { data: prev } = await supabase
+          .from(ledgerTable)
+          .select("debit, credit")
+          .eq("party_id", p.id)
+          .eq("source", "gsheet_fy2526");
+        let closing2526 = 0;
+        for (const r of (prev as { debit: number; credit: number }[]) ?? []) {
+          closing2526 += Number(r.debit) - Number(r.credit);
+        }
+        if (closing2526 !== 0) {
+          list.push({
+            date: "2026-04-01",
+            type: "opening",
+            ref: "Opening Balance",
+            debit: closing2526 > 0 ? closing2526 : 0,
+            credit: closing2526 < 0 ? -closing2526 : 0,
+            seq: 0,
+          });
+        }
+      }
+
       // 2) Live in-app activity is appended only to FY26-27, after the imported sheet's
       //    coverage window (so nothing inside the sheet's window is double-counted).
       let liveSeq = 1_000_000;
