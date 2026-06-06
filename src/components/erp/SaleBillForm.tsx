@@ -290,7 +290,8 @@ export function SaleBillForm({
       return;
     }
     setLines([...lines, {
-      product_id: item.product_id, item_instance_id: item.id, name: item.products.name,
+      product_id: item.product_id, item_instance_id: item.id,
+      name: (item.products as any).finish ? `${item.products.name} — ${(item.products as any).finish}` : item.products.name,
       qty: 1, rate: Number(item.products.default_price), gst_rate: 0,
       hsn: item.products.hsn, unit: (item.products as any).unit ?? 'pcs',
       alt_unit: (item.products as any).alt_unit ?? null,
