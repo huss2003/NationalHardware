@@ -51,7 +51,7 @@ function Reports() {
   return (
     <>
       <PageHeader title="Reports" actions={<><Button variant="outline" className="h-12" onClick={() => window.print()}>Print</Button><Button className="h-12" onClick={exportXlsx}>Export Excel</Button></>} />
-      <div className="px-8 pb-8 space-y-4">
+      <div className="px-4 sm:px-6 lg:px-8 pb-8 space-y-4">
         <div className="flex gap-2 flex-wrap">
           {(["sales","purchase","stock","movement","damaged"] as const).map(t => (
             <button key={t} onClick={() => setTab(t)} className={`px-4 py-2 rounded-full font-semibold text-sm ${tab===t?"bg-primary text-primary-foreground":"bg-card border"}`}>{t.toUpperCase()}</button>

@@ -88,7 +88,7 @@ function UnitPage() {
   return (
     <>
       <PageHeader title={item.id} subtitle={product?.name} actions={<StatusPill status={item.status} />} />
-      <div className="px-8 pb-8 grid grid-cols-1 lg:grid-cols-3 gap-5">
+      <div className="px-4 sm:px-6 lg:px-8 pb-8 grid grid-cols-1 lg:grid-cols-3 gap-5">
         <Card className="p-5 lg:col-span-2 space-y-4">
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
             <div><div className="text-xs text-muted-foreground">Cost</div><div className="text-xl font-bold">{inr(item.cost_price)}</div></div>

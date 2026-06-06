@@ -79,7 +79,7 @@ function PurchaseReturns() {
           </Dialog>
         }
       />
-      <div className="px-8 pb-10 max-w-[1400px] mx-auto w-full space-y-5">
+      <div className="px-4 sm:px-6 lg:px-8 pb-10 max-w-[1400px] mx-auto w-full space-y-5">
         {isAdmin && (
           <div className="grid gap-4 grid-cols-2 lg:grid-cols-4">
             <KpiCard icon={RotateCcw} iconBg="bg-warning/10 text-warning"

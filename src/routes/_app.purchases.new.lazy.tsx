@@ -238,7 +238,7 @@ function NewPurchase() {
           </>
         }
       />
-      <div className="px-8 pb-10 max-w-[1400px] mx-auto w-full">
+      <div className="px-4 sm:px-6 lg:px-8 pb-10 max-w-[1400px] mx-auto w-full">
         <div className="grid gap-5 grid-cols-1 lg:grid-cols-3">
           {/* Main column */}
           <div className="lg:col-span-2 space-y-5">

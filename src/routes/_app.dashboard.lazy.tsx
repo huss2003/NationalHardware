@@ -118,7 +118,7 @@ function Dashboard() {
           </>
         }
       />
-      <div className="px-8 pb-10 max-w-[1400px] mx-auto w-full space-y-5">
+      <div className="px-4 sm:px-6 lg:px-8 pb-10 max-w-[1400px] mx-auto w-full space-y-5">
         {/* KPI strip */}
         <div className="grid gap-4 grid-cols-2 md:grid-cols-3 xl:grid-cols-6">
           {t.salesToday && (

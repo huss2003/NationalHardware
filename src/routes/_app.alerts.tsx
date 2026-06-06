@@ -24,7 +24,7 @@ function Alerts() {
   return (
     <>
       <PageHeader title="Alerts" />
-      <div className="px-8 pb-8 space-y-3">
+      <div className="px-4 sm:px-6 lg:px-8 pb-8 space-y-3">
         {rows.map(a => (
           <Card key={a.id} className={`p-4 border-l-4 ${a.severity==="critical"?"border-destructive":a.severity==="warning"?"border-amber-500":"border-primary"}`}>
             <div className="flex justify-between gap-4">

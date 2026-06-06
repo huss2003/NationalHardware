@@ -176,7 +176,7 @@ function DoorPage() {
           ? "Adding door(s) to current sale — fill details and tap 'Add to sale' to return."
           : "Record door orders. General builds a multi-line order priced per sqft; Vypaari uses the saved door-type rate."}
       />
-      <div className="px-8 pb-10 max-w-[1400px] mx-auto w-full">
+      <div className="px-4 sm:px-6 lg:px-8 pb-10 max-w-[1400px] mx-auto w-full">
         {isFromSale && (
           <div className="mb-4 flex items-center justify-between gap-3 rounded-lg border border-[#a78bfa] bg-[#a78bfa]/10 px-4 py-2.5 text-sm">
             <div className="text-[#5b21b6] font-medium">

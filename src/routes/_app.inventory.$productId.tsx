@@ -61,7 +61,7 @@ function ProductDetail() {
   return (
     <>
       <PageHeader title={product.name} subtitle={`${product.category.toUpperCase()} • ${product.prefix} • HSN ${product.hsn ?? "—"} • GST ${product.gst_rate}%`} />
-      <div className="px-8 pb-8 space-y-5">
+      <div className="px-4 sm:px-6 lg:px-8 pb-8 space-y-5">
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
           <Card className="p-4"><div className="text-xs text-muted-foreground">Default cost</div><div className="text-2xl font-bold">{inr(product.default_cost)}</div></Card>
           <Card className="p-4"><div className="text-xs text-muted-foreground">Default price</div><div className="text-2xl font-bold">{inr(product.default_price)}</div></Card>

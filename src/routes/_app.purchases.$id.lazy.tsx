@@ -51,7 +51,7 @@ function PurchaseDetail() {
           </div>
         }
       />
-      <div className="px-8 pb-8 space-y-5 no-print">
+      <div className="px-4 sm:px-6 lg:px-8 pb-8 space-y-5 no-print">
         <Card className="overflow-hidden">
           <table className="w-full">
             <thead className="bg-muted text-left text-sm">

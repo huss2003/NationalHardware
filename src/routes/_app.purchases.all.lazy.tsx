@@ -70,7 +70,7 @@ function AllPurchases() {
           </Button>
         }
       />
-      <div className="px-8 pb-10 max-w-[1400px] mx-auto w-full space-y-4">
+      <div className="px-4 sm:px-6 lg:px-8 pb-10 max-w-[1400px] mx-auto w-full space-y-4">
         <Card className="p-3">
           <div className="relative max-w-sm">
             <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
