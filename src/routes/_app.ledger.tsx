@@ -156,18 +156,19 @@ function LedgerPage() {
 
   const { data: entries = [], isFetching: loading } = useQuery({
     enabled: !!selected,
-    queryKey: ["ledger", "entries", kind, selected?.id, selected?.name],
+    queryKey: ["ledger", "entries", kind, fy, selected?.id, selected?.name],
     staleTime: 5 * 60 * 1000,
     queryFn: async () => {
       const p = selected!;
       const list: Entry[] = [];
       const ledgerTable = kind === "customer" ? "sales_ledger" : "purchase_ledger";
 
-      // 1) Authoritative imported FY25-26 ledger (matches the Tally/Google-sheet export)
+      // 1) Authoritative imported ledger for the selected FY (matches the Tally/Google-sheet export)
       const { data: led } = await supabase
         .from(ledgerTable)
         .select("txn_date, txn_type, vch_no, account_name, debit, credit, seq")
         .eq("party_id", p.id)
+        .eq("source", FY_SOURCE[fy])
         .order("seq", { ascending: true });
       for (const r of (led as LedgerRow[]) ?? []) {
         list.push({
@@ -180,22 +181,23 @@ function LedgerPage() {
         });
       }
 
-      // 2) Live activity from 1-Apr-2026 onward (FY26-27+) appended after history
+      // 2) Live in-app activity is appended only to FY26-27, after the imported sheet's
+      //    coverage window (so nothing inside the sheet's window is double-counted).
       let liveSeq = 1_000_000;
-      if (kind === "customer") {
+      if (fy === "2627" && kind === "customer") {
         const [s, r, sr] = await Promise.all([
           supabase.from("sales")
             .select("id, invoice_no, invoice_date, grand_total, paid_amount, notes")
             .eq("customer_id", p.id).is("deleted_at", null)
-            .gte("invoice_date", CUTOFF).order("invoice_date", { ascending: true }),
+            .gte("invoice_date", LIVE_CUTOFF).order("invoice_date", { ascending: true }),
           supabase.from("receipts")
             .select("id, receipt_no, amount, mode, created_at, notes")
             .eq("customer_id", p.id)
-            .gte("created_at", CUTOFF).order("created_at", { ascending: true }),
+            .gte("created_at", LIVE_CUTOFF).order("created_at", { ascending: true }),
           supabase.from("sales_returns")
             .select("id, return_no, return_date, grand_total, reason, refund_amount, refund_mode")
             .eq("customer_id", p.id).is("deleted_at", null)
-            .gte("return_date", CUTOFF).order("return_date", { ascending: true }),
+            .gte("return_date", LIVE_CUTOFF).order("return_date", { ascending: true }),
         ]);
         for (const x of s.data ?? []) {
           list.push({
@@ -229,20 +231,20 @@ function LedgerPage() {
             });
           }
         }
-      } else {
+      } else if (fy === "2627") {
         const [pu, pr, sp] = await Promise.all([
           supabase.from("purchases")
             .select("id, bill_no, bill_date, grand_total")
             .eq("supplier_id", p.id).is("deleted_at", null)
-            .gte("bill_date", CUTOFF).order("bill_date", { ascending: true }),
+            .gte("bill_date", LIVE_CUTOFF).order("bill_date", { ascending: true }),
           supabase.from("purchase_returns")
             .select("id, return_no, return_date, grand_total, reason")
             .eq("supplier_id", p.id).is("deleted_at", null)
-            .gte("return_date", CUTOFF).order("return_date", { ascending: true }),
+            .gte("return_date", LIVE_CUTOFF).order("return_date", { ascending: true }),
           supabase.from("supplier_payments")
             .select("id, payment_no, payment_date, amount, mode, notes")
             .eq("supplier_id", p.id)
-            .gte("payment_date", CUTOFF).order("payment_date", { ascending: true }),
+            .gte("payment_date", LIVE_CUTOFF).order("payment_date", { ascending: true }),
         ]);
         // Supplier (creditor) convention: purchase increases what we owe (credit), payment reduces it (debit)
         for (const x of pu.data ?? []) {
