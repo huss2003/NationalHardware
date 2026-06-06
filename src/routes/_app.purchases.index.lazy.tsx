@@ -10,6 +10,7 @@ import {
 } from "@/components/ui/table";
 import { TableSkeleton } from "@/components/erp/Skeletons";
 import { inr, fmtDate } from "@/lib/codes";
+import { useAuth } from "@/lib/auth-store";
 import {
   Plus, ClipboardList, Truck, Wallet, AlertTriangle,
   TrendingUp, SlidersHorizontal, Download, BarChart3, ChevronDown,
@@ -27,6 +28,7 @@ function compactInr(n: number) {
 }
 
 function Purchases() {
+  const isAdmin = useAuth((s) => s.user)?.role === "admin";
   const [status, setStatus] = useState<string>("all");
   const [page, setPage] = useState(0);
   const pageSize = 5;
@@ -102,7 +104,7 @@ function Purchases() {
       />
       <div className="px-8 pb-10 max-w-[1400px] mx-auto w-full space-y-5">
         {/* KPI strip */}
-        <div className="grid gap-4 grid-cols-2 lg:grid-cols-4">
+        <div className={`grid gap-4 grid-cols-2 ${isAdmin ? "lg:grid-cols-4" : "lg:grid-cols-3"}`}>
           <KpiCard
             icon={ClipboardList} iconBg="bg-primary/10 text-primary"
             label="Total Bills" value={String(kpis.active)}
@@ -114,12 +116,14 @@ function Purchases() {
             label="Pending Deliveries" value={String(kpis.pending)}
             hint={<>12 arriving today</>}
           />
-          <KpiCard
-            icon={Wallet} iconBg="bg-primary/10 text-primary"
-            label="Total Spend (MTD)" value={compactInr(kpis.spend)}
-            hint={<><TrendingUp className="h-3 w-3" /> +4.5% vs budget</>}
-            hintColor="text-destructive"
-          />
+          {isAdmin && (
+            <KpiCard
+              icon={Wallet} iconBg="bg-primary/10 text-primary"
+              label="Total Spend (MTD)" value={compactInr(kpis.spend)}
+              hint={<><TrendingUp className="h-3 w-3" /> +4.5% vs budget</>}
+              hintColor="text-destructive"
+            />
+          )}
           <KpiCard
             icon={AlertTriangle} iconBg="bg-destructive/10 text-destructive"
             label="Late Shipments" value={String(kpis.late)}
