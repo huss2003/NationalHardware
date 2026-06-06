@@ -27,6 +27,7 @@ export type ProductRow = {
   default_price: number; gst_rate: number; unit: string;
   alt_unit: string | null; alt_conversion: number | null;
   subcategory_id: string | null;
+  item_group?: string | null; finish?: string | null;
 };
 
 type Customer = { id: string; name: string; state?: string | null; phone?: string | null };
