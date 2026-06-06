@@ -117,7 +117,7 @@ function NewPurchase() {
       ...lines,
       {
         product_id: p.id,
-        name: p.name,
+        name: p.finish ? `${p.name} — ${p.finish}` : p.name,
         unit: p.unit || "pcs",
         qty: 1,
         rate: Number(p.default_cost),

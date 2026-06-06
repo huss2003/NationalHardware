@@ -25,6 +25,7 @@ export function SubCategoryThenItemPicker({
   const [standalone, setStandalone] = useState<any[]>([]);
   const [items, setItems] = useState<any[]>([]);
   const [sub, setSub] = useState<any | null>(null);
+  const [group, setGroup] = useState<{ name: string; products: any[] } | null>(null);
   const [query, setQuery] = useState("");
   const [focus, setFocus] = useState(false);
   const [active, setActive] = useState(0);
@@ -44,7 +45,7 @@ export function SubCategoryThenItemPicker({
     // Standalone products (no sub-category) — show alongside sub-categories
     supabase
       .from("products")
-      .select("id,name,prefix,hsn,default_price,default_cost,gst_rate,unit,alt_unit,alt_conversion,category,subcategory_id")
+      .select("id,name,prefix,hsn,default_price,default_cost,gst_rate,unit,alt_unit,alt_conversion,category,subcategory_id,item_group,finish")
       .eq("active", true)
       .is("subcategory_id", null)
       .order("name")
@@ -67,7 +68,7 @@ export function SubCategoryThenItemPicker({
     if (!sub) { setItems([]); return; }
     supabase
       .from("products")
-      .select("id,name,prefix,hsn,default_price,default_cost,gst_rate,unit,alt_unit,alt_conversion,category,subcategory_id")
+      .select("id,name,prefix,hsn,default_price,default_cost,gst_rate,unit,alt_unit,alt_conversion,category,subcategory_id,item_group,finish")
       .eq("active", true)
       .eq("subcategory_id" as any, sub.id)
       .order("name")
@@ -82,29 +83,71 @@ export function SubCategoryThenItemPicker({
     return () => document.removeEventListener("mousedown", h);
   }, []);
 
+  // Group a list of products into multi-finish "groups" + finish-less "items".
+  const buildItemPool = (list: any[]): any[] => {
+    const groups = new Map<string, any[]>();
+    const plain: any[] = [];
+    for (const p of list) {
+      if (p.finish && p.item_group) {
+        const arr = groups.get(p.item_group) ?? [];
+        arr.push(p);
+        groups.set(p.item_group, arr);
+      } else {
+        plain.push({ ...p, __kind: "item" as const });
+      }
+    }
+    const groupObjs = Array.from(groups.entries()).map(([name, prods]) => ({
+      __kind: "group" as const,
+      id: `grp_${name}`,
+      name,
+      category: prods[0].category,
+      products: prods,
+    }));
+    return [...groupObjs, ...plain].sort((a, b) => a.name.localeCompare(b.name));
+  };
+
   const suggestions = useMemo(() => {
     const q = query.trim().toLowerCase();
+    if (group) {
+      let pool = group.products;
+      if (q) pool = pool.filter((p) => (p.finish ?? "").toLowerCase().includes(q));
+      return pool.map((p) => ({ ...p, __kind: "finish" as const })).slice(0, 30);
+    }
     if (!sub) {
       const subPool = subs.map((s) => ({ ...s, __kind: "sub" as const }));
-      const itemPool = standalone.map((p) => ({ ...p, __kind: "item" as const }));
+      const itemPool = buildItemPool(standalone);
       const pool = [...subPool, ...itemPool];
       const filtered = q
         ? pool.filter((s) => s.name.toLowerCase().includes(q))
         : pool;
       return filtered.slice(0, 14);
     }
-    if (!q) return items.slice(0, 12);
-    return items.filter((p) => p.name.toLowerCase().includes(q)).slice(0, 12);
-  }, [sub, subs, standalone, items, query]);
+    const pool = buildItemPool(items);
+    if (!q) return pool.slice(0, 12);
+    return pool.filter((p) => p.name.toLowerCase().includes(q)).slice(0, 12);
+  }, [sub, group, subs, standalone, items, query]);
 
-  useEffect(() => { setActive(0); }, [query, sub]);
+  useEffect(() => { setActive(0); }, [query, sub, group]);
 
-  const reset = () => { setSub(null); setQuery(""); setActive(0); };
+  const reset = () => { setSub(null); setGroup(null); setQuery(""); setActive(0); };
+
+  const openGroup = (g: any) => {
+    setGroup({ name: g.name, products: g.products });
+    setQuery(""); setActive(0);
+    setTimeout(() => inputRef.current?.focus(), 0);
+  };
 
   const commit = (idx = active) => {
     const pick = suggestions[idx];
     if (!pick) return;
+    if (group) {
+      onPickItem(pick);
+      reset();
+      setTimeout(() => inputRef.current?.focus(), 0);
+      return;
+    }
     if (!sub) {
+      if (pick.__kind === "group") { openGroup(pick); return; }
       if (pick.__kind === "item") {
         onPickItem(pick);
         reset();
@@ -116,6 +159,7 @@ export function SubCategoryThenItemPicker({
       setActive(0);
       setTimeout(() => inputRef.current?.focus(), 0);
     } else {
+      if (pick.__kind === "group") { openGroup(pick); return; }
       onPickItem(pick);
       reset();
       setTimeout(() => inputRef.current?.focus(), 0);
@@ -148,7 +192,16 @@ export function SubCategoryThenItemPicker({
   return (
     <div className={`relative ${className ?? ""}`} ref={boxRef}>
       <div className="flex items-center gap-1.5 rounded-md border border-input bg-background h-10 px-2">
-        {sub ? (
+        {group ? (
+          <button
+            type="button"
+            onClick={() => { setGroup(null); setQuery(""); setActive(0); setTimeout(() => inputRef.current?.focus(), 0); }}
+            className="flex items-center gap-1 text-xs font-semibold bg-amber-100 text-amber-700 px-2 py-1 rounded shrink-0 hover:bg-amber-200"
+            title="Back to items"
+          >
+            <ChevronLeft className="h-3 w-3" /> {group.name}
+          </button>
+        ) : sub ? (
           <button
             type="button"
             onClick={reset}
@@ -164,7 +217,7 @@ export function SubCategoryThenItemPicker({
           ref={inputRef}
           autoFocus={autoFocus}
           className="flex-1 h-full bg-transparent text-sm focus:outline-none placeholder:text-muted-foreground min-w-0"
-        placeholder={sub ? `Pick item in ${sub.name}…` : "Type item or sub-category…"}
+        placeholder={group ? `Pick finish in ${group.name}…` : sub ? `Pick item in ${sub.name}…` : "Type item or sub-category…"}
           value={query}
           onFocus={() => setFocus(true)}
           onChange={(e) => setQuery(e.target.value)}
@@ -172,11 +225,11 @@ export function SubCategoryThenItemPicker({
             if (e.key === "ArrowDown") { e.preventDefault(); setActive((n) => Math.min(n + 1, suggestions.length - 1)); }
             else if (e.key === "ArrowUp") { e.preventDefault(); setActive((n) => Math.max(0, n - 1)); }
             else if (e.key === "Enter") { e.preventDefault(); commit(); }
-            else if (e.key === "Escape") { reset(); }
-            else if (e.key === "Backspace" && !query && sub) { e.preventDefault(); reset(); }
+            else if (e.key === "Escape") { if (group) setGroup(null); else reset(); }
+            else if (e.key === "Backspace" && !query && (group || sub)) { e.preventDefault(); if (group) setGroup(null); else reset(); }
           }}
         />
-        {sub && (
+        {sub && !group && (
           <button
             type="button"
             onClick={quickCreateItem}
@@ -204,12 +257,16 @@ export function SubCategoryThenItemPicker({
       )}
       {focus && suggestions.length > 0 && (
         <div className="absolute z-30 mt-1 w-full bg-popover border border-border/60 rounded-lg shadow-lg max-h-72 overflow-auto">
-          {!sub && (
+          {group ? (
+            <div className="px-3 py-1.5 text-[10px] font-bold uppercase tracking-wider text-muted-foreground bg-muted/40 border-b flex items-center justify-between">
+              <span>Finishes in {group.name}</span>
+              <button type="button" onClick={() => { setGroup(null); setQuery(""); setActive(0); }} className="text-primary hover:underline normal-case font-semibold">← back</button>
+            </div>
+          ) : !sub ? (
             <div className="px-3 py-1.5 text-[10px] font-bold uppercase tracking-wider text-muted-foreground bg-muted/40 border-b">
               Items & Sub-categories
             </div>
-          )}
-          {sub && (
+          ) : (
             <div className="px-3 py-1.5 text-[10px] font-bold uppercase tracking-wider text-muted-foreground bg-muted/40 border-b flex items-center justify-between">
               <span>Items in {sub.name}</span>
               <button type="button" onClick={reset} className="text-primary hover:underline normal-case font-semibold">← back</button>
@@ -225,8 +282,17 @@ export function SubCategoryThenItemPicker({
                 i === active ? "bg-primary/10" : "hover:bg-muted"
               }`}
             >
-              <span className="font-medium truncate">{s.name}</span>
-              {!sub ? (
+              <span className="font-medium truncate">{s.__kind === "finish" ? s.finish : s.name}</span>
+              {s.__kind === "group" ? (
+                <span className="text-[10px] uppercase shrink-0 flex items-center gap-1.5">
+                  <span className="px-1.5 py-0.5 rounded bg-amber-100 text-amber-700 font-bold">finish</span>
+                  <span className="text-muted-foreground normal-case">{s.products.length} →</span>
+                </span>
+              ) : s.__kind === "finish" ? (
+                <span className="text-[11px] text-muted-foreground tabular-nums shrink-0">
+                  ₹{Number(s.default_cost ?? s.default_price ?? 0).toFixed(2)}
+                </span>
+              ) : !sub ? (
                 <span className="text-[10px] uppercase shrink-0 flex items-center gap-1.5">
                   {s.__kind === "item" && (
                     <span className="px-1.5 py-0.5 rounded bg-primary/10 text-primary font-bold">item</span>
@@ -235,12 +301,12 @@ export function SubCategoryThenItemPicker({
                 </span>
               ) : (
                 <span className="text-[11px] text-muted-foreground tabular-nums shrink-0">
-                  ₹{Number(s.default_price ?? s.default_cost ?? 0).toFixed(2)}
+                  ₹{Number(s.default_cost ?? s.default_price ?? 0).toFixed(2)}
                 </span>
               )}
             </button>
           ))}
-          {sub && query.trim() && !exactItemMatch && (
+          {sub && !group && query.trim() && !exactItemMatch && (
             <button
               type="button"
               disabled={creating}
@@ -253,7 +319,14 @@ export function SubCategoryThenItemPicker({
           )}
         </div>
       )}
-      {focus && sub && suggestions.length === 0 && (
+      {focus && group && suggestions.length === 0 && (
+        <div className="absolute z-30 mt-1 w-full bg-popover border border-border/60 rounded-lg shadow-lg">
+          <div className="p-3 text-xs text-muted-foreground">
+            No finishes in <span className="font-medium text-foreground">{group.name}</span>{query.trim() ? " match." : "."}
+          </div>
+        </div>
+      )}
+      {focus && sub && !group && suggestions.length === 0 && (
         <div className="absolute z-30 mt-1 w-full bg-popover border border-border/60 rounded-lg shadow-lg">
           <div className="p-3 text-xs text-muted-foreground">
             No items in <span className="font-medium text-foreground">{sub.name}</span>{query.trim() ? " match." : " yet."}
