@@ -10,6 +10,7 @@ import {
   Package, Search, SlidersHorizontal,
   ArrowDownToLine, ArrowUpFromLine, History,
   ArrowUp, ArrowDown, ChevronsUpDown, ChevronRight, ChevronDown,
+  Pencil,
 } from "lucide-react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -230,6 +231,7 @@ function Inventory() {
                 <SortableHead label="Item details" active={sortKey === "name"} dir={sortDir} onClick={() => toggleSort("name")} />
                 <SortableHead label="SKU" active={sortKey === "sku"} dir={sortDir} onClick={() => toggleSort("sku")} />
                 <TableHead>Category</TableHead>
+                <TableHead>Parameter</TableHead>
                 <SortableHead label="Stock level" active={sortKey === "stock"} dir={sortDir} onClick={() => toggleSort("stock")} className="w-[260px]" />
                 <SortableHead label="Unit price" active={sortKey === "price"} dir={sortDir} onClick={() => toggleSort("price")} className="text-right" align="right" />
                 <TableHead className="text-right pr-6">Actions</TableHead>
@@ -238,8 +240,8 @@ function Inventory() {
             <TableBody>
               {loading && (
                 <TableRow>
-                  <TableCell colSpan={7} className="p-0">
-                    <TableSkeleton rows={6} columns={7} showHeader={false} />
+                  <TableCell colSpan={8} className="p-0">
+                    <TableSkeleton rows={6} columns={8} showHeader={false} />
                   </TableCell>
                 </TableRow>
               )}
@@ -252,7 +254,7 @@ function Inventory() {
                     className="bg-muted/40 hover:bg-muted/60 cursor-pointer"
                     onClick={() => toggleGroup(g.id)}
                   >
-                    <TableCell colSpan={7} className="py-2.5 pl-4">
+                    <TableCell colSpan={8} className="py-2.5 pl-4">
                       <div className="flex items-center gap-2">
                         {isOpen ? <ChevronDown className="h-4 w-4 text-muted-foreground" /> : <ChevronRight className="h-4 w-4 text-muted-foreground" />}
                         {g.category !== "—" && (
@@ -330,6 +332,15 @@ function Inventory() {
                       </Badge>
                     </TableCell>
                     <TableCell>
+                      {p.finish ? (
+                        <Badge className="bg-amber-100 text-amber-700 hover:bg-amber-100 border-0 font-semibold">
+                          {p.finish}
+                        </Badge>
+                      ) : (
+                        <span className="text-muted-foreground">—</span>
+                      )}
+                    </TableCell>
+                    <TableCell>
                       <div className="space-y-1.5">
                         <div className="flex items-center justify-between gap-2">
                           <div className="text-sm">
@@ -360,6 +371,17 @@ function Inventory() {
                     </TableCell>
                     <TableCell className="text-right pr-6" onClick={(e) => e.stopPropagation()}>
                       <div className="inline-flex items-center gap-0.5">
+                        <Button
+                          asChild
+                          variant="ghost"
+                          size="icon"
+                          className="h-8 w-8"
+                          title="Edit item"
+                        >
+                          <Link to="/inventory/$productId" params={{ productId: p.id }}>
+                            <Pencil className="h-4 w-4" />
+                          </Link>
+                        </Button>
                         <Button
                           asChild
                           variant="ghost"
@@ -396,7 +418,7 @@ function Inventory() {
               })}
               {!loading && grouped.length === 0 && (
                 <TableRow>
-                  <TableCell colSpan={7} className="text-center py-12 text-muted-foreground">
+                  <TableCell colSpan={8} className="text-center py-12 text-muted-foreground">
                     No products match these filters.
                   </TableCell>
                 </TableRow>
