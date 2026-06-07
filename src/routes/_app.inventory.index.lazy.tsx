@@ -240,8 +240,8 @@ function Inventory() {
             <TableBody>
               {loading && (
                 <TableRow>
-                  <TableCell colSpan={7} className="p-0">
-                    <TableSkeleton rows={6} columns={7} showHeader={false} />
+                  <TableCell colSpan={8} className="p-0">
+                    <TableSkeleton rows={6} columns={8} showHeader={false} />
                   </TableCell>
                 </TableRow>
               )}
@@ -254,7 +254,7 @@ function Inventory() {
                     className="bg-muted/40 hover:bg-muted/60 cursor-pointer"
                     onClick={() => toggleGroup(g.id)}
                   >
-                    <TableCell colSpan={7} className="py-2.5 pl-4">
+                    <TableCell colSpan={8} className="py-2.5 pl-4">
                       <div className="flex items-center gap-2">
                         {isOpen ? <ChevronDown className="h-4 w-4 text-muted-foreground" /> : <ChevronRight className="h-4 w-4 text-muted-foreground" />}
                         {g.category !== "—" && (
