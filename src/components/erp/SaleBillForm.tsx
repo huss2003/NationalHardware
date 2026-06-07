@@ -306,15 +306,15 @@ export function SaleBillForm({
     setTimeout(() => draftRef.current?.focus(), 0);
   };
 
-  const pickDraftSub = (s: any) => {
-    const inSub = products.filter((p) => p.subcategory_id === s.id);
-    // Single product in the sub-category → add it directly (proceed directly).
-    if (inSub.length === 1) {
-      addProductLine(inSub[0], 1);
+  const pickDraftGroup = (g: any) => {
+    const variants = (g.products ?? []) as ProductRow[];
+    // Single product (no parameters) → add it directly. Else go to parameters.
+    if (variants.length === 1) {
+      addProductLine(variants[0], 1);
       setDraftSub(null);
       return;
     }
-    setDraftSub(s); setDraftQuery(""); setActiveSuggest(0);
+    setDraftSub(g); setDraftQuery(""); setActiveSuggest(0);
     setTimeout(() => draftRef.current?.focus(), 0);
   };
 
@@ -322,10 +322,9 @@ export function SaleBillForm({
     const s = draftQuery.trim();
     if (s && looksLikeCode(s)) { onScan(s); setDraftQuery(""); return; }
     const pick = draftSuggestions[activeSuggest] ?? draftSuggestions[0];
-    if (!pick) { toast.error(draftSub ? "No matching parameter" : "No matching sub-category"); return; }
+    if (!pick) { toast.error(draftSub ? "No matching parameter" : "No matching item"); return; }
     if (!draftSub) {
-      if (pick.__kind === "item") addAndReset(pick as ProductRow);
-      else pickDraftSub(pick);
+      pickDraftGroup(pick);
     } else {
       addAndReset(pick as ProductRow);
     }
