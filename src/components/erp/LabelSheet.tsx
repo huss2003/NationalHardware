@@ -35,11 +35,13 @@ export function LabelSheet({
     // global print margins for these roll-fed labels.
     // For "horizontal" output the content is rotated 90° so text reads across
     // the label width when the roll feeds the sticker portrait-first.
-    const horizontal = orientation === "horizontal";
+    // "horizontal": content reads straight across the label (no rotation).
+    // "vertical": content is rotated 90° so it reads along the roll feed.
+    const rotate = orientation === "vertical";
     // The physical page is always size.w x size.h; when rotated the inner
     // content box swaps its dimensions and is rotated into place.
-    const innerW = horizontal ? size.h : size.w;
-    const innerH = horizontal ? size.w : size.h;
+    const innerW = rotate ? size.h : size.w;
+    const innerH = rotate ? size.w : size.h;
     const qrSize = Math.max(12, Math.min(innerH - 4, innerW * 0.4));
     return (
       <div className="print-area">
@@ -60,7 +62,7 @@ export function LabelSheet({
                 top: 0,
                 left: 0,
                 transformOrigin: "top left",
-                transform: horizontal ? `translateX(${size.w}mm) rotate(90deg)` : "none",
+                transform: rotate ? `translateX(${size.w}mm) rotate(90deg)` : "none",
               }}
             >
               <div style={{ flex: 1, minWidth: 0 }}>
