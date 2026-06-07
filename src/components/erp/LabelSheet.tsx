@@ -33,21 +33,19 @@ export function LabelSheet({
     // Lay each label out at the exact roll size so the thermal printer feeds
     // one sticker per page with no scaling. The @page rule overrides the
     // global print margins for these roll-fed labels.
-    // For "horizontal" output the content is rotated 90° so text reads across
-    // the label width when the roll feeds the sticker portrait-first.
-    // "horizontal": content reads straight across the label (no rotation).
-    // "vertical": content is rotated 90° so it reads along the roll feed.
-    const rotate = orientation === "vertical";
-    // The physical page is always size.w x size.h; when rotated the inner
-    // content box swaps its dimensions and is rotated into place.
-    const innerW = rotate ? size.h : size.w;
-    const innerH = rotate ? size.w : size.h;
+    // The selected orientation controls the sticker page itself: horizontal is
+    // always wide, vertical is always tall.
+    const isHorizontal = orientation === "horizontal";
+    const pageW = isHorizontal ? Math.max(size.w, size.h) : Math.min(size.w, size.h);
+    const pageH = isHorizontal ? Math.min(size.w, size.h) : Math.max(size.w, size.h);
+    const innerW = pageW;
+    const innerH = pageH;
     const qrSize = Math.max(12, Math.min(innerH - 4, innerW * 0.4));
     return (
       <div className="print-area">
-        <style>{`@media print { @page { size: ${size.w}mm ${size.h}mm; margin: 0; } }`}</style>
+        <style>{`@media print { @page { size: ${pageW}mm ${pageH}mm; margin: 0; } html, body { width: ${pageW}mm; height: ${pageH}mm; } }`}</style>
         {items.map((it) => (
-          <div key={it.id} style={{ width: `${size.w}mm`, height: `${size.h}mm`, pageBreakAfter: "always", marginBottom: "2mm", background: "#fff", boxSizing: "border-box", overflow: "hidden", position: "relative", border: "1px dashed #ccc" }}>
+          <div key={it.id} style={{ width: `${pageW}mm`, height: `${pageH}mm`, pageBreakAfter: "always", breakAfter: "page", marginBottom: "2mm", background: "#fff", boxSizing: "border-box", overflow: "hidden", position: "relative", border: "1px dashed #ccc" }}>
             <div
               style={{
                 width: `${innerW}mm`,
@@ -62,7 +60,7 @@ export function LabelSheet({
                 top: 0,
                 left: 0,
                 transformOrigin: "top left",
-                transform: rotate ? `translateX(${size.w}mm) rotate(90deg)` : "none",
+                transform: "none",
               }}
             >
               <div style={{ flex: 1, minWidth: 0 }}>

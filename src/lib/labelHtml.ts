@@ -32,15 +32,17 @@ export function buildLabelHtml({
   let body = "";
 
   if (format === "thermal") {
-    // "horizontal": content reads straight across the label (no rotation).
-    // "vertical": content is rotated 90° so it reads along the roll feed.
-    const rotate = orientation === "vertical";
-    const innerW = rotate ? size.h : size.w;
-    const innerH = rotate ? size.w : size.h;
+    // The selected orientation must control the printed sticker page itself.
+    // Horizontal always prints as a wide label; vertical always prints as a tall label.
+    const isHorizontal = orientation === "horizontal";
+    const pageW = isHorizontal ? Math.max(size.w, size.h) : Math.min(size.w, size.h);
+    const pageH = isHorizontal ? Math.min(size.w, size.h) : Math.max(size.w, size.h);
+    const innerW = pageW;
+    const innerH = pageH;
     const qrSize = Math.max(12, Math.min(innerH - 4, innerW * 0.4));
     const barH = Math.max(6, innerH * 0.4);
 
-    pageCss = `@page { size: ${size.w}mm ${size.h}mm; margin: 0; }`;
+    pageCss = `@page { size: ${pageW}mm ${pageH}mm; margin: 0; } @media print { html, body { width: ${pageW}mm; height: ${pageH}mm; } }`;
 
     body = items
       .map((it, idx) => {
@@ -52,8 +54,8 @@ export function buildLabelHtml({
           ? `<img src="${imgs[it.id].q}" style="width:${qrSize}mm;height:${qrSize}mm" />`
           : "";
         return `
-<div class="label" style="width:${size.w}mm;height:${size.h}mm;${last ? "" : "page-break-after:always;"}background:#fff;box-sizing:border-box;overflow:hidden;position:relative">
-  <div style="width:${innerW}mm;height:${innerH}mm;box-sizing:border-box;padding:1mm;display:flex;gap:1mm;background:#fff;overflow:hidden;position:absolute;top:0;left:0;transform-origin:top left;transform:${rotate ? `translateX(${size.w}mm) rotate(90deg)` : "none"}">
+<div class="label" style="width:${pageW}mm;height:${pageH}mm;${last ? "" : "page-break-after:always;break-after:page;"}background:#fff;box-sizing:border-box;overflow:hidden;position:relative">
+  <div style="width:${innerW}mm;height:${innerH}mm;box-sizing:border-box;padding:1mm;display:flex;gap:1mm;background:#fff;overflow:hidden;position:absolute;top:0;left:0;transform-origin:top left;transform:none">
     <div style="flex:1;min-width:0">
       <div style="font-size:8pt;font-weight:800;line-height:1.1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${esc(it.name)}</div>
       <div style="font-size:7pt;font-family:monospace;font-weight:700;margin-top:1mm">${esc(it.id)}</div>
