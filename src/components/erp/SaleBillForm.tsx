@@ -191,7 +191,7 @@ export function SaleBillForm({
       const key = `${p.subcategory_id ?? "none"}||${itemName}`;
       let g = map.get(key);
       if (!g) {
-        g = { id: key, name: itemName, category: p.category, prefix: p.prefix, products: [] as ProductRow[] };
+        g = { id: key, name: itemName, prefix: p.prefix, products: [] as ProductRow[] };
         map.set(key, g);
       }
       g.products.push(p);
