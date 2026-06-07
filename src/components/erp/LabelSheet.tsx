@@ -5,14 +5,18 @@ export type LabelItem = { id: string; name: string; qr_payload: any };
 
 export type LabelSize = { w: number; h: number };
 
+export type LabelOrientation = "horizontal" | "vertical";
+
 export function LabelSheet({
   items,
   format,
   size = { w: 50, h: 25 },
+  orientation = "horizontal",
 }: {
   items: LabelItem[];
   format: "thermal" | "a4";
   size?: LabelSize;
+  orientation?: LabelOrientation;
 }) {
   const [imgs, setImgs] = useState<Record<string, { b: string; q: string }>>({});
   useEffect(() => {
@@ -29,18 +33,43 @@ export function LabelSheet({
     // Lay each label out at the exact roll size so the thermal printer feeds
     // one sticker per page with no scaling. The @page rule overrides the
     // global print margins for these roll-fed labels.
-    const qrSize = Math.max(12, Math.min(size.h - 4, size.w * 0.4));
+    // For "horizontal" output the content is rotated 90° so text reads across
+    // the label width when the roll feeds the sticker portrait-first.
+    const horizontal = orientation === "horizontal";
+    // The physical page is always size.w x size.h; when rotated the inner
+    // content box swaps its dimensions and is rotated into place.
+    const innerW = horizontal ? size.h : size.w;
+    const innerH = horizontal ? size.w : size.h;
+    const qrSize = Math.max(12, Math.min(innerH - 4, innerW * 0.4));
     return (
       <div className="print-area">
         <style>{`@media print { @page { size: ${size.w}mm ${size.h}mm; margin: 0; } }`}</style>
         {items.map((it) => (
-          <div key={it.id} style={{ width: `${size.w}mm`, height: `${size.h}mm`, pageBreakAfter: "always", padding: "1mm", display: "flex", gap: "1mm", border: "1px dashed #ccc", marginBottom: "2mm", background: "#fff", boxSizing: "border-box", overflow: "hidden" }}>
-            <div style={{ flex: 1, minWidth: 0 }}>
-              <div style={{ fontSize: "8pt", fontWeight: 800, lineHeight: 1.1, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{it.name}</div>
-              <div style={{ fontSize: "7pt", fontFamily: "monospace", fontWeight: 700, marginTop: "1mm" }}>{it.id}</div>
-              {imgs[it.id] && <img src={imgs[it.id].b} alt="" style={{ width: "100%", height: `${Math.max(6, size.h * 0.4)}mm`, objectFit: "contain", marginTop: "1mm" }} />}
+          <div key={it.id} style={{ width: `${size.w}mm`, height: `${size.h}mm`, pageBreakAfter: "always", marginBottom: "2mm", background: "#fff", boxSizing: "border-box", overflow: "hidden", position: "relative", border: "1px dashed #ccc" }}>
+            <div
+              style={{
+                width: `${innerW}mm`,
+                height: `${innerH}mm`,
+                boxSizing: "border-box",
+                padding: "1mm",
+                display: "flex",
+                gap: "1mm",
+                background: "#fff",
+                overflow: "hidden",
+                position: "absolute",
+                top: 0,
+                left: 0,
+                transformOrigin: "top left",
+                transform: horizontal ? `translateX(${size.w}mm) rotate(90deg)` : "none",
+              }}
+            >
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <div style={{ fontSize: "8pt", fontWeight: 800, lineHeight: 1.1, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{it.name}</div>
+                <div style={{ fontSize: "7pt", fontFamily: "monospace", fontWeight: 700, marginTop: "1mm" }}>{it.id}</div>
+                {imgs[it.id] && <img src={imgs[it.id].b} alt="" style={{ width: "100%", height: `${Math.max(6, innerH * 0.4)}mm`, objectFit: "contain", marginTop: "1mm" }} />}
+              </div>
+              {imgs[it.id] && <img src={imgs[it.id].q} alt="" style={{ width: `${qrSize}mm`, height: `${qrSize}mm` }} />}
             </div>
-            {imgs[it.id] && <img src={imgs[it.id].q} alt="" style={{ width: `${qrSize}mm`, height: `${qrSize}mm` }} />}
           </div>
         ))}
       </div>
