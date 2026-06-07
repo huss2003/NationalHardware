@@ -87,7 +87,7 @@ function StockEntryPage() {
 
   const submit = async () => {
     if (!picked) {
-      toast.error("Pick a sub-category and parameter first");
+      toast.error("Pick an item and parameter first");
       return;
     }
     if (qty < 1) {
@@ -126,7 +126,7 @@ function StockEntryPage() {
     <>
       <PageHeader
         title="Direct Stock Entry"
-        subtitle="Admin only — add stock for a sub-category & parameter without a bill, then print labels."
+        subtitle="Admin only — add stock for an item & parameter without a bill, then print labels."
         actions={
           <Button asChild variant="outline" size="sm">
             <Link to="/inventory">Back to Inventory</Link>
