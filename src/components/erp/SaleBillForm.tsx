@@ -716,7 +716,7 @@ export function SaleBillForm({
                         }}
                       >
                         <div className="px-3 py-1.5 text-[10px] font-bold uppercase tracking-wider text-slate-500 bg-slate-50 border-b border-slate-200 flex items-center justify-between">
-                          <span>{draftSub ? `Parameters in ${draftSub.name}` : "Items & Sub-categories"}</span>
+                          <span>{draftSub ? `Parameters in ${draftSub.name}` : "Items"}</span>
                           {draftSub && (
                             <button type="button" onMouseDown={(e) => { e.preventDefault(); setDraftSub(null); }} className="text-[#3b82f6] hover:underline normal-case font-semibold">← back</button>
                           )}
@@ -728,8 +728,7 @@ export function SaleBillForm({
                             onMouseDown={(e) => {
                               e.preventDefault();
                               if (!draftSub) {
-                                if (p.__kind === "item") addAndReset(p as ProductRow);
-                                else pickDraftSub(p);
+                                pickDraftGroup(p);
                               } else {
                                 addAndReset(p as ProductRow);
                               }
