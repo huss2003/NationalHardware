@@ -10,6 +10,7 @@ import {
   Package, Search, SlidersHorizontal,
   ArrowDownToLine, ArrowUpFromLine, History,
   ArrowUp, ArrowDown, ChevronsUpDown, ChevronRight, ChevronDown,
+  Pencil,
 } from "lucide-react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Checkbox } from "@/components/ui/checkbox";
