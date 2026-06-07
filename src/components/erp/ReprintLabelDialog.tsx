@@ -1,6 +1,6 @@
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
-import { LabelSheet, type LabelItem, type LabelSize } from "@/components/erp/LabelSheet";
+import { LabelSheet, type LabelItem, type LabelSize, type LabelOrientation } from "@/components/erp/LabelSheet";
 import { Printer } from "lucide-react";
 import { useState } from "react";
 
@@ -24,6 +24,7 @@ export function ReprintLabelDialog({
 }) {
   const [fmt, setFmt] = useState<"thermal" | "a4">(format);
   const [sizeIdx, setSizeIdx] = useState(0);
+  const [orientation, setOrientation] = useState<LabelOrientation>("horizontal");
   const size = THERMAL_SIZES[sizeIdx].size;
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -57,6 +58,7 @@ export function ReprintLabelDialog({
           </div>
 
           {fmt === "thermal" && (
+            <>
             <div>
               <div className="text-xs font-medium mb-1.5">Label size (Sexnik Veer 2 inch)</div>
               <div className="grid grid-cols-4 gap-2">
@@ -76,6 +78,29 @@ export function ReprintLabelDialog({
                 ))}
               </div>
             </div>
+            <div>
+              <div className="text-xs font-medium mb-1.5">Orientation</div>
+              <div className="grid grid-cols-2 gap-2 p-1 bg-muted rounded-lg">
+                {([
+                  { v: "horizontal", label: "Horizontal" },
+                  { v: "vertical", label: "Vertical" },
+                ] as const).map((o) => (
+                  <button
+                    key={o.v}
+                    type="button"
+                    onClick={() => setOrientation(o.v)}
+                    className={`h-9 rounded-md text-sm font-semibold transition-colors ${
+                      orientation === o.v
+                        ? "bg-background text-foreground shadow-sm"
+                        : "text-muted-foreground hover:text-foreground"
+                    }`}
+                  >
+                    {o.label}
+                  </button>
+                ))}
+              </div>
+            </div>
+            </>
           )}
 
           <p className="text-xs text-muted-foreground">
@@ -87,7 +112,7 @@ export function ReprintLabelDialog({
         <div className="rounded-md border bg-muted/30 p-3">
           {items.length === 0
             ? <div className="text-xs text-muted-foreground text-center py-6">Nothing to print.</div>
-            : <LabelSheet items={items} format={fmt} size={size} />}
+            : <LabelSheet items={items} format={fmt} size={size} orientation={orientation} />}
         </div>
         <DialogFooter>
           <Button variant="ghost" onClick={() => onOpenChange(false)}>Close</Button>
