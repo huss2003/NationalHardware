@@ -39,6 +39,12 @@ export function ReprintLabelDialog({
   const size: LabelSize = custom
     ? { w: Math.max(10, customW || 0), h: Math.max(10, customH || 0) }
     : THERMAL_SIZES[sizeIdx].size;
+  const previewSize: LabelSize = fmt === "thermal"
+    ? {
+        w: orientation === "horizontal" ? Math.max(size.w, size.h) : Math.min(size.w, size.h),
+        h: orientation === "horizontal" ? Math.min(size.w, size.h) : Math.max(size.w, size.h),
+      }
+    : size;
 
   // Generate the barcode + QR images for every item once the dialog has items.
   useEffect(() => {
@@ -203,8 +209,8 @@ export function ReprintLabelDialog({
                 srcDoc={html}
                 className="bg-white rounded shadow-sm border"
                 style={{
-                  width: fmt === "thermal" ? `${Math.min(size.w * 4, 320)}px` : "100%",
-                  height: fmt === "thermal" ? `${Math.min(size.h * 4 * Math.min(items.length, 4) + 16, 420)}px` : "420px",
+                  width: fmt === "thermal" ? `${Math.min(previewSize.w * 4, 320)}px` : "100%",
+                  height: fmt === "thermal" ? `${Math.min(previewSize.h * 4 * Math.min(items.length, 4) + 16, 420)}px` : "420px",
                 }}
               />
             )}
@@ -217,7 +223,7 @@ export function ReprintLabelDialog({
           ref={printRef}
           title="label-print"
           srcDoc={html}
-          style={{ position: "fixed", width: 0, height: 0, border: 0, left: "-9999px", top: 0 }}
+          style={{ position: "fixed", width: `${previewSize.w}mm`, height: `${previewSize.h}mm`, border: 0, left: "-9999px", top: 0 }}
         />
 
         <DialogFooter>
