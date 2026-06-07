@@ -101,7 +101,7 @@ function StockEntryPage() {
         _qty: Math.floor(qty),
         _cost: Number(cost) || 0,
         _actor_user_id: user?.id ?? "",
-        _godown_id: godownId || null,
+        _godown_id: godownId || undefined,
       });
       if (error) throw error;
       const rows = (data ?? []) as any[];
