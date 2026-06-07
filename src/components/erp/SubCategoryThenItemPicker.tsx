@@ -112,14 +112,13 @@ export function SubCategoryThenItemPicker({
 
   const reset = () => { setSub(null); setQuery(""); setActive(0); };
 
-  // When a sub-category resolves to a single product, add it directly.
+  // Enter a sub-category. If it resolves to a single product, the effect below
+  // auto-adds it (parameters load asynchronously).
   const pickSub = (s: any) => {
-    const inSub = standalone.length || items.length ? null : null; // placeholder, items load async
     setSub(s);
     setQuery("");
     setActive(0);
     setTimeout(() => inputRef.current?.focus(), 0);
-    void inSub;
   };
 
   const commit = (idx = active) => {
