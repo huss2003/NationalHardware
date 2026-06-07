@@ -694,7 +694,7 @@ export function SaleBillForm({
                           setDraftSub(null);
                         }
                       }}
-                      placeholder={draftSub ? `Pick parameter in ${draftSub.name}…` : "Scan barcode or type item / sub-category…"}
+                      placeholder={draftSub ? `Pick parameter in ${draftSub.name}…` : "Scan barcode or type item name…"}
                       className="w-full h-full px-2 py-1.5 bg-transparent focus:outline-none focus:bg-white focus:ring-2 focus:ring-inset focus:ring-[#3b82f6] placeholder:text-slate-400 font-sans"
                       aria-label="Add new line"
                     />
