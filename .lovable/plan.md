@@ -1,65 +1,62 @@
-# Parameterized Stock: Item → Finish (P1)
+# Parameterized Stock: Cleaner Sales picker, Inventory parameters & Admin direct stock-in
 
-## Goal
-In your Google Sheet each **Item** (e.g. `10" CHANNEL`) has several **finishes** under *P1 (Finesh)* (e.g. `BQ`, `GODREJ`, `HATTICH`…), each with its own unit. You want: when billing/purchasing, the user first picks an item, then must pick a finish — and each item+finish keeps its **own separate stock**.
+## Data model (already in place)
+- `products.subcategory_id` → **sub-category** (e.g. `Alternate`, `14 Number Birangee`)
+- `products.item_group` → the underlying item (e.g. `12MM 8*4 ALT`)
+- `products.finish` → the **parameter** (e.g. `Comet`, `1.25*14`)
+- Each item+finish is its own product row with its own stock. No schema change needed for the picker/inventory work.
 
-## How it will work
-Each **item + finish** becomes its own stock line in your catalog (its own on‑hand quantity, its own purchases/sales history). The current app already tracks stock per catalog item, so making each finish its own catalog entry gives you "separate stock per finish" automatically, without rebuilding the inventory/scanning engine.
-
-The item picker in **New Sale** and **New Purchase** gets one extra step:
+## 1. Sales picker — Sub-category → Parameter only
+In `src/components/erp/SaleBillForm.tsx`:
+- **Remove the middle "item group" stage.** The flow becomes two levels:
+  1. **Stage A:** list sub-categories first, then standalone items (products with no sub-category) below them, as before.
+  2. **Stage B:** after a sub-category is picked, show a **flat list of every product (parameter)** in it — no separate item step.
+- Each Stage-B entry is labelled by its `finish` (the parameter). When the same finish name appears under different items, show the `item_group` as small grey subtitle text so the two are distinguishable.
+- Sub-categories with **no parameters** (plain items) simply list their items in Stage B; picking one adds it.
+- If a sub-category resolves to exactly **one** product, auto-add it on pick (proceed directly, no second click).
+- Standalone items keep adding in one step from Stage A.
+- Line name stays `Item — Finish` (e.g. `12MM 8*4 ALT — Comet`); when there is no finish it's just the name.
 
 ```text
-Sub-category  ─▶  Item (e.g. 10" CHANNEL)  ─▶  Finish (BQ / GODREJ / …)  ─▶ added to bill
+Sub-category ─▶ Parameter (finish)  ─▶ added to bill
+(no parameters) Sub-category ─▶ Item ─▶ added to bill
+Standalone item ─▶ added directly
 ```
 
-- Picking a finish is **required** for any item that has finishes (you cannot add the bare item).
-- Items that have no finishes keep working exactly as today (no extra step).
-- Each line shows the item with its finish, e.g. `10" CHANNEL — GODREJ`, on screen, on bills and in reports.
+The `buildItemPool` / group-stage logic (`draftGroup`, `openDraftGroup`, `addFinishAndReset`) is replaced by a simple "products in this sub-category" list.
 
-## What gets imported
-All ~116 items and ~584 finishes from the sheet:
-- Where an item already exists in your catalog, it is reused as that item's **first** finish (so its existing history and stock stay intact), and the remaining finishes are added as new entries copied from it (same unit, GST, HSN, prices, sub-category).
-- Items not yet in your catalog are created fresh from the sheet (using the sheet's Unit), grouped under the item, one entry per finish.
-- The sheet's per-row Unit is applied to each finish.
+## 2. Inventory — show parameters under sub-categories
+In `src/routes/_app.inventory.index.lazy.tsx`:
+- The page already groups rows by sub-category. Make the **parameter visible on each row**: when a product has a `finish`, render the finish as a badge next to the item name (e.g. `12MM 8*4 ALT` with a `Comet` chip), and use `item_group` as the row's primary label instead of the raw `name` when they differ.
+- Add a small "Parameter" sub-label/column so a sub-category like `Alternate` clearly reads as a list of items × parameters, each with its own stock level (the existing stock bar already reflects per-finish stock).
 
-## Steps
+## 3. Admin-only direct stock-in + label printing
+A new screen to add real, labelled stock for a sub-category + parameter **without a supplier bill** (opening stock / manual mint).
 
-### 1. Database (migration)
-Add two columns to the `products` table:
-- `item_group` (text) — the parent item name used for grouping (e.g. `10" CHANNEL`).
-- `finish` (text) — the P1 finish value (e.g. `GODREJ`); empty for items without finishes.
+### a. Database (migration)
+Add an RPC `mint_stock_entry(_product_id uuid, _qty int, _cost numeric, _actor_user_id uuid)` that mirrors the minting logic in `mint_item_instances` but with **no purchase_item**:
+- For `hardware` category: increment the shared lot row (or create one) by `_qty`.
+- Otherwise: mint `_qty` unique `item_instances` via `next_item_id(prefix)`.
+- Set `cost_price = _cost`, build the same `qr_payload` shape, and write `item_history` rows with event `purchased` and note `Manual stock entry`.
+- Return the minted `item_instances` so the UI can print labels.
+- `SECURITY DEFINER`, `search_path = public`, granted to `authenticated`.
 
-Add an index on `item_group` for fast grouping. No changes to sales, purchases, stock, scanning or minting logic are required — those already key on the catalog item.
+### b. Screen
+New route `src/routes/_app.inventory.stock-entry.tsx` (Admin-only):
+- Guard: redirect non-admins to `/inventory` using the `isAdmin` helper from `src/lib/roles.ts`; only show its sidebar entry for admins.
+- UI: the same two-stage **Sub-category → Parameter** picker (reuse `SubCategoryThenItemPicker`, updated to the parameter-only flow), plus **quantity** and **cost price** inputs and an optional **godown** selector.
+- On submit: call `mint_stock_entry`, then open the existing `ReprintLabelDialog` / `LabelSheet` with the returned units so the admin can **print labels** immediately (thermal/A4).
+- Link the screen from the Inventory header (Admin only).
 
-### 2. Import the sheet data
-A one-time import (run with admin credentials, reading the sheet through the connected Google Sheets connection):
-- Parse the sheet into item → [finishes] with each finish's unit.
-- Match items to existing products by normalized name.
-- Update the matched product: set `item_group` and the first `finish`.
-- Insert new product rows for the remaining finishes (cloning prefix/category/unit/HSN/GST/prices/sub-category from the matched item).
-- Create brand-new grouped products for unmatched sheet items.
-- Newly created finishes start at 0 stock; you build stock per finish through normal purchases.
+### c. Picker reuse
+Update `src/components/erp/SubCategoryThenItemPicker.tsx` to the same parameter-only flow (drop the item-group stage) so Purchases, the Admin stock-entry screen, and Sales behave consistently.
 
-### 3. Sales screen (`SaleBillForm` inline picker)
-- Add a finish stage: after an item with finishes is chosen, show that item's finishes; selecting one adds the line.
-- Block adding an item that has finishes until a finish is selected (required).
-- Show `item — finish` as the line name.
-
-### 4. Purchase screen (`SubCategoryThenItemPicker`, used by New Purchase)
-- Same three-stage flow (sub-category → item → finish), with finish required for items that have finishes.
-- Selecting a finish adds the purchase line for that finish's catalog entry, so minted units stock that specific finish.
-- Show `item — finish` as the line name.
-
-### 5. Verify
-- New Purchase: pick an item with finishes, confirm finish is required, save, and confirm units mint against the chosen finish only.
-- New Sale: confirm the same item's other finishes have independent stock and the finish appears on the line.
-- Confirm items without finishes still add in one step.
+## Verify
+- Sales: pick `Alternate` → see parameters (with item subtitles) → add; pick a single-product sub-category → auto-adds; standalone item still one-click.
+- Inventory: expand a sub-category → each row shows its parameter and independent stock.
+- Admin stock-entry: mint N units for a chosen parameter, confirm stock rises for that exact finish only, and labels print. Confirm employees can't open the screen.
 
 ## Technical notes
-- Model: finish is a product-level variant. `products.item_group` + `products.finish` identify a variant; stock stays per `product_id` via `item_instances`, so `record_sale`, `mint_item_instances`, and `stock_by_product` are untouched.
-- Pickers group candidate products by `item_group`; a group with >1 finish (or any non-empty `finish`) renders the extra finish stage; single, finish-less items skip it.
-- Line display composes `name` + `finish`; stored `sales_items`/`purchase_items` rows continue to reference only `product_id`.
-- Inventory and product-list pages keep working unchanged; finishes simply appear as distinct catalog entries (a later enhancement could group them visually if desired).
-
-## Scope
-DB: add two columns + index to `products` (additive, non-breaking). Data: one-time import from the sheet. Frontend: item-picker changes in the Sales and Purchase entry screens plus line-name display. No changes to stock math, scanning, returns, or reports logic.
+- No changes to `record_sale`, `mint_item_instances`, returns, or reports — stock stays per `product_id`.
+- The new RPC is additive; existing purchase-based minting is untouched.
+- Admin gating is enforced both in the route component and in the sidebar.
