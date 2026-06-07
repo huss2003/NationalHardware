@@ -375,6 +375,17 @@ function Inventory() {
                           asChild
                           variant="ghost"
                           size="icon"
+                          className="h-8 w-8"
+                          title="Edit item"
+                        >
+                          <Link to="/inventory/$productId" params={{ productId: p.id }}>
+                            <Pencil className="h-4 w-4" />
+                          </Link>
+                        </Button>
+                        <Button
+                          asChild
+                          variant="ghost"
+                          size="icon"
                           className="h-8 w-8 text-success hover:bg-success/10 hover:text-success"
                           title="Stock in"
                         >
