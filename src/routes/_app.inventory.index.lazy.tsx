@@ -231,6 +231,7 @@ function Inventory() {
                 <SortableHead label="Item details" active={sortKey === "name"} dir={sortDir} onClick={() => toggleSort("name")} />
                 <SortableHead label="SKU" active={sortKey === "sku"} dir={sortDir} onClick={() => toggleSort("sku")} />
                 <TableHead>Category</TableHead>
+                <TableHead>Parameter</TableHead>
                 <SortableHead label="Stock level" active={sortKey === "stock"} dir={sortDir} onClick={() => toggleSort("stock")} className="w-[260px]" />
                 <SortableHead label="Unit price" active={sortKey === "price"} dir={sortDir} onClick={() => toggleSort("price")} className="text-right" align="right" />
                 <TableHead className="text-right pr-6">Actions</TableHead>
