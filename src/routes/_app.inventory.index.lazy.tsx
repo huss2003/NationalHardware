@@ -108,24 +108,34 @@ function Inventory() {
     else { setSortKey(key); setSortDir("asc"); }
   };
 
-  // Group sorted products by sub-category. "Uncategorized" bucket for null.
-  const grouped = useMemo(() => {
+  // Group sorted products by sub-category → item (product name) → parameter (finish).
+  // "Uncategorized" bucket for products without a sub-category.
+  type ItemNode = { key: string; name: string; variants: any[] };
+  type GroupNode = { id: string; name: string; category: string; items: ItemNode[]; rows: any[] };
+  const grouped = useMemo<GroupNode[]>(() => {
     const subMap = new Map<string, any>(subcats.map((s) => [s.id, s]));
-    const buckets = new Map<string, { id: string; name: string; category: string; items: any[] }>();
+    const buckets = new Map<string, { id: string; name: string; category: string; itemMap: Map<string, ItemNode>; rows: any[] }>();
     for (const p of sorted) {
       const sid = p.subcategory_id ?? "__uncat__";
       if (!buckets.has(sid)) {
         const meta = sid === "__uncat__"
           ? { id: "__uncat__", name: "Uncategorized", category: "—" }
           : { id: sid, name: subMap.get(sid)?.name ?? "Unknown sub-category", category: subMap.get(sid)?.category ?? "—" };
-        buckets.set(sid, { ...meta, items: [] });
+        buckets.set(sid, { ...meta, itemMap: new Map(), rows: [] });
       }
-      buckets.get(sid)!.items.push(p);
+      const bucket = buckets.get(sid)!;
+      bucket.rows.push(p);
+      const itemName = (p.item_group || p.name) as string;
+      const ikey = `${sid}::${itemName}`;
+      if (!bucket.itemMap.has(ikey)) bucket.itemMap.set(ikey, { key: ikey, name: itemName, variants: [] });
+      bucket.itemMap.get(ikey)!.variants.push(p);
     }
-    return Array.from(buckets.values()).sort((a, b) =>
-      a.id === "__uncat__" ? 1 : b.id === "__uncat__" ? -1 :
-      (a.category + a.name).localeCompare(b.category + b.name),
-    );
+    return Array.from(buckets.values())
+      .map((b) => ({ id: b.id, name: b.name, category: b.category, rows: b.rows, items: Array.from(b.itemMap.values()) }))
+      .sort((a, b) =>
+        a.id === "__uncat__" ? 1 : b.id === "__uncat__" ? -1 :
+        (a.category + a.name).localeCompare(b.category + b.name),
+      );
   }, [sorted, subcats]);
 
   const searching = q.trim().length > 0 || category !== "all" || stockStatus !== "all";
