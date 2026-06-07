@@ -1519,6 +1519,41 @@ export type Database = {
           isSetofReturn: true
         }
       }
+      mint_stock_entry: {
+        Args: {
+          _actor_user_id: string
+          _cost: number
+          _godown_id?: string
+          _product_id: string
+          _qty: number
+        }
+        Returns: {
+          area_sqft: number | null
+          barcode_payload: string
+          cost_price: number
+          created_at: string
+          dimension_unit: string | null
+          godown_id: string | null
+          id: string
+          is_lot: boolean
+          length_value: number | null
+          location: string | null
+          produced_by_order_id: string | null
+          product_id: string
+          qr_payload: Json
+          qty_on_hand: number
+          source_purchase_item_id: string | null
+          status: Database["public"]["Enums"]["item_status"]
+          updated_at: string
+          width_value: number | null
+        }[]
+        SetofOptions: {
+          from: "*"
+          to: "item_instances"
+          isOneToOne: false
+          isSetofReturn: true
+        }
+      }
       next_item_id: { Args: { _prefix: string }; Returns: string }
       next_receipt_no: { Args: { _customer_id: string }; Returns: string }
       record_sale: {
