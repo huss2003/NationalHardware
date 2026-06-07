@@ -1,8 +1,10 @@
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
-import { LabelSheet, type LabelItem, type LabelSize, type LabelOrientation } from "@/components/erp/LabelSheet";
+import type { LabelItem, LabelSize, LabelOrientation } from "@/components/erp/LabelSheet";
+import { makeBarcodeDataUrl, makeQrDataUrl } from "@/lib/codes";
+import { buildLabelHtml, type CodeImgs } from "@/lib/labelHtml";
 import { Printer } from "lucide-react";
-import { useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 
 // Roll sizes for the Sexnik Veer 2-inch (50mm) thermal printer plus a couple
 // of common variants. Width is fixed at the 50mm head; height is the label gap.
@@ -32,17 +34,51 @@ export function ReprintLabelDialog({
   const [custom, setCustom] = useState(false);
   const [customW, setCustomW] = useState(50);
   const [customH, setCustomH] = useState(25);
+  const [imgs, setImgs] = useState<CodeImgs>({});
+
   const size: LabelSize = custom
     ? { w: Math.max(10, customW || 0), h: Math.max(10, customH || 0) }
     : THERMAL_SIZES[sizeIdx].size;
+
+  // Generate the barcode + QR images for every item once the dialog has items.
+  useEffect(() => {
+    let alive = true;
+    (async () => {
+      const out: CodeImgs = {};
+      for (const it of items) {
+        out[it.id] = { b: await makeBarcodeDataUrl(it.id), q: await makeQrDataUrl(it.qr_payload) };
+      }
+      if (alive) setImgs(out);
+    })();
+    return () => { alive = false; };
+  }, [items]);
+
+  // The exact HTML that the printer receives — also rendered in the preview
+  // iframe so what you see is what prints (correct count, no blank pages).
+  const html = useMemo(
+    () => buildLabelHtml({ items, imgs, format: fmt, size, orientation }),
+    [items, imgs, fmt, size.w, size.h, orientation],
+  );
+
+  const printRef = useRef<HTMLIFrameElement>(null);
+
+  const doPrint = () => {
+    const iframe = printRef.current;
+    if (!iframe) return;
+    const win = iframe.contentWindow;
+    if (!win) return;
+    win.focus();
+    win.print();
+  };
+
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-[680px] max-h-[88vh] overflow-y-auto">
+      <DialogContent className="sm:max-w-[720px] max-h-[88vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>{title}</DialogTitle>
         </DialogHeader>
 
-        <div className="space-y-3 no-print">
+        <div className="space-y-3">
           <div>
             <div className="text-xs font-medium mb-1.5">Label format</div>
             <div className="grid grid-cols-2 gap-2 p-1 bg-muted rounded-lg">
@@ -154,14 +190,39 @@ export function ReprintLabelDialog({
           </p>
         </div>
 
-        <div className="rounded-md border bg-muted/30 p-3">
-          {items.length === 0
-            ? <div className="text-xs text-muted-foreground text-center py-6">Nothing to print.</div>
-            : <LabelSheet items={items} format={fmt} size={size} orientation={orientation} />}
+        <div>
+          <div className="text-xs font-medium mb-1.5">
+            Preview — {items.length} label{items.length === 1 ? "" : "s"} (exactly what prints)
+          </div>
+          <div className="rounded-md border bg-muted/30 p-3 flex justify-center">
+            {items.length === 0 ? (
+              <div className="text-xs text-muted-foreground text-center py-6">Nothing to print.</div>
+            ) : (
+              <iframe
+                title="label-preview"
+                srcDoc={html}
+                className="bg-white rounded shadow-sm border"
+                style={{
+                  width: fmt === "thermal" ? `${Math.min(size.w * 4, 320)}px` : "100%",
+                  height: fmt === "thermal" ? `${Math.min(size.h * 4 * Math.min(items.length, 4) + 16, 420)}px` : "420px",
+                }}
+              />
+            )}
+          </div>
         </div>
+
+        {/* Hidden iframe used purely for printing — guarantees the printout
+            matches the preview and prints only the labels. */}
+        <iframe
+          ref={printRef}
+          title="label-print"
+          srcDoc={html}
+          style={{ position: "fixed", width: 0, height: 0, border: 0, left: "-9999px", top: 0 }}
+        />
+
         <DialogFooter>
           <Button variant="ghost" onClick={() => onOpenChange(false)}>Close</Button>
-          <Button onClick={() => window.print()} className="gap-2" disabled={items.length === 0}>
+          <Button onClick={doPrint} className="gap-2" disabled={items.length === 0}>
             <Printer className="h-4 w-4" /> Print
           </Button>
         </DialogFooter>
