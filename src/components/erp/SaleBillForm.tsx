@@ -182,40 +182,45 @@ export function SaleBillForm({
   // Parameter (finish) label for a product variant, else its name.
   const variantLabel = (p: ProductRow) => (p.finish && String(p.finish).trim() ? p.finish : p.name);
 
-  // Stage A: sub-categories + standalone items (no sub-category), listed after subs.
-  // Stage B (draftSub picked): a flat list of every product (parameter) in the sub.
+  // Build item groups: every product collapses by name (within its sub-category)
+  // into one selectable item. Its rows become the parameters (finishes).
+  const itemGroups = useMemo<any[]>(() => {
+    const map = new Map<string, any>();
+    for (const p of products) {
+      const itemName = (p.item_group || p.name) as string;
+      const key = `${p.subcategory_id ?? "none"}||${itemName}`;
+      let g = map.get(key);
+      if (!g) {
+        g = { id: key, name: itemName, category: p.category, prefix: p.prefix, products: [] as ProductRow[] };
+        map.set(key, g);
+      }
+      g.products.push(p);
+    }
+    return Array.from(map.values()).sort((a, b) => a.name.localeCompare(b.name));
+  }, [products]);
+
+  // Stage A: items (product names) — no group names shown. Search matches any
+  // sequence anywhere in the name. Stage B (item picked): its parameters.
   const draftSuggestions = useMemo<any[]>(() => {
     const q = draftQuery.trim().toLowerCase();
     if (!draftSub) {
-      const subPool = subcats
-        .slice()
-        .sort((a, b) => a.name.localeCompare(b.name))
-        .map((s) => ({ ...s, __kind: "sub" as const }));
-      const itemPool = products
-        .filter((p) => !p.subcategory_id)
-        .sort((a, b) => a.name.localeCompare(b.name))
-        .map((p) => ({ ...p, __kind: "item" as const }));
-      const pool = [...subPool, ...itemPool];
-      const filtered = q
-        ? pool.filter((s: any) =>
-            s.name.toLowerCase().includes(q) ||
-            (s.prefix ? String(s.prefix).toLowerCase().includes(q) : false),
-          )
-        : pool;
-      // Show every sub-category (and standalone item) — the dropdown scrolls.
-      return filtered;
+      const pool = itemGroups.map((g) => ({ ...g, __kind: "group" as const }));
+      if (!q) return pool;
+      return pool.filter((g: any) =>
+        g.name.toLowerCase().includes(q) ||
+        (g.prefix ? String(g.prefix).toLowerCase().includes(q) : false),
+      );
     }
-    const pool = products
-      .filter((p) => p.subcategory_id === draftSub.id)
+    const pool = (draftSub.products as ProductRow[])
+      .slice()
       .sort((a, b) => String(variantLabel(a)).localeCompare(String(variantLabel(b))))
       .map((p) => ({ ...p, __kind: "variant" as const }));
-    if (!q) return pool.slice(0, 40);
+    if (!q) return pool.slice(0, 60);
     return pool.filter((p: any) =>
       String(variantLabel(p)).toLowerCase().includes(q) ||
-      (p.item_group ?? "").toLowerCase().includes(q) ||
-      (p.name ?? "").toLowerCase().includes(q),
-    ).slice(0, 40);
-  }, [products, subcats, draftSub, draftQuery]);
+      (p.finish ?? "").toLowerCase().includes(q),
+    ).slice(0, 60);
+  }, [itemGroups, draftSub, draftQuery]);
 
   const looksLikeCode = (s: string) => /-/.test(s) && /^[A-Za-z0-9-]+$/.test(s);
 
