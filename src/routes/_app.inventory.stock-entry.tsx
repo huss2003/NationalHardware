@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { PageHeader } from "@/components/erp/PageHeader";
-import { SubCategoryThenItemPicker } from "@/components/erp/SubCategoryThenItemPicker";
+import { ItemThenParameterPicker } from "@/components/erp/ItemThenParameterPicker";
 import { ReprintLabelDialog } from "@/components/erp/ReprintLabelDialog";
 import type { LabelItem } from "@/components/erp/LabelSheet";
 import { useAuth } from "@/lib/auth-store";
@@ -136,10 +136,10 @@ function StockEntryPage() {
       <div className="px-4 sm:px-6 lg:px-8 pb-10 max-w-[760px] mx-auto w-full">
         <Card className="p-6 space-y-5">
           <div>
-            <Label className="text-xs mb-1.5 block">Sub-category → Parameter</Label>
-            <SubCategoryThenItemPicker
+            <Label className="text-xs mb-1.5 block">Item → Parameter</Label>
+            <ItemThenParameterPicker
               onPickItem={onPick}
-              placeholder="Type sub-category, then pick parameter…"
+              placeholder="Type item name…"
             />
             {picked && (
               <div className="mt-3 flex items-center justify-between rounded-md border border-border/60 bg-muted/40 px-3 py-2">
