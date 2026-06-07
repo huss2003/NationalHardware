@@ -75,7 +75,6 @@ export function SaleBillForm({
   const [busy, setBusy] = useState(false);
   const [createCustomerOpen, setCreateCustomerOpen] = useState(false);
   const [draftSub, setDraftSub] = useState<SubCat | null>(null);
-  const [draftGroup, setDraftGroup] = useState<{ name: string; products: ProductRow[] } | null>(null);
   const [draftQuery, setDraftQuery] = useState("");
   const [draftFocused, setDraftFocused] = useState(false);
   const [activeSuggest, setActiveSuggest] = useState(0);
@@ -180,41 +179,22 @@ export function SaleBillForm({
     return () => window.removeEventListener("keydown", h);
   }, [active]);
 
-  // Group a list of products into multi-finish "groups" + finish-less "items".
-  const buildItemPool = (list: ProductRow[]): any[] => {
-    const groups = new Map<string, ProductRow[]>();
-    const items: any[] = [];
-    for (const p of list) {
-      if (p.finish && p.item_group) {
-        const arr = groups.get(p.item_group) ?? [];
-        arr.push(p);
-        groups.set(p.item_group, arr);
-      } else {
-        items.push({ ...p, __kind: "item" as const });
-      }
-    }
-    const groupObjs = Array.from(groups.entries()).map(([name, prods]) => ({
-      __kind: "group" as const,
-      id: `grp_${name}`,
-      name,
-      prefix: prods[0].prefix,
-      products: prods,
-    }));
-    return [...groupObjs, ...items].sort((a, b) => a.name.localeCompare(b.name));
-  };
+  // Parameter (finish) label for a product variant, else its name.
+  const variantLabel = (p: ProductRow) => (p.finish && String(p.finish).trim() ? p.finish : p.name);
 
-  // Stage A: sub-categories + standalone items/groups. Stage B: items/groups in a sub.
-  // Stage C (draftGroup): the finishes inside a chosen item group.
+  // Stage A: sub-categories + standalone items (no sub-category), listed after subs.
+  // Stage B (draftSub picked): a flat list of every product (parameter) in the sub.
   const draftSuggestions = useMemo<any[]>(() => {
     const q = draftQuery.trim().toLowerCase();
-    if (draftGroup) {
-      let pool = draftGroup.products;
-      if (q) pool = pool.filter((p) => (p.finish ?? "").toLowerCase().includes(q));
-      return pool.map((p) => ({ ...p, __kind: "finish" as const })).slice(0, 30);
-    }
     if (!draftSub) {
-      const subPool = subcats.map((s) => ({ ...s, __kind: "sub" as const }));
-      const itemPool = buildItemPool(products.filter((p) => !p.subcategory_id));
+      const subPool = subcats
+        .slice()
+        .sort((a, b) => a.name.localeCompare(b.name))
+        .map((s) => ({ ...s, __kind: "sub" as const }));
+      const itemPool = products
+        .filter((p) => !p.subcategory_id)
+        .sort((a, b) => a.name.localeCompare(b.name))
+        .map((p) => ({ ...p, __kind: "item" as const }));
       const pool = [...subPool, ...itemPool];
       const filtered = q
         ? pool.filter((s: any) =>
@@ -222,14 +202,19 @@ export function SaleBillForm({
             (s.prefix ? String(s.prefix).toLowerCase().includes(q) : false),
           )
         : pool;
-      return filtered.slice(0, 14);
+      return filtered.slice(0, 16);
     }
-    const pool = buildItemPool(products.filter((p) => p.subcategory_id === draftSub.id));
-    if (!q) return pool.slice(0, 12);
+    const pool = products
+      .filter((p) => p.subcategory_id === draftSub.id)
+      .sort((a, b) => String(variantLabel(a)).localeCompare(String(variantLabel(b))))
+      .map((p) => ({ ...p, __kind: "variant" as const }));
+    if (!q) return pool.slice(0, 40);
     return pool.filter((p: any) =>
-      p.name.toLowerCase().includes(q) || (p.prefix ? String(p.prefix).toLowerCase().includes(q) : false),
-    ).slice(0, 12);
-  }, [products, subcats, draftSub, draftGroup, draftQuery]);
+      String(variantLabel(p)).toLowerCase().includes(q) ||
+      (p.item_group ?? "").toLowerCase().includes(q) ||
+      (p.name ?? "").toLowerCase().includes(q),
+    ).slice(0, 40);
+  }, [products, subcats, draftSub, draftQuery]);
 
   const looksLikeCode = (s: string) => /-/.test(s) && /^[A-Za-z0-9-]+$/.test(s);
 
@@ -316,40 +301,33 @@ export function SaleBillForm({
   };
 
   const pickDraftSub = (s: any) => {
+    const inSub = products.filter((p) => p.subcategory_id === s.id);
+    // Single product in the sub-category → add it directly (proceed directly).
+    if (inSub.length === 1) {
+      addProductLine(inSub[0], 1);
+      setDraftSub(null);
+      return;
+    }
     setDraftSub(s); setDraftQuery(""); setActiveSuggest(0);
     setTimeout(() => draftRef.current?.focus(), 0);
-  };
-
-  const openDraftGroup = (g: any) => {
-    setDraftGroup({ name: g.name, products: g.products });
-    setDraftQuery(""); setActiveSuggest(0);
-    setTimeout(() => draftRef.current?.focus(), 0);
-  };
-
-  const addFinishAndReset = (p: ProductRow) => {
-    addProductLine(p, 1);
-    setDraftGroup(null);
   };
 
   const handleDraftCommit = () => {
     const s = draftQuery.trim();
     if (s && looksLikeCode(s)) { onScan(s); setDraftQuery(""); return; }
     const pick = draftSuggestions[activeSuggest] ?? draftSuggestions[0];
-    if (!pick) { toast.error(draftGroup ? "No matching finish" : draftSub ? "No matching item" : "No matching sub-category"); return; }
-    if (draftGroup) { addFinishAndReset(pick as ProductRow); return; }
+    if (!pick) { toast.error(draftSub ? "No matching parameter" : "No matching sub-category"); return; }
     if (!draftSub) {
-      if (pick.__kind === "group") openDraftGroup(pick);
-      else if (pick.__kind === "item") addProductLine(pick as ProductRow, 1);
+      if (pick.__kind === "item") addAndReset(pick as ProductRow);
       else pickDraftSub(pick);
     } else {
-      if (pick.__kind === "group") openDraftGroup(pick);
-      else addProductLine(pick as ProductRow, 1);
+      addAndReset(pick as ProductRow);
     }
   };
 
   const addAndReset = (p: ProductRow) => {
     addProductLine(p, 1);
-    setDraftSub(null); setDraftGroup(null);
+    setDraftSub(null);
   };
 
   const rm = (i: number) => setLines(lines.filter((_, idx) => idx !== i));
@@ -705,21 +683,20 @@ export function SaleBillForm({
                           e.preventDefault();
                           setActiveSuggest((n) => Math.max(0, n - 1));
                         } else if (e.key === "Escape") {
-                          setDraftQuery(""); setDraftGroup(null); setDraftSub(null);
-                        } else if (e.key === "Backspace" && !draftQuery && (draftGroup || draftSub)) {
+                          setDraftQuery(""); setDraftSub(null);
+                        } else if (e.key === "Backspace" && !draftQuery && draftSub) {
                           e.preventDefault();
-                          if (draftGroup) setDraftGroup(null);
-                          else setDraftSub(null);
+                          setDraftSub(null);
                         }
                       }}
-                      placeholder={draftGroup ? `Pick finish in ${draftGroup.name}…` : draftSub ? `Pick item in ${draftSub.name}…` : "Scan barcode or type item / sub-category…"}
+                      placeholder={draftSub ? `Pick parameter in ${draftSub.name}…` : "Scan barcode or type item / sub-category…"}
                       className="w-full h-full px-2 py-1.5 bg-transparent focus:outline-none focus:bg-white focus:ring-2 focus:ring-inset focus:ring-[#3b82f6] placeholder:text-slate-400 font-sans"
                       aria-label="Add new line"
                     />
-                    {(draftGroup || draftSub) && (
+                    {draftSub && (
                       <div className="absolute left-1.5 top-0.5 flex items-center gap-1 text-[10px] font-bold uppercase bg-[#3b82f6]/10 text-[#3b82f6] px-1.5 py-0.5 rounded">
-                        {draftGroup ? draftGroup.name : draftSub!.name}
-                        <button type="button" className="ml-0.5 hover:text-red-500" onMouseDown={(e) => { e.preventDefault(); if (draftGroup) setDraftGroup(null); else setDraftSub(null); }}>×</button>
+                        {draftSub.name}
+                        <button type="button" className="ml-0.5 hover:text-red-500" onMouseDown={(e) => { e.preventDefault(); setDraftSub(null); }}>×</button>
                       </div>
                     )}
                     {draftFocused && draftSuggestions.length > 0 && (
@@ -734,9 +711,9 @@ export function SaleBillForm({
                         }}
                       >
                         <div className="px-3 py-1.5 text-[10px] font-bold uppercase tracking-wider text-slate-500 bg-slate-50 border-b border-slate-200 flex items-center justify-between">
-                          <span>{draftGroup ? `Finishes in ${draftGroup.name}` : draftSub ? `Items in ${draftSub.name}` : "Items & Sub-categories"}</span>
-                          {(draftGroup || draftSub) && (
-                            <button type="button" onMouseDown={(e) => { e.preventDefault(); if (draftGroup) setDraftGroup(null); else setDraftSub(null); }} className="text-[#3b82f6] hover:underline normal-case font-semibold">← back</button>
+                          <span>{draftSub ? `Parameters in ${draftSub.name}` : "Items & Sub-categories"}</span>
+                          {draftSub && (
+                            <button type="button" onMouseDown={(e) => { e.preventDefault(); setDraftSub(null); }} className="text-[#3b82f6] hover:underline normal-case font-semibold">← back</button>
                           )}
                         </div>
                         {draftSuggestions.map((p: any, idx: number) => (
@@ -745,14 +722,11 @@ export function SaleBillForm({
                             type="button"
                             onMouseDown={(e) => {
                               e.preventDefault();
-                              if (draftGroup) { addFinishAndReset(p as ProductRow); return; }
                               if (!draftSub) {
-                                if (p.__kind === "group") openDraftGroup(p);
-                                else if (p.__kind === "item") addAndReset(p as ProductRow);
+                                if (p.__kind === "item") addAndReset(p as ProductRow);
                                 else pickDraftSub(p);
                               } else {
-                                if (p.__kind === "group") openDraftGroup(p);
-                                else addAndReset(p as ProductRow);
+                                addAndReset(p as ProductRow);
                               }
                             }}
                             className={`w-full text-left px-3 py-2 border-b border-slate-100 last:border-0 flex items-center justify-between gap-2 ${
@@ -761,20 +735,13 @@ export function SaleBillForm({
                           >
                             <div className="min-w-0">
                               <div className="text-sm font-semibold text-slate-800 truncate">
-                                {p.__kind === "finish" ? p.finish : p.name}
+                                {p.__kind === "variant" ? variantLabel(p) : p.name}
                               </div>
                               <div className="text-[11px] text-slate-500">
-                                {p.__kind === "finish"
-                                  ? `${p.prefix} · ${p.gst_rate}% GST · ${p.unit}${p.alt_unit ? ` / ${p.alt_unit}` : ""}`
-                                  : p.__kind === "group"
-                                  ? (
-                                      <span className="inline-flex items-center gap-1.5">
-                                        <span className="px-1.5 py-0.5 rounded bg-amber-100 text-amber-700 font-bold text-[9px]">FINISH</span>
-                                        <span>{p.products.length} finishes →</span>
-                                      </span>
-                                    )
-                                  : draftSub
-                                  ? `${p.prefix} · ${p.gst_rate}% GST · ${p.unit}${p.alt_unit ? ` / ${p.alt_unit}` : ""}`
+                                {p.__kind === "variant"
+                                  ? (p.finish && p.item_group
+                                      ? p.item_group
+                                      : `${p.prefix} · ${p.gst_rate}% GST · ${p.unit}${p.alt_unit ? ` / ${p.alt_unit}` : ""}`)
                                   : (
                                       <span className="inline-flex items-center gap-1.5">
                                         {p.__kind === "item" && (
@@ -785,7 +752,7 @@ export function SaleBillForm({
                                     )}
                               </div>
                             </div>
-                            {(p.__kind === "finish" || p.__kind === "item" || (draftSub && p.__kind !== "group")) && (
+                            {(p.__kind === "variant" || p.__kind === "item") && (
                               <div className="text-sm font-bold tabular-nums text-[#3b82f6] shrink-0">
                                 {inr(Number(p.default_price))}
                               </div>

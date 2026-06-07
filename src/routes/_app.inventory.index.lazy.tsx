@@ -303,9 +303,20 @@ function Inventory() {
                           )}
                         </div>
                         <div className="min-w-0">
-                          <div className="font-semibold text-foreground truncate">{p.name}</div>
+                          <div className="flex items-center gap-1.5 min-w-0">
+                            <span className="font-semibold text-foreground truncate">
+                              {p.item_group || p.name}
+                            </span>
+                            {p.finish && (
+                              <Badge className="shrink-0 bg-amber-100 text-amber-700 hover:bg-amber-100 border-0 font-semibold text-[10px] px-1.5 py-0">
+                                {p.finish}
+                              </Badge>
+                            )}
+                          </div>
                           <div className="text-xs text-muted-foreground truncate">
-                            {p.location ? `Loc: ${p.location}` : `Prefix: ${p.prefix}`}
+                            {p.finish
+                              ? `Parameter: ${p.finish}`
+                              : p.location ? `Loc: ${p.location}` : `Prefix: ${p.prefix}`}
                           </div>
                         </div>
                       </div>
