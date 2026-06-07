@@ -75,7 +75,6 @@ export function SaleBillForm({
   const [busy, setBusy] = useState(false);
   const [createCustomerOpen, setCreateCustomerOpen] = useState(false);
   const [draftSub, setDraftSub] = useState<SubCat | null>(null);
-  const [draftGroup, setDraftGroup] = useState<{ name: string; products: ProductRow[] } | null>(null);
   const [draftQuery, setDraftQuery] = useState("");
   const [draftFocused, setDraftFocused] = useState(false);
   const [activeSuggest, setActiveSuggest] = useState(0);
