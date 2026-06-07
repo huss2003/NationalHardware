@@ -11,6 +11,10 @@ const THERMAL_SIZES: { label: string; size: LabelSize }[] = [
   { label: '50 × 30 mm', size: { w: 50, h: 30 } },
   { label: '50 × 38 mm', size: { w: 50, h: 38 } },
   { label: '50 × 40 mm', size: { w: 50, h: 40 } },
+  { label: '40 × 25 mm', size: { w: 40, h: 25 } },
+  { label: '40 × 30 mm', size: { w: 40, h: 30 } },
+  { label: '60 × 40 mm', size: { w: 60, h: 40 } },
+  { label: '75 × 50 mm', size: { w: 75, h: 50 } },
 ];
 
 export function ReprintLabelDialog({
@@ -25,7 +29,12 @@ export function ReprintLabelDialog({
   const [fmt, setFmt] = useState<"thermal" | "a4">(format);
   const [sizeIdx, setSizeIdx] = useState(0);
   const [orientation, setOrientation] = useState<LabelOrientation>("horizontal");
-  const size = THERMAL_SIZES[sizeIdx].size;
+  const [custom, setCustom] = useState(false);
+  const [customW, setCustomW] = useState(50);
+  const [customH, setCustomH] = useState(25);
+  const size: LabelSize = custom
+    ? { w: Math.max(10, customW || 0), h: Math.max(10, customH || 0) }
+    : THERMAL_SIZES[sizeIdx].size;
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-[680px] max-h-[88vh] overflow-y-auto">
@@ -66,9 +75,9 @@ export function ReprintLabelDialog({
                   <button
                     key={s.label}
                     type="button"
-                    onClick={() => setSizeIdx(i)}
+                    onClick={() => { setSizeIdx(i); setCustom(false); }}
                     className={`h-9 rounded-md border text-xs font-semibold transition-colors ${
-                      sizeIdx === i
+                      !custom && sizeIdx === i
                         ? "bg-primary text-primary-foreground border-primary"
                         : "bg-background text-foreground border-input hover:bg-muted"
                     }`}
@@ -76,7 +85,43 @@ export function ReprintLabelDialog({
                     {s.label}
                   </button>
                 ))}
+                <button
+                  type="button"
+                  onClick={() => setCustom(true)}
+                  className={`h-9 rounded-md border text-xs font-semibold transition-colors ${
+                    custom
+                      ? "bg-primary text-primary-foreground border-primary"
+                      : "bg-background text-foreground border-input hover:bg-muted"
+                  }`}
+                >
+                  Custom
+                </button>
               </div>
+              {custom && (
+                <div className="mt-2 flex items-end gap-2">
+                  <div className="flex-1">
+                    <div className="text-[11px] text-muted-foreground mb-1">Width (mm)</div>
+                    <input
+                      type="number"
+                      min={10}
+                      value={customW || ""}
+                      onChange={(e) => setCustomW(Number(e.target.value) || 0)}
+                      className="h-9 w-full rounded-md border border-input bg-background px-2 text-sm"
+                    />
+                  </div>
+                  <span className="pb-2 text-muted-foreground">×</span>
+                  <div className="flex-1">
+                    <div className="text-[11px] text-muted-foreground mb-1">Height (mm)</div>
+                    <input
+                      type="number"
+                      min={10}
+                      value={customH || ""}
+                      onChange={(e) => setCustomH(Number(e.target.value) || 0)}
+                      className="h-9 w-full rounded-md border border-input bg-background px-2 text-sm"
+                    />
+                  </div>
+                </div>
+              )}
             </div>
             <div>
               <div className="text-xs font-medium mb-1.5">Orientation</div>
