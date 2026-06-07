@@ -202,7 +202,8 @@ export function SaleBillForm({
             (s.prefix ? String(s.prefix).toLowerCase().includes(q) : false),
           )
         : pool;
-      return filtered.slice(0, 16);
+      // Show every sub-category (and standalone item) — the dropdown scrolls.
+      return filtered;
     }
     const pool = products
       .filter((p) => p.subcategory_id === draftSub.id)
