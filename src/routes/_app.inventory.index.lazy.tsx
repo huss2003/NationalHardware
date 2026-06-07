@@ -178,6 +178,142 @@ function Inventory() {
     setSelected(s);
   };
 
+  // Renders a single product (parameter) row. `nested` indents it under an item.
+  const renderProductRow = (p: any, nested: boolean) => {
+    const count = counts[p.id] ?? 0;
+    const cap = Math.max(count, p.reorder_level * 4, 50);
+    const pct = Math.min(100, Math.round((count / cap) * 100));
+    const status = stockLabel(count, p.reorder_level);
+    const barColor =
+      status === "empty" ? "bg-destructive"
+      : status === "low" ? "bg-warning"
+      : "bg-success";
+    const countColor =
+      status === "empty" ? "text-destructive"
+      : status === "low" ? "text-warning"
+      : "text-foreground";
+    return (
+      <TableRow
+        key={p.id}
+        className="cursor-pointer"
+        onClick={() => nav({ to: "/inventory/$productId", params: { productId: p.id } })}
+      >
+        <TableCell className={nested ? "pl-12" : "pl-4"} onClick={(e) => e.stopPropagation()}>
+          <Checkbox
+            checked={selected.has(p.id)}
+            onCheckedChange={() => toggleOne(p.id)}
+            aria-label={`Select ${p.name}`}
+          />
+        </TableCell>
+        <TableCell>
+          <div className="flex items-center gap-3">
+            <div className="h-10 w-10 rounded-lg bg-muted grid place-items-center shrink-0 overflow-hidden">
+              {p.image_url ? (
+                <img src={p.image_url} alt="" className="object-cover w-full h-full" />
+              ) : (
+                <Package className="h-5 w-5 text-muted-foreground" />
+              )}
+            </div>
+            <div className="min-w-0">
+              <div className="flex items-center gap-1.5 min-w-0">
+                <span className="font-semibold text-foreground truncate">
+                  {p.finish ? p.finish : (p.item_group || p.name)}
+                </span>
+              </div>
+              <div className="text-xs text-muted-foreground truncate">
+                {p.finish
+                  ? (p.item_group || p.name)
+                  : p.location ? `Loc: ${p.location}` : `Prefix: ${p.prefix}`}
+              </div>
+            </div>
+          </div>
+        </TableCell>
+        <TableCell className="font-mono text-xs text-muted-foreground">
+          {p.sku ?? `${p.prefix}-${String(p.id).slice(0, 6).toUpperCase()}`}
+        </TableCell>
+        <TableCell>
+          <Badge variant="secondary" className="capitalize font-medium rounded-md">
+            {p.category}
+          </Badge>
+        </TableCell>
+        <TableCell>
+          {p.finish ? (
+            <Badge className="bg-amber-100 text-amber-700 hover:bg-amber-100 border-0 font-semibold">
+              {p.finish}
+            </Badge>
+          ) : (
+            <span className="text-muted-foreground">—</span>
+          )}
+        </TableCell>
+        <TableCell>
+          <div className="space-y-1.5">
+            <div className="flex items-center justify-between gap-2">
+              <div className="text-sm">
+                <span className={`font-semibold ${countColor}`}>{count}</span>
+                <span className="text-muted-foreground"> / {cap}</span>
+              </div>
+              {status === "low" && (
+                <span className="text-[10px] font-semibold uppercase tracking-wider px-2 py-0.5 rounded-md bg-warning/15 text-warning">
+                  Low
+                </span>
+              )}
+              {status === "empty" && (
+                <span className="text-[10px] font-semibold uppercase tracking-wider px-2 py-0.5 rounded-md bg-destructive/15 text-destructive">
+                  Empty
+                </span>
+              )}
+            </div>
+            <div className="h-1.5 rounded-full bg-muted overflow-hidden">
+              <div
+                className={`h-full rounded-full ${barColor} transition-all`}
+                style={{ width: `${pct}%` }}
+              />
+            </div>
+          </div>
+        </TableCell>
+        <TableCell className="text-right font-semibold tabular-nums">
+          {inr(p.default_price ?? 0)}
+        </TableCell>
+        <TableCell className="text-right pr-6" onClick={(e) => e.stopPropagation()}>
+          <div className="inline-flex items-center gap-0.5">
+            <Button asChild variant="ghost" size="icon" className="h-8 w-8" title="Edit item">
+              <Link to="/inventory/$productId" params={{ productId: p.id }}>
+                <Pencil className="h-4 w-4" />
+              </Link>
+            </Button>
+            <Button
+              asChild
+              variant="ghost"
+              size="icon"
+              className="h-8 w-8 text-success hover:bg-success/10 hover:text-success"
+              title="Stock in"
+            >
+              <Link to="/purchases/new"><ArrowDownToLine className="h-4 w-4" /></Link>
+            </Button>
+            <Button
+              asChild
+              variant="ghost"
+              size="icon"
+              className="h-8 w-8 text-primary hover:bg-primary/10 hover:text-primary"
+              title="Stock out"
+            >
+              <Link to="/sales/new"><ArrowUpFromLine className="h-4 w-4" /></Link>
+            </Button>
+            <Button
+              variant="ghost"
+              size="icon"
+              className="h-8 w-8"
+              title="View history"
+              onClick={() => openHistory(p)}
+            >
+              <History className="h-4 w-4" />
+            </Button>
+          </div>
+        </TableCell>
+      </TableRow>
+    );
+  };
+
   return (
     <>
       <PageHeader
