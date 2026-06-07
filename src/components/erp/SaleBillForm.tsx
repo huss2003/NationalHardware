@@ -180,41 +180,22 @@ export function SaleBillForm({
     return () => window.removeEventListener("keydown", h);
   }, [active]);
 
-  // Group a list of products into multi-finish "groups" + finish-less "items".
-  const buildItemPool = (list: ProductRow[]): any[] => {
-    const groups = new Map<string, ProductRow[]>();
-    const items: any[] = [];
-    for (const p of list) {
-      if (p.finish && p.item_group) {
-        const arr = groups.get(p.item_group) ?? [];
-        arr.push(p);
-        groups.set(p.item_group, arr);
-      } else {
-        items.push({ ...p, __kind: "item" as const });
-      }
-    }
-    const groupObjs = Array.from(groups.entries()).map(([name, prods]) => ({
-      __kind: "group" as const,
-      id: `grp_${name}`,
-      name,
-      prefix: prods[0].prefix,
-      products: prods,
-    }));
-    return [...groupObjs, ...items].sort((a, b) => a.name.localeCompare(b.name));
-  };
+  // Parameter (finish) label for a product variant, else its name.
+  const variantLabel = (p: ProductRow) => (p.finish && String(p.finish).trim() ? p.finish : p.name);
 
-  // Stage A: sub-categories + standalone items/groups. Stage B: items/groups in a sub.
-  // Stage C (draftGroup): the finishes inside a chosen item group.
+  // Stage A: sub-categories + standalone items (no sub-category), listed after subs.
+  // Stage B (draftSub picked): a flat list of every product (parameter) in the sub.
   const draftSuggestions = useMemo<any[]>(() => {
     const q = draftQuery.trim().toLowerCase();
-    if (draftGroup) {
-      let pool = draftGroup.products;
-      if (q) pool = pool.filter((p) => (p.finish ?? "").toLowerCase().includes(q));
-      return pool.map((p) => ({ ...p, __kind: "finish" as const })).slice(0, 30);
-    }
     if (!draftSub) {
-      const subPool = subcats.map((s) => ({ ...s, __kind: "sub" as const }));
-      const itemPool = buildItemPool(products.filter((p) => !p.subcategory_id));
+      const subPool = subcats
+        .slice()
+        .sort((a, b) => a.name.localeCompare(b.name))
+        .map((s) => ({ ...s, __kind: "sub" as const }));
+      const itemPool = products
+        .filter((p) => !p.subcategory_id)
+        .sort((a, b) => a.name.localeCompare(b.name))
+        .map((p) => ({ ...p, __kind: "item" as const }));
       const pool = [...subPool, ...itemPool];
       const filtered = q
         ? pool.filter((s: any) =>
@@ -222,14 +203,19 @@ export function SaleBillForm({
             (s.prefix ? String(s.prefix).toLowerCase().includes(q) : false),
           )
         : pool;
-      return filtered.slice(0, 14);
+      return filtered.slice(0, 16);
     }
-    const pool = buildItemPool(products.filter((p) => p.subcategory_id === draftSub.id));
-    if (!q) return pool.slice(0, 12);
+    const pool = products
+      .filter((p) => p.subcategory_id === draftSub.id)
+      .sort((a, b) => String(variantLabel(a)).localeCompare(String(variantLabel(b))))
+      .map((p) => ({ ...p, __kind: "variant" as const }));
+    if (!q) return pool.slice(0, 40);
     return pool.filter((p: any) =>
-      p.name.toLowerCase().includes(q) || (p.prefix ? String(p.prefix).toLowerCase().includes(q) : false),
-    ).slice(0, 12);
-  }, [products, subcats, draftSub, draftGroup, draftQuery]);
+      String(variantLabel(p)).toLowerCase().includes(q) ||
+      (p.item_group ?? "").toLowerCase().includes(q) ||
+      (p.name ?? "").toLowerCase().includes(q),
+    ).slice(0, 40);
+  }, [products, subcats, draftSub, draftQuery]);
 
   const looksLikeCode = (s: string) => /-/.test(s) && /^[A-Za-z0-9-]+$/.test(s);
 
@@ -316,40 +302,33 @@ export function SaleBillForm({
   };
 
   const pickDraftSub = (s: any) => {
+    const inSub = products.filter((p) => p.subcategory_id === s.id);
+    // Single product in the sub-category → add it directly (proceed directly).
+    if (inSub.length === 1) {
+      addProductLine(inSub[0], 1);
+      setDraftSub(null);
+      return;
+    }
     setDraftSub(s); setDraftQuery(""); setActiveSuggest(0);
     setTimeout(() => draftRef.current?.focus(), 0);
-  };
-
-  const openDraftGroup = (g: any) => {
-    setDraftGroup({ name: g.name, products: g.products });
-    setDraftQuery(""); setActiveSuggest(0);
-    setTimeout(() => draftRef.current?.focus(), 0);
-  };
-
-  const addFinishAndReset = (p: ProductRow) => {
-    addProductLine(p, 1);
-    setDraftGroup(null);
   };
 
   const handleDraftCommit = () => {
     const s = draftQuery.trim();
     if (s && looksLikeCode(s)) { onScan(s); setDraftQuery(""); return; }
     const pick = draftSuggestions[activeSuggest] ?? draftSuggestions[0];
-    if (!pick) { toast.error(draftGroup ? "No matching finish" : draftSub ? "No matching item" : "No matching sub-category"); return; }
-    if (draftGroup) { addFinishAndReset(pick as ProductRow); return; }
+    if (!pick) { toast.error(draftSub ? "No matching parameter" : "No matching sub-category"); return; }
     if (!draftSub) {
-      if (pick.__kind === "group") openDraftGroup(pick);
-      else if (pick.__kind === "item") addProductLine(pick as ProductRow, 1);
+      if (pick.__kind === "item") addAndReset(pick as ProductRow);
       else pickDraftSub(pick);
     } else {
-      if (pick.__kind === "group") openDraftGroup(pick);
-      else addProductLine(pick as ProductRow, 1);
+      addAndReset(pick as ProductRow);
     }
   };
 
   const addAndReset = (p: ProductRow) => {
     addProductLine(p, 1);
-    setDraftSub(null); setDraftGroup(null);
+    setDraftSub(null);
   };
 
   const rm = (i: number) => setLines(lines.filter((_, idx) => idx !== i));
