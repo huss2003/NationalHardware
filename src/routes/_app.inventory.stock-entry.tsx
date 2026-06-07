@@ -106,11 +106,19 @@ function StockEntryPage() {
       if (error) throw error;
       const rows = (data ?? []) as any[];
       toast.success(`Added ${qty} unit(s) to stock for ${display}`);
-      const items: LabelItem[] = rows.map((r) => ({
+      const minted: LabelItem[] = rows.map((r) => ({
         id: r.id,
         name: display,
         qr_payload: r.qr_payload ?? { id: r.id, name: display },
       }));
+      // Hardware/lot items return a single shared lot row no matter the qty,
+      // so replicate the labels up to the requested quantity so every physical
+      // unit gets a sticker.
+      const want = Math.floor(qty);
+      let items: LabelItem[] = minted;
+      if (minted.length > 0 && minted.length < want) {
+        items = Array.from({ length: want }, (_, k) => minted[k % minted.length]);
+      }
       setLabelItems(items);
       if (items.length > 0) setLabelOpen(true);
       // Reset for the next entry.
