@@ -176,16 +176,7 @@ export function SubCategoryThenItemPicker({
   return (
     <div className={`relative ${className ?? ""}`} ref={boxRef}>
       <div className="flex items-center gap-1.5 rounded-md border border-input bg-background h-10 px-2">
-        {group ? (
-          <button
-            type="button"
-            onClick={() => { setGroup(null); setQuery(""); setActive(0); setTimeout(() => inputRef.current?.focus(), 0); }}
-            className="flex items-center gap-1 text-xs font-semibold bg-amber-100 text-amber-700 px-2 py-1 rounded shrink-0 hover:bg-amber-200"
-            title="Back to items"
-          >
-            <ChevronLeft className="h-3 w-3" /> {group.name}
-          </button>
-        ) : sub ? (
+        {sub ? (
           <button
             type="button"
             onClick={reset}
@@ -201,7 +192,7 @@ export function SubCategoryThenItemPicker({
           ref={inputRef}
           autoFocus={autoFocus}
           className="flex-1 h-full bg-transparent text-sm focus:outline-none placeholder:text-muted-foreground min-w-0"
-        placeholder={group ? `Pick finish in ${group.name}…` : sub ? `Pick item in ${sub.name}…` : "Type item or sub-category…"}
+        placeholder={sub ? `Pick parameter in ${sub.name}…` : "Type item or sub-category…"}
           value={query}
           onFocus={() => setFocus(true)}
           onChange={(e) => setQuery(e.target.value)}
@@ -209,11 +200,11 @@ export function SubCategoryThenItemPicker({
             if (e.key === "ArrowDown") { e.preventDefault(); setActive((n) => Math.min(n + 1, suggestions.length - 1)); }
             else if (e.key === "ArrowUp") { e.preventDefault(); setActive((n) => Math.max(0, n - 1)); }
             else if (e.key === "Enter") { e.preventDefault(); commit(); }
-            else if (e.key === "Escape") { if (group) setGroup(null); else reset(); }
-            else if (e.key === "Backspace" && !query && (group || sub)) { e.preventDefault(); if (group) setGroup(null); else reset(); }
+            else if (e.key === "Escape") { reset(); }
+            else if (e.key === "Backspace" && !query && sub) { e.preventDefault(); reset(); }
           }}
         />
-        {sub && !group && (
+        {sub && (
           <button
             type="button"
             onClick={quickCreateItem}
@@ -241,18 +232,13 @@ export function SubCategoryThenItemPicker({
       )}
       {focus && suggestions.length > 0 && (
         <div className="absolute z-30 mt-1 w-full bg-popover border border-border/60 rounded-lg shadow-lg max-h-72 overflow-auto">
-          {group ? (
-            <div className="px-3 py-1.5 text-[10px] font-bold uppercase tracking-wider text-muted-foreground bg-muted/40 border-b flex items-center justify-between">
-              <span>Finishes in {group.name}</span>
-              <button type="button" onClick={() => { setGroup(null); setQuery(""); setActive(0); }} className="text-primary hover:underline normal-case font-semibold">← back</button>
-            </div>
-          ) : !sub ? (
+          {!sub ? (
             <div className="px-3 py-1.5 text-[10px] font-bold uppercase tracking-wider text-muted-foreground bg-muted/40 border-b">
               Items & Sub-categories
             </div>
           ) : (
             <div className="px-3 py-1.5 text-[10px] font-bold uppercase tracking-wider text-muted-foreground bg-muted/40 border-b flex items-center justify-between">
-              <span>Items in {sub.name}</span>
+              <span>Parameters in {sub.name}</span>
               <button type="button" onClick={reset} className="text-primary hover:underline normal-case font-semibold">← back</button>
             </div>
           )}
@@ -266,13 +252,17 @@ export function SubCategoryThenItemPicker({
                 i === active ? "bg-primary/10" : "hover:bg-muted"
               }`}
             >
-              <span className="font-medium truncate">{s.__kind === "finish" ? s.finish : s.name}</span>
-              {s.__kind === "group" ? (
-                <span className="text-[10px] uppercase shrink-0 flex items-center gap-1.5">
-                  <span className="px-1.5 py-0.5 rounded bg-amber-100 text-amber-700 font-bold">finish</span>
-                  <span className="text-muted-foreground normal-case">{s.products.length} →</span>
+              {s.__kind === "variant" ? (
+                <span className="min-w-0 flex flex-col">
+                  <span className="font-medium truncate">{variantLabel(s)}</span>
+                  {s.finish && s.item_group && (
+                    <span className="text-[10px] text-muted-foreground truncate">{s.item_group}</span>
+                  )}
                 </span>
-              ) : s.__kind === "finish" ? (
+              ) : (
+                <span className="font-medium truncate">{s.name}</span>
+              )}
+              {s.__kind === "variant" ? (
                 <span className="text-[11px] text-muted-foreground tabular-nums shrink-0">
                   ₹{Number(s.default_cost ?? s.default_price ?? 0).toFixed(2)}
                 </span>
@@ -290,7 +280,7 @@ export function SubCategoryThenItemPicker({
               )}
             </button>
           ))}
-          {sub && !group && query.trim() && !exactItemMatch && (
+          {sub && query.trim() && !exactItemMatch && (
             <button
               type="button"
               disabled={creating}
@@ -303,17 +293,10 @@ export function SubCategoryThenItemPicker({
           )}
         </div>
       )}
-      {focus && group && suggestions.length === 0 && (
+      {focus && sub && suggestions.length === 0 && (
         <div className="absolute z-30 mt-1 w-full bg-popover border border-border/60 rounded-lg shadow-lg">
           <div className="p-3 text-xs text-muted-foreground">
-            No finishes in <span className="font-medium text-foreground">{group.name}</span>{query.trim() ? " match." : "."}
-          </div>
-        </div>
-      )}
-      {focus && sub && !group && suggestions.length === 0 && (
-        <div className="absolute z-30 mt-1 w-full bg-popover border border-border/60 rounded-lg shadow-lg">
-          <div className="p-3 text-xs text-muted-foreground">
-            No items in <span className="font-medium text-foreground">{sub.name}</span>{query.trim() ? " match." : " yet."}
+            No parameters in <span className="font-medium text-foreground">{sub.name}</span>{query.trim() ? " match." : " yet."}
           </div>
           {query.trim() && (
             <button
