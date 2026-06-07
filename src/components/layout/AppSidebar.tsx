@@ -6,6 +6,7 @@ import {
   DoorOpen,
   BookOpen,
   Layers,
+  PackagePlus,
 } from "lucide-react";
 import { useAuth } from "@/lib/auth-store";
 import { Button } from "@/components/ui/button";
