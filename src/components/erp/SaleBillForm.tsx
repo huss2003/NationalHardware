@@ -74,7 +74,7 @@ export function SaleBillForm({
   const [warn, setWarn] = useState<{ kind: ScanWarningKind; msg: string; code?: string } | null>(null);
   const [busy, setBusy] = useState(false);
   const [createCustomerOpen, setCreateCustomerOpen] = useState(false);
-  const [draftSub, setDraftSub] = useState<SubCat | null>(null);
+  const [draftSub, setDraftSub] = useState<any | null>(null);
   const [draftQuery, setDraftQuery] = useState("");
   const [draftFocused, setDraftFocused] = useState(false);
   const [activeSuggest, setActiveSuggest] = useState(0);
@@ -182,40 +182,45 @@ export function SaleBillForm({
   // Parameter (finish) label for a product variant, else its name.
   const variantLabel = (p: ProductRow) => (p.finish && String(p.finish).trim() ? p.finish : p.name);
 
-  // Stage A: sub-categories + standalone items (no sub-category), listed after subs.
-  // Stage B (draftSub picked): a flat list of every product (parameter) in the sub.
+  // Build item groups: every product collapses by name (within its sub-category)
+  // into one selectable item. Its rows become the parameters (finishes).
+  const itemGroups = useMemo<any[]>(() => {
+    const map = new Map<string, any>();
+    for (const p of products) {
+      const itemName = (p.item_group || p.name) as string;
+      const key = `${p.subcategory_id ?? "none"}||${itemName}`;
+      let g = map.get(key);
+      if (!g) {
+        g = { id: key, name: itemName, prefix: p.prefix, products: [] as ProductRow[] };
+        map.set(key, g);
+      }
+      g.products.push(p);
+    }
+    return Array.from(map.values()).sort((a, b) => a.name.localeCompare(b.name));
+  }, [products]);
+
+  // Stage A: items (product names) — no group names shown. Search matches any
+  // sequence anywhere in the name. Stage B (item picked): its parameters.
   const draftSuggestions = useMemo<any[]>(() => {
     const q = draftQuery.trim().toLowerCase();
     if (!draftSub) {
-      const subPool = subcats
-        .slice()
-        .sort((a, b) => a.name.localeCompare(b.name))
-        .map((s) => ({ ...s, __kind: "sub" as const }));
-      const itemPool = products
-        .filter((p) => !p.subcategory_id)
-        .sort((a, b) => a.name.localeCompare(b.name))
-        .map((p) => ({ ...p, __kind: "item" as const }));
-      const pool = [...subPool, ...itemPool];
-      const filtered = q
-        ? pool.filter((s: any) =>
-            s.name.toLowerCase().includes(q) ||
-            (s.prefix ? String(s.prefix).toLowerCase().includes(q) : false),
-          )
-        : pool;
-      // Show every sub-category (and standalone item) — the dropdown scrolls.
-      return filtered;
+      const pool = itemGroups.map((g) => ({ ...g, __kind: "group" as const }));
+      if (!q) return pool;
+      return pool.filter((g: any) =>
+        g.name.toLowerCase().includes(q) ||
+        (g.prefix ? String(g.prefix).toLowerCase().includes(q) : false),
+      );
     }
-    const pool = products
-      .filter((p) => p.subcategory_id === draftSub.id)
+    const pool = (draftSub.products as ProductRow[])
+      .slice()
       .sort((a, b) => String(variantLabel(a)).localeCompare(String(variantLabel(b))))
       .map((p) => ({ ...p, __kind: "variant" as const }));
-    if (!q) return pool.slice(0, 40);
+    if (!q) return pool.slice(0, 60);
     return pool.filter((p: any) =>
       String(variantLabel(p)).toLowerCase().includes(q) ||
-      (p.item_group ?? "").toLowerCase().includes(q) ||
-      (p.name ?? "").toLowerCase().includes(q),
-    ).slice(0, 40);
-  }, [products, subcats, draftSub, draftQuery]);
+      (p.finish ?? "").toLowerCase().includes(q),
+    ).slice(0, 60);
+  }, [itemGroups, draftSub, draftQuery]);
 
   const looksLikeCode = (s: string) => /-/.test(s) && /^[A-Za-z0-9-]+$/.test(s);
 
@@ -301,15 +306,15 @@ export function SaleBillForm({
     setTimeout(() => draftRef.current?.focus(), 0);
   };
 
-  const pickDraftSub = (s: any) => {
-    const inSub = products.filter((p) => p.subcategory_id === s.id);
-    // Single product in the sub-category → add it directly (proceed directly).
-    if (inSub.length === 1) {
-      addProductLine(inSub[0], 1);
+  const pickDraftGroup = (g: any) => {
+    const variants = (g.products ?? []) as ProductRow[];
+    // Single product (no parameters) → add it directly. Else go to parameters.
+    if (variants.length === 1) {
+      addProductLine(variants[0], 1);
       setDraftSub(null);
       return;
     }
-    setDraftSub(s); setDraftQuery(""); setActiveSuggest(0);
+    setDraftSub(g); setDraftQuery(""); setActiveSuggest(0);
     setTimeout(() => draftRef.current?.focus(), 0);
   };
 
@@ -317,10 +322,9 @@ export function SaleBillForm({
     const s = draftQuery.trim();
     if (s && looksLikeCode(s)) { onScan(s); setDraftQuery(""); return; }
     const pick = draftSuggestions[activeSuggest] ?? draftSuggestions[0];
-    if (!pick) { toast.error(draftSub ? "No matching parameter" : "No matching sub-category"); return; }
+    if (!pick) { toast.error(draftSub ? "No matching parameter" : "No matching item"); return; }
     if (!draftSub) {
-      if (pick.__kind === "item") addAndReset(pick as ProductRow);
-      else pickDraftSub(pick);
+      pickDraftGroup(pick);
     } else {
       addAndReset(pick as ProductRow);
     }
@@ -690,7 +694,7 @@ export function SaleBillForm({
                           setDraftSub(null);
                         }
                       }}
-                      placeholder={draftSub ? `Pick parameter in ${draftSub.name}…` : "Scan barcode or type item / sub-category…"}
+                      placeholder={draftSub ? `Pick parameter in ${draftSub.name}…` : "Scan barcode or type item name…"}
                       className="w-full h-full px-2 py-1.5 bg-transparent focus:outline-none focus:bg-white focus:ring-2 focus:ring-inset focus:ring-[#3b82f6] placeholder:text-slate-400 font-sans"
                       aria-label="Add new line"
                     />
@@ -712,7 +716,7 @@ export function SaleBillForm({
                         }}
                       >
                         <div className="px-3 py-1.5 text-[10px] font-bold uppercase tracking-wider text-slate-500 bg-slate-50 border-b border-slate-200 flex items-center justify-between">
-                          <span>{draftSub ? `Parameters in ${draftSub.name}` : "Items & Sub-categories"}</span>
+                          <span>{draftSub ? `Parameters in ${draftSub.name}` : "Items"}</span>
                           {draftSub && (
                             <button type="button" onMouseDown={(e) => { e.preventDefault(); setDraftSub(null); }} className="text-[#3b82f6] hover:underline normal-case font-semibold">← back</button>
                           )}
@@ -724,8 +728,7 @@ export function SaleBillForm({
                             onMouseDown={(e) => {
                               e.preventDefault();
                               if (!draftSub) {
-                                if (p.__kind === "item") addAndReset(p as ProductRow);
-                                else pickDraftSub(p);
+                                pickDraftGroup(p);
                               } else {
                                 addAndReset(p as ProductRow);
                               }
@@ -743,21 +746,20 @@ export function SaleBillForm({
                                   ? (p.finish && p.item_group
                                       ? p.item_group
                                       : `${p.prefix} · ${p.gst_rate}% GST · ${p.unit}${p.alt_unit ? ` / ${p.alt_unit}` : ""}`)
-                                  : (
-                                      <span className="inline-flex items-center gap-1.5">
-                                        {p.__kind === "item" && (
-                                          <span className="px-1.5 py-0.5 rounded bg-[#3b82f6]/10 text-[#3b82f6] font-bold text-[9px]">ITEM</span>
-                                        )}
-                                        <span className="uppercase">{p.category}</span>
-                                      </span>
-                                    )}
+                                  : (p.products.length > 1
+                                      ? <span className="text-[#3b82f6] font-semibold">{p.products.length} parameters</span>
+                                      : <span className="uppercase">{p.products[0]?.prefix}</span>)}
                               </div>
                             </div>
-                            {(p.__kind === "variant" || p.__kind === "item") && (
+                            {p.__kind === "variant" ? (
                               <div className="text-sm font-bold tabular-nums text-[#3b82f6] shrink-0">
                                 {inr(Number(p.default_price))}
                               </div>
-                            )}
+                            ) : p.products.length === 1 ? (
+                              <div className="text-sm font-bold tabular-nums text-[#3b82f6] shrink-0">
+                                {inr(Number(p.products[0].default_price))}
+                              </div>
+                            ) : null}
                           </button>
                         ))}
                       </div>

@@ -108,24 +108,34 @@ function Inventory() {
     else { setSortKey(key); setSortDir("asc"); }
   };
 
-  // Group sorted products by sub-category. "Uncategorized" bucket for null.
-  const grouped = useMemo(() => {
+  // Group sorted products by sub-category → item (product name) → parameter (finish).
+  // "Uncategorized" bucket for products without a sub-category.
+  type ItemNode = { key: string; name: string; variants: any[] };
+  type GroupNode = { id: string; name: string; category: string; items: ItemNode[]; rows: any[] };
+  const grouped = useMemo<GroupNode[]>(() => {
     const subMap = new Map<string, any>(subcats.map((s) => [s.id, s]));
-    const buckets = new Map<string, { id: string; name: string; category: string; items: any[] }>();
+    const buckets = new Map<string, { id: string; name: string; category: string; itemMap: Map<string, ItemNode>; rows: any[] }>();
     for (const p of sorted) {
       const sid = p.subcategory_id ?? "__uncat__";
       if (!buckets.has(sid)) {
         const meta = sid === "__uncat__"
           ? { id: "__uncat__", name: "Uncategorized", category: "—" }
           : { id: sid, name: subMap.get(sid)?.name ?? "Unknown sub-category", category: subMap.get(sid)?.category ?? "—" };
-        buckets.set(sid, { ...meta, items: [] });
+        buckets.set(sid, { ...meta, itemMap: new Map(), rows: [] });
       }
-      buckets.get(sid)!.items.push(p);
+      const bucket = buckets.get(sid)!;
+      bucket.rows.push(p);
+      const itemName = (p.item_group || p.name) as string;
+      const ikey = `${sid}::${itemName}`;
+      if (!bucket.itemMap.has(ikey)) bucket.itemMap.set(ikey, { key: ikey, name: itemName, variants: [] });
+      bucket.itemMap.get(ikey)!.variants.push(p);
     }
-    return Array.from(buckets.values()).sort((a, b) =>
-      a.id === "__uncat__" ? 1 : b.id === "__uncat__" ? -1 :
-      (a.category + a.name).localeCompare(b.category + b.name),
-    );
+    return Array.from(buckets.values())
+      .map((b) => ({ id: b.id, name: b.name, category: b.category, rows: b.rows, items: Array.from(b.itemMap.values()) }))
+      .sort((a, b) =>
+        a.id === "__uncat__" ? 1 : b.id === "__uncat__" ? -1 :
+        (a.category + a.name).localeCompare(b.category + b.name),
+      );
   }, [sorted, subcats]);
 
   const searching = q.trim().length > 0 || category !== "all" || stockStatus !== "all";
@@ -166,6 +176,142 @@ function Inventory() {
     const s = new Set(selected);
     s.has(id) ? s.delete(id) : s.add(id);
     setSelected(s);
+  };
+
+  // Renders a single product (parameter) row. `nested` indents it under an item.
+  const renderProductRow = (p: any, nested: boolean) => {
+    const count = counts[p.id] ?? 0;
+    const cap = Math.max(count, p.reorder_level * 4, 50);
+    const pct = Math.min(100, Math.round((count / cap) * 100));
+    const status = stockLabel(count, p.reorder_level);
+    const barColor =
+      status === "empty" ? "bg-destructive"
+      : status === "low" ? "bg-warning"
+      : "bg-success";
+    const countColor =
+      status === "empty" ? "text-destructive"
+      : status === "low" ? "text-warning"
+      : "text-foreground";
+    return (
+      <TableRow
+        key={p.id}
+        className="cursor-pointer"
+        onClick={() => nav({ to: "/inventory/$productId", params: { productId: p.id } })}
+      >
+        <TableCell className={nested ? "pl-12" : "pl-4"} onClick={(e) => e.stopPropagation()}>
+          <Checkbox
+            checked={selected.has(p.id)}
+            onCheckedChange={() => toggleOne(p.id)}
+            aria-label={`Select ${p.name}`}
+          />
+        </TableCell>
+        <TableCell>
+          <div className="flex items-center gap-3">
+            <div className="h-10 w-10 rounded-lg bg-muted grid place-items-center shrink-0 overflow-hidden">
+              {p.image_url ? (
+                <img src={p.image_url} alt="" className="object-cover w-full h-full" />
+              ) : (
+                <Package className="h-5 w-5 text-muted-foreground" />
+              )}
+            </div>
+            <div className="min-w-0">
+              <div className="flex items-center gap-1.5 min-w-0">
+                <span className="font-semibold text-foreground truncate">
+                  {p.finish ? p.finish : (p.item_group || p.name)}
+                </span>
+              </div>
+              <div className="text-xs text-muted-foreground truncate">
+                {p.finish
+                  ? (p.item_group || p.name)
+                  : p.location ? `Loc: ${p.location}` : `Prefix: ${p.prefix}`}
+              </div>
+            </div>
+          </div>
+        </TableCell>
+        <TableCell className="font-mono text-xs text-muted-foreground">
+          {p.sku ?? `${p.prefix}-${String(p.id).slice(0, 6).toUpperCase()}`}
+        </TableCell>
+        <TableCell>
+          <Badge variant="secondary" className="capitalize font-medium rounded-md">
+            {p.category}
+          </Badge>
+        </TableCell>
+        <TableCell>
+          {p.finish ? (
+            <Badge className="bg-amber-100 text-amber-700 hover:bg-amber-100 border-0 font-semibold">
+              {p.finish}
+            </Badge>
+          ) : (
+            <span className="text-muted-foreground">—</span>
+          )}
+        </TableCell>
+        <TableCell>
+          <div className="space-y-1.5">
+            <div className="flex items-center justify-between gap-2">
+              <div className="text-sm">
+                <span className={`font-semibold ${countColor}`}>{count}</span>
+                <span className="text-muted-foreground"> / {cap}</span>
+              </div>
+              {status === "low" && (
+                <span className="text-[10px] font-semibold uppercase tracking-wider px-2 py-0.5 rounded-md bg-warning/15 text-warning">
+                  Low
+                </span>
+              )}
+              {status === "empty" && (
+                <span className="text-[10px] font-semibold uppercase tracking-wider px-2 py-0.5 rounded-md bg-destructive/15 text-destructive">
+                  Empty
+                </span>
+              )}
+            </div>
+            <div className="h-1.5 rounded-full bg-muted overflow-hidden">
+              <div
+                className={`h-full rounded-full ${barColor} transition-all`}
+                style={{ width: `${pct}%` }}
+              />
+            </div>
+          </div>
+        </TableCell>
+        <TableCell className="text-right font-semibold tabular-nums">
+          {inr(p.default_price ?? 0)}
+        </TableCell>
+        <TableCell className="text-right pr-6" onClick={(e) => e.stopPropagation()}>
+          <div className="inline-flex items-center gap-0.5">
+            <Button asChild variant="ghost" size="icon" className="h-8 w-8" title="Edit item">
+              <Link to="/inventory/$productId" params={{ productId: p.id }}>
+                <Pencil className="h-4 w-4" />
+              </Link>
+            </Button>
+            <Button
+              asChild
+              variant="ghost"
+              size="icon"
+              className="h-8 w-8 text-success hover:bg-success/10 hover:text-success"
+              title="Stock in"
+            >
+              <Link to="/purchases/new"><ArrowDownToLine className="h-4 w-4" /></Link>
+            </Button>
+            <Button
+              asChild
+              variant="ghost"
+              size="icon"
+              className="h-8 w-8 text-primary hover:bg-primary/10 hover:text-primary"
+              title="Stock out"
+            >
+              <Link to="/sales/new"><ArrowUpFromLine className="h-4 w-4" /></Link>
+            </Button>
+            <Button
+              variant="ghost"
+              size="icon"
+              className="h-8 w-8"
+              title="View history"
+              onClick={() => openHistory(p)}
+            >
+              <History className="h-4 w-4" />
+            </Button>
+          </div>
+        </TableCell>
+      </TableRow>
+    );
   };
 
   return (
@@ -247,7 +393,7 @@ function Inventory() {
               )}
               {!loading && grouped.flatMap((g) => {
                 const isOpen = expanded.has(g.id) || searching;
-                const totalStock = g.items.reduce((a, p) => a + (counts[p.id] ?? 0), 0);
+                const totalStock = g.rows.reduce((a, p) => a + (counts[p.id] ?? 0), 0);
                 const header = (
                   <TableRow
                     key={`grp-${g.id}`}
@@ -269,150 +415,33 @@ function Inventory() {
                   </TableRow>
                 );
                 if (!isOpen) return [header];
-                const rows = g.items.map((p) => {
-                const count = counts[p.id] ?? 0;
-                const cap = Math.max(count, p.reorder_level * 4, 50);
-                const pct = Math.min(100, Math.round((count / cap) * 100));
-                const status = stockLabel(count, p.reorder_level);
-                const barColor =
-                  status === "empty" ? "bg-destructive"
-                  : status === "low" ? "bg-warning"
-                  : "bg-success";
-                const countColor =
-                  status === "empty" ? "text-destructive"
-                  : status === "low" ? "text-warning"
-                  : "text-foreground";
-                return (
-                  <TableRow
-                    key={p.id}
-                    className="cursor-pointer"
-                    onClick={() => nav({ to: "/inventory/$productId", params: { productId: p.id } })}
-                  >
-                    <TableCell className="pl-4" onClick={(e) => e.stopPropagation()}>
-                      <Checkbox
-                        checked={selected.has(p.id)}
-                        onCheckedChange={() => toggleOne(p.id)}
-                        aria-label={`Select ${p.name}`}
-                      />
-                    </TableCell>
-                    <TableCell>
-                      <div className="flex items-center gap-3">
-                        <div className="h-10 w-10 rounded-lg bg-muted grid place-items-center shrink-0 overflow-hidden">
-                          {p.image_url ? (
-                            <img src={p.image_url} alt="" className="object-cover w-full h-full" />
-                          ) : (
-                            <Package className="h-5 w-5 text-muted-foreground" />
-                          )}
+                const rows = g.items.flatMap((item) => {
+                  // Single variant (no parameters) → show the product row directly.
+                  if (item.variants.length === 1) {
+                    return [renderProductRow(item.variants[0], false)];
+                  }
+                  // Multiple parameters → an expandable item row, then its parameter rows.
+                  const itemOpen = expanded.has(item.key) || searching;
+                  const itemStock = item.variants.reduce((a, p) => a + (counts[p.id] ?? 0), 0);
+                  const itemHeader = (
+                    <TableRow
+                      key={`item-${item.key}`}
+                      className="cursor-pointer hover:bg-muted/30"
+                      onClick={() => toggleGroup(item.key)}
+                    >
+                      <TableCell colSpan={8} className="py-2 pl-10">
+                        <div className="flex items-center gap-2">
+                          {itemOpen ? <ChevronDown className="h-4 w-4 text-muted-foreground" /> : <ChevronRight className="h-4 w-4 text-muted-foreground" />}
+                          <span className="font-medium text-foreground">{item.name}</span>
+                          <span className="text-xs text-muted-foreground ml-1">
+                            {item.variants.length} parameters · {itemStock} in stock
+                          </span>
                         </div>
-                        <div className="min-w-0">
-                          <div className="flex items-center gap-1.5 min-w-0">
-                            <span className="font-semibold text-foreground truncate">
-                              {p.item_group || p.name}
-                            </span>
-                            {p.finish && (
-                              <Badge className="shrink-0 bg-amber-100 text-amber-700 hover:bg-amber-100 border-0 font-semibold text-[10px] px-1.5 py-0">
-                                {p.finish}
-                              </Badge>
-                            )}
-                          </div>
-                          <div className="text-xs text-muted-foreground truncate">
-                            {p.finish
-                              ? `Parameter: ${p.finish}`
-                              : p.location ? `Loc: ${p.location}` : `Prefix: ${p.prefix}`}
-                          </div>
-                        </div>
-                      </div>
-                    </TableCell>
-                    <TableCell className="font-mono text-xs text-muted-foreground">
-                      {p.sku ?? `${p.prefix}-${String(p.id).slice(0, 6).toUpperCase()}`}
-                    </TableCell>
-                    <TableCell>
-                      <Badge variant="secondary" className="capitalize font-medium rounded-md">
-                        {p.category}
-                      </Badge>
-                    </TableCell>
-                    <TableCell>
-                      {p.finish ? (
-                        <Badge className="bg-amber-100 text-amber-700 hover:bg-amber-100 border-0 font-semibold">
-                          {p.finish}
-                        </Badge>
-                      ) : (
-                        <span className="text-muted-foreground">—</span>
-                      )}
-                    </TableCell>
-                    <TableCell>
-                      <div className="space-y-1.5">
-                        <div className="flex items-center justify-between gap-2">
-                          <div className="text-sm">
-                            <span className={`font-semibold ${countColor}`}>{count}</span>
-                            <span className="text-muted-foreground"> / {cap}</span>
-                          </div>
-                          {status === "low" && (
-                            <span className="text-[10px] font-semibold uppercase tracking-wider px-2 py-0.5 rounded-md bg-warning/15 text-warning">
-                              Low
-                            </span>
-                          )}
-                          {status === "empty" && (
-                            <span className="text-[10px] font-semibold uppercase tracking-wider px-2 py-0.5 rounded-md bg-destructive/15 text-destructive">
-                              Empty
-                            </span>
-                          )}
-                        </div>
-                        <div className="h-1.5 rounded-full bg-muted overflow-hidden">
-                          <div
-                            className={`h-full rounded-full ${barColor} transition-all`}
-                            style={{ width: `${pct}%` }}
-                          />
-                        </div>
-                      </div>
-                    </TableCell>
-                    <TableCell className="text-right font-semibold tabular-nums">
-                      {inr(p.default_price ?? 0)}
-                    </TableCell>
-                    <TableCell className="text-right pr-6" onClick={(e) => e.stopPropagation()}>
-                      <div className="inline-flex items-center gap-0.5">
-                        <Button
-                          asChild
-                          variant="ghost"
-                          size="icon"
-                          className="h-8 w-8"
-                          title="Edit item"
-                        >
-                          <Link to="/inventory/$productId" params={{ productId: p.id }}>
-                            <Pencil className="h-4 w-4" />
-                          </Link>
-                        </Button>
-                        <Button
-                          asChild
-                          variant="ghost"
-                          size="icon"
-                          className="h-8 w-8 text-success hover:bg-success/10 hover:text-success"
-                          title="Stock in"
-                        >
-                          <Link to="/purchases/new"><ArrowDownToLine className="h-4 w-4" /></Link>
-                        </Button>
-                        <Button
-                          asChild
-                          variant="ghost"
-                          size="icon"
-                          className="h-8 w-8 text-primary hover:bg-primary/10 hover:text-primary"
-                          title="Stock out"
-                        >
-                          <Link to="/sales/new"><ArrowUpFromLine className="h-4 w-4" /></Link>
-                        </Button>
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          className="h-8 w-8"
-                          title="View history"
-                          onClick={() => openHistory(p)}
-                        >
-                          <History className="h-4 w-4" />
-                        </Button>
-                      </div>
-                    </TableCell>
-                  </TableRow>
-                );
+                      </TableCell>
+                    </TableRow>
+                  );
+                  if (!itemOpen) return [itemHeader];
+                  return [itemHeader, ...item.variants.map((p) => renderProductRow(p, true))];
                 });
                 return [header, ...rows];
               })}
