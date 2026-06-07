@@ -17,6 +17,7 @@ const items = [
   { key: "inventory",  to: "/inventory",       label: "Inventory",  icon: Boxes },
   { key: "subcategories", to: "/inventory/subcategories", label: "Sub-Categories", icon: Layers },
   { key: "scan",       to: "/inventory/scan",  label: "Scan",       icon: ScanLine },
+  { key: "stock_entry", to: "/inventory/stock-entry", label: "Stock Entry", icon: PackagePlus },
   { key: "purchases",  to: "/purchases",       label: "Purchases",  icon: ShoppingCart },
   { key: "purchase_returns", to: "/purchase-returns", label: "Purchase Returns", icon: RotateCcw },
   { key: "sales",      to: "/sales",           label: "Sales",      icon: Receipt },
