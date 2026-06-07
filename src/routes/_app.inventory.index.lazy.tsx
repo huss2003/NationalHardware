@@ -332,6 +332,15 @@ function Inventory() {
                       </Badge>
                     </TableCell>
                     <TableCell>
+                      {p.finish ? (
+                        <Badge className="bg-amber-100 text-amber-700 hover:bg-amber-100 border-0 font-semibold">
+                          {p.finish}
+                        </Badge>
+                      ) : (
+                        <span className="text-muted-foreground">—</span>
+                      )}
+                    </TableCell>
+                    <TableCell>
                       <div className="space-y-1.5">
                         <div className="flex items-center justify-between gap-2">
                           <div className="text-sm">
