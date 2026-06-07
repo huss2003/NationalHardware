@@ -746,21 +746,20 @@ export function SaleBillForm({
                                   ? (p.finish && p.item_group
                                       ? p.item_group
                                       : `${p.prefix} · ${p.gst_rate}% GST · ${p.unit}${p.alt_unit ? ` / ${p.alt_unit}` : ""}`)
-                                  : (
-                                      <span className="inline-flex items-center gap-1.5">
-                                        {p.__kind === "item" && (
-                                          <span className="px-1.5 py-0.5 rounded bg-[#3b82f6]/10 text-[#3b82f6] font-bold text-[9px]">ITEM</span>
-                                        )}
-                                        <span className="uppercase">{p.category}</span>
-                                      </span>
-                                    )}
+                                  : (p.products.length > 1
+                                      ? <span className="text-[#3b82f6] font-semibold">{p.products.length} parameters</span>
+                                      : <span className="uppercase">{p.products[0]?.prefix}</span>)}
                               </div>
                             </div>
-                            {(p.__kind === "variant" || p.__kind === "item") && (
+                            {p.__kind === "variant" ? (
                               <div className="text-sm font-bold tabular-nums text-[#3b82f6] shrink-0">
                                 {inr(Number(p.default_price))}
                               </div>
-                            )}
+                            ) : p.products.length === 1 ? (
+                              <div className="text-sm font-bold tabular-nums text-[#3b82f6] shrink-0">
+                                {inr(Number(p.products[0].default_price))}
+                              </div>
+                            ) : null}
                           </button>
                         ))}
                       </div>
