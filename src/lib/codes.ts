@@ -18,7 +18,7 @@ export async function makeBarcodeDataUrl(text: string): Promise<string> {
 
 // Load the qrcode lib once and reuse it, and memoize generated data URLs so the
 // same ID is never re-encoded (huge win when previewing/printing many labels).
-let _qrLib: Promise<typeof import("qrcode")> | null = null;
+let _qrLib: ReturnType<typeof import> | null = null;
 const _qrCache = new Map<string, string>();
 
 export async function makeQrDataUrl(payload: unknown): Promise<string> {
@@ -26,7 +26,7 @@ export async function makeQrDataUrl(payload: unknown): Promise<string> {
   const cached = _qrCache.get(text);
   if (cached) return cached;
   if (!_qrLib) _qrLib = import("qrcode");
-  const { default: QRCode } = await _qrLib;
+  const QRCode = await _qrLib;
   // 160px is plenty sharp for a ~20mm sticker and ~2.5x faster to encode than 240px.
   const url = await QRCode.toDataURL(text, { margin: 1, width: 160 });
   _qrCache.set(text, url);
