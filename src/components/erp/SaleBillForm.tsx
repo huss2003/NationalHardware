@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button";
 import { ScanInput } from "@/components/erp/ScanInput";
 import { useAuth } from "@/lib/auth-store";
 import { toast } from "sonner";
-import { inr } from "@/lib/codes";
+import { inr, parseScannedCode } from "@/lib/codes";
 import {
   Trash2, ArrowLeft, Check, ScanLine,
   Plus, Calendar, MessageCircle, DoorOpen, Warehouse,
