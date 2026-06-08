@@ -111,16 +111,10 @@ function StockEntryPage() {
         name: display,
         qr_payload: r.qr_payload ?? { id: r.id, name: display },
       }));
-      // Hardware/lot items return a single shared lot row no matter the qty,
-      // so replicate the labels up to the requested quantity so every physical
-      // unit gets a sticker.
-      const want = Math.floor(qty);
-      let items: LabelItem[] = minted;
-      if (minted.length > 0 && minted.length < want) {
-        items = Array.from({ length: want }, (_, k) => minted[k % minted.length]);
-      }
-      setLabelItems(items);
-      if (items.length > 0) setLabelOpen(true);
+      // Each physical unit now gets its own unique, sequential barcode straight
+      // from the database, so use the minted rows directly (one sticker each).
+      setLabelItems(minted);
+      if (minted.length > 0) setLabelOpen(true);
       // Reset for the next entry.
       setQty(1);
     } catch (e: any) {
