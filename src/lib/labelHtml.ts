@@ -57,7 +57,7 @@ export function buildLabelHtml({
 <div class="label" style="width:${pageW}mm;height:${pageH}mm;${last ? "" : "page-break-after:always;break-after:page;"}background:#fff;box-sizing:border-box;overflow:hidden;position:relative">
   <div style="width:${innerW}mm;height:${innerH}mm;box-sizing:border-box;padding:1mm;display:flex;gap:1mm;background:#fff;overflow:hidden;position:absolute;top:0;left:0;transform-origin:top left;transform:none">
     <div style="flex:1;min-width:0">
-      <div style="font-size:8pt;font-weight:800;line-height:1.1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${esc(it.name)}</div>
+      <div style="font-size:8pt;font-weight:800;line-height:1.1;overflow:hidden;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;word-break:break-word">${esc(it.name)}</div>
       <div style="font-size:7pt;font-family:monospace;font-weight:700;margin-top:1mm">${esc(it.id)}</div>
       ${bImg}
     </div>
@@ -79,7 +79,7 @@ export function buildLabelHtml({
         return `
 <div style="border:1px dashed #aaa;padding:2mm;display:flex;gap:2mm;height:25mm;box-sizing:border-box">
   <div style="flex:1;min-width:0">
-    <div style="font-size:8pt;font-weight:800;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${esc(it.name)}</div>
+    <div style="font-size:8pt;font-weight:800;line-height:1.1;overflow:hidden;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;word-break:break-word">${esc(it.name)}</div>
     <div style="font-size:7pt;font-family:monospace;font-weight:700;margin-top:1mm">${esc(it.id)}</div>
     ${bImg}
   </div>
