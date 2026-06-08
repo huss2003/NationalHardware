@@ -1,7 +1,7 @@
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import type { LabelItem, LabelSize, LabelOrientation } from "@/components/erp/LabelSheet";
-import { makeBarcodeDataUrl, makeQrDataUrl } from "@/lib/codes";
+import { makeQrDataUrl } from "@/lib/codes";
 import { buildLabelHtml, type CodeImgs } from "@/lib/labelHtml";
 import { Printer } from "lucide-react";
 import { useEffect, useMemo, useRef, useState } from "react";
@@ -52,7 +52,7 @@ export function ReprintLabelDialog({
     (async () => {
       const out: CodeImgs = {};
       for (const it of items) {
-        out[it.id] = { b: await makeBarcodeDataUrl(it.id), q: await makeQrDataUrl(it.id) };
+        out[it.id] = { b: "", q: await makeQrDataUrl(it.id) };
       }
       if (alive) setImgs(out);
     })();

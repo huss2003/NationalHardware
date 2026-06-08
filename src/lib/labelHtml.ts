@@ -39,27 +39,24 @@ export function buildLabelHtml({
     const pageH = isHorizontal ? Math.min(size.w, size.h) : Math.max(size.w, size.h);
     const innerW = pageW;
     const innerH = pageH;
-    const qrSize = Math.max(12, Math.min(innerH - 4, innerW * 0.4));
-    const barH = Math.max(6, innerH * 0.4);
+    // No barcode anymore — the QR alone carries the item ID, so make it as big
+    // as the label height allows.
+    const qrSize = Math.max(14, Math.min(innerH - 2, innerW * 0.55));
 
     pageCss = `@page { size: ${pageW}mm ${pageH}mm; margin: 0; } @media print { html, body { width: ${pageW}mm; height: ${pageH}mm; } }`;
 
     body = items
       .map((it, idx) => {
         const last = idx === items.length - 1;
-        const bImg = imgs[it.id]?.b
-          ? `<img src="${imgs[it.id].b}" style="width:100%;height:${barH}mm;object-fit:contain;margin-top:1mm" />`
-          : "";
         const qImg = imgs[it.id]?.q
-          ? `<img src="${imgs[it.id].q}" style="width:${qrSize}mm;height:${qrSize}mm" />`
+          ? `<img src="${imgs[it.id].q}" style="width:${qrSize}mm;height:${qrSize}mm;image-rendering:pixelated" />`
           : "";
         return `
 <div class="label" style="width:${pageW}mm;height:${pageH}mm;${last ? "" : "page-break-after:always;break-after:page;"}background:#fff;box-sizing:border-box;overflow:hidden;position:relative">
-  <div style="width:${innerW}mm;height:${innerH}mm;box-sizing:border-box;padding:1mm;display:flex;gap:1mm;background:#fff;overflow:hidden;position:absolute;top:0;left:0;transform-origin:top left;transform:none">
-    <div style="flex:1;min-width:0">
-      <div style="font-size:8pt;font-weight:800;line-height:1.1;overflow:hidden;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;word-break:break-word">${esc(it.name)}</div>
-      <div style="font-size:7pt;font-family:monospace;font-weight:700;margin-top:1mm">${esc(it.id)}</div>
-      ${bImg}
+  <div style="width:${innerW}mm;height:${innerH}mm;box-sizing:border-box;padding:1mm;display:flex;align-items:center;gap:1.5mm;background:#fff;overflow:hidden;position:absolute;top:0;left:0;transform-origin:top left;transform:none">
+    <div style="flex:1;min-width:0;display:flex;flex-direction:column;justify-content:center;height:100%">
+      <div style="font-size:10pt;font-weight:900;line-height:1.15;overflow:hidden;display:-webkit-box;-webkit-line-clamp:4;-webkit-box-orient:vertical;word-break:break-word">${esc(it.name)}</div>
+      <div style="font-size:8pt;font-family:monospace;font-weight:900;margin-top:1mm">${esc(it.id)}</div>
     </div>
     ${qImg}
   </div>
@@ -70,18 +67,14 @@ export function buildLabelHtml({
     pageCss = `@page { size: A4; margin: 5mm; }`;
     const cells = items
       .map((it) => {
-        const bImg = imgs[it.id]?.b
-          ? `<img src="${imgs[it.id].b}" style="width:100%;height:9mm;object-fit:contain;margin-top:1mm" />`
-          : "";
         const qImg = imgs[it.id]?.q
-          ? `<img src="${imgs[it.id].q}" style="width:18mm;height:18mm" />`
+          ? `<img src="${imgs[it.id].q}" style="width:21mm;height:21mm;image-rendering:pixelated" />`
           : "";
         return `
-<div style="border:1px dashed #aaa;padding:2mm;display:flex;gap:2mm;height:25mm;box-sizing:border-box">
-  <div style="flex:1;min-width:0">
-    <div style="font-size:8pt;font-weight:800;line-height:1.1;overflow:hidden;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;word-break:break-word">${esc(it.name)}</div>
-    <div style="font-size:7pt;font-family:monospace;font-weight:700;margin-top:1mm">${esc(it.id)}</div>
-    ${bImg}
+<div style="border:1px dashed #aaa;padding:2mm;display:flex;align-items:center;gap:2mm;height:25mm;box-sizing:border-box">
+  <div style="flex:1;min-width:0;display:flex;flex-direction:column;justify-content:center;height:100%">
+    <div style="font-size:10pt;font-weight:900;line-height:1.15;overflow:hidden;display:-webkit-box;-webkit-line-clamp:4;-webkit-box-orient:vertical;word-break:break-word">${esc(it.name)}</div>
+    <div style="font-size:8pt;font-family:monospace;font-weight:900;margin-top:1mm">${esc(it.id)}</div>
   </div>
   ${qImg}
 </div>`;
