@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { makeBarcodeDataUrl, makeQrDataUrl } from "@/lib/codes";
+import { makeQrDataUrl } from "@/lib/codes";
 
 export type LabelItem = { id: string; name: string; qr_payload: any };
 
