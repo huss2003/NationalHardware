@@ -9,7 +9,9 @@ export async function makeBarcodeDataUrl(text: string): Promise<string> {
     text,
     scale: 2,
     height: 10,
-    includetext: false,
+    includetext: true,
+    textsize: 7,
+    textyoffset: 1,
   });
   return canvas.toDataURL("image/png");
 }
@@ -18,6 +20,23 @@ export async function makeQrDataUrl(payload: unknown): Promise<string> {
   const text = typeof payload === "string" ? payload : JSON.stringify(payload);
   const { default: QRCode } = await import("qrcode");
   return QRCode.toDataURL(text, { margin: 1, width: 240 });
+}
+
+// Normalize whatever a scanner / keyboard wedge produces into a plain item ID.
+// New labels encode the bare ID in both the barcode and the QR code. Older
+// labels encoded a JSON payload in the QR — extract the `id` from those too so
+// scanning still resolves the unit during sales.
+export function parseScannedCode(raw: string): string {
+  const t = (raw ?? "").trim();
+  if (t.startsWith("{") && t.endsWith("}")) {
+    try {
+      const o = JSON.parse(t);
+      if (o && typeof o.id === "string") return o.id.trim();
+    } catch {
+      /* not JSON — fall through */
+    }
+  }
+  return t;
 }
 
 export function inr(n: number | string | null | undefined): string {
