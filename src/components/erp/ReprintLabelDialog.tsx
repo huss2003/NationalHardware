@@ -52,7 +52,7 @@ export function ReprintLabelDialog({
     (async () => {
       const out: CodeImgs = {};
       for (const it of items) {
-        out[it.id] = { b: await makeBarcodeDataUrl(it.id), q: await makeQrDataUrl(it.qr_payload) };
+        out[it.id] = { b: await makeBarcodeDataUrl(it.id), q: await makeQrDataUrl(it.id) };
       }
       if (alive) setImgs(out);
     })();

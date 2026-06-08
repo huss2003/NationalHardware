@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button";
 import { ScanInput } from "@/components/erp/ScanInput";
 import { useAuth } from "@/lib/auth-store";
 import { toast } from "sonner";
-import { inr } from "@/lib/codes";
+import { inr, parseScannedCode } from "@/lib/codes";
 import {
   Trash2, ArrowLeft, Check, ScanLine,
   Plus, Calendar, MessageCircle, DoorOpen, Warehouse,
@@ -224,8 +224,9 @@ export function SaleBillForm({
 
   const looksLikeCode = (s: string) => /-/.test(s) && /^[A-Za-z0-9-]+$/.test(s);
 
-  const onScan = async (code: string) => {
+  const onScan = async (raw: string) => {
     setWarn(null);
+    const code = parseScannedCode(raw);
     const prefix = code.split("-")[0]?.toUpperCase();
     if (knownPrefixes.length && (!prefix || !knownPrefixes.includes(prefix))) {
       setWarn({ kind: "wrong_prefix", code,
