@@ -34,7 +34,7 @@ function UnitPage() {
       const [{ data: p }, b, q] = await Promise.all([
         supabase.from("products").select("*").eq("id", i.product_id).single(),
         makeBarcodeDataUrl(i.id),
-        makeQrDataUrl(i.qr_payload),
+        makeQrDataUrl(i.id),
       ]);
       setProduct(p);
       setBar(b);
