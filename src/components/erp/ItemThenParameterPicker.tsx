@@ -94,7 +94,8 @@ export function ItemThenParameterPicker({
     if (variants.length === 1) {
       onPickItem(variants[0]);
       reset();
-      setTimeout(() => inputRef.current?.focus(), 0);
+      setFocus(false);
+      setTimeout(() => inputRef.current?.blur(), 0);
       return;
     }
     setGroup(g); setQuery(""); setActive(0);
@@ -109,7 +110,8 @@ export function ItemThenParameterPicker({
     } else {
       onPickItem(pick);
       reset();
-      setTimeout(() => inputRef.current?.focus(), 0);
+      setFocus(false);
+      setTimeout(() => inputRef.current?.blur(), 0);
     }
   };
 
