@@ -4,6 +4,7 @@ import { ScanInput } from "@/components/erp/ScanInput";
 import { PageHeader } from "@/components/erp/PageHeader";
 import { Button } from "@/components/ui/button";
 import { supabase } from "@/integrations/supabase/client";
+import { parseScannedCode } from "@/lib/codes";
 import { CheckCircle2, AlertOctagon, XCircle } from "lucide-react";
 
 export const Route = createFileRoute("/_app/inventory/scan")({ component: ScanPage });
@@ -18,8 +19,9 @@ function ScanPage() {
   const nav = useNavigate();
   const [result, setResult] = useState<Result | null>(null);
 
-  const onScan = async (code: string) => {
+  const onScan = async (raw: string) => {
     setResult(null);
+    const code = parseScannedCode(raw);
     const { data } = await supabase
       .from("item_instances")
       .select("id, status, products(name)")
