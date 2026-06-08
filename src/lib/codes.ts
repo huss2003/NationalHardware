@@ -16,10 +16,21 @@ export async function makeBarcodeDataUrl(text: string): Promise<string> {
   return canvas.toDataURL("image/png");
 }
 
+// Load the qrcode lib once and reuse it, and memoize generated data URLs so the
+// same ID is never re-encoded (huge win when previewing/printing many labels).
+let _qrLib: Promise<typeof import("qrcode")> | null = null;
+const _qrCache = new Map<string, string>();
+
 export async function makeQrDataUrl(payload: unknown): Promise<string> {
   const text = typeof payload === "string" ? payload : JSON.stringify(payload);
-  const { default: QRCode } = await import("qrcode");
-  return QRCode.toDataURL(text, { margin: 1, width: 240 });
+  const cached = _qrCache.get(text);
+  if (cached) return cached;
+  if (!_qrLib) _qrLib = import("qrcode");
+  const QRCode = await _qrLib;
+  // 160px is plenty sharp for a ~20mm sticker and ~2.5x faster to encode than 240px.
+  const url = await QRCode.toDataURL(text, { margin: 1, width: 160 });
+  _qrCache.set(text, url);
+  return url;
 }
 
 // Normalize whatever a scanner / keyboard wedge produces into a plain item ID.

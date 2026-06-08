@@ -50,11 +50,13 @@ export function ReprintLabelDialog({
   useEffect(() => {
     let alive = true;
     (async () => {
-      const out: CodeImgs = {};
-      for (const it of items) {
-        out[it.id] = { b: "", q: await makeQrDataUrl(it.id) };
-      }
-      if (alive) setImgs(out);
+      // Generate every QR in parallel (and dedupe by id) instead of awaiting
+      // them one-by-one — orders of magnitude faster for large batches.
+      const ids = Array.from(new Set(items.map((it) => it.id)));
+      const entries = await Promise.all(
+        ids.map(async (id) => [id, { b: "", q: await makeQrDataUrl(id) }] as const),
+      );
+      if (alive) setImgs(Object.fromEntries(entries));
     })();
     return () => { alive = false; };
   }, [items]);

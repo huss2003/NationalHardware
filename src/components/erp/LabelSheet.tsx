@@ -21,11 +21,11 @@ export function LabelSheet({
   const [imgs, setImgs] = useState<Record<string, { b: string; q: string }>>({});
   useEffect(() => {
     (async () => {
-      const out: Record<string, { b: string; q: string }> = {};
-      for (const it of items) {
-        out[it.id] = { b: "", q: await makeQrDataUrl(it.id) };
-      }
-      setImgs(out);
+      const ids = Array.from(new Set(items.map((it) => it.id)));
+      const entries = await Promise.all(
+        ids.map(async (id) => [id, { b: "", q: await makeQrDataUrl(id) }] as const),
+      );
+      setImgs(Object.fromEntries(entries));
     })();
   }, [items]);
 
