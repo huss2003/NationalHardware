@@ -23,7 +23,7 @@ export function LabelSheet({
     (async () => {
       const out: Record<string, { b: string; q: string }> = {};
       for (const it of items) {
-        out[it.id] = { b: await makeBarcodeDataUrl(it.id), q: await makeQrDataUrl(it.qr_payload) };
+        out[it.id] = { b: await makeBarcodeDataUrl(it.id), q: await makeQrDataUrl(it.id) };
       }
       setImgs(out);
     })();
