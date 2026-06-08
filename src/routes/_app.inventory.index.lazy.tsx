@@ -19,6 +19,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { inr, fmtDateTime } from "@/lib/codes";
 import { TableSkeleton } from "@/components/erp/Skeletons";
 import { NewProductDialog } from "@/components/erp/NewProductDialog";
+import { AddParameterDialog } from "@/components/erp/AddParameterDialog";
 import { Layers } from "lucide-react";
 
 export const Route = createLazyFileRoute("/_app/inventory/")({ component: Inventory });
@@ -325,6 +326,7 @@ function Inventory() {
             <Button asChild variant="outline" className="gap-1">
               <Link to="/inventory/subcategories"><Layers className="h-4 w-4" /> Sub-categories</Link>
             </Button>
+            <AddParameterDialog onCreated={load} />
             <NewProductDialog onCreated={load} />
           </>
         }
