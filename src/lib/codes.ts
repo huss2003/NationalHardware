@@ -18,7 +18,7 @@ export async function makeBarcodeDataUrl(text: string): Promise<string> {
 
 // Load the qrcode lib once and reuse it, and memoize generated data URLs so the
 // same ID is never re-encoded (huge win when previewing/printing many labels).
-let _qrLib: ReturnType<typeof import> | null = null;
+let _qrLib: Promise<typeof import("qrcode")> | null = null;
 const _qrCache = new Map<string, string>();
 
 export async function makeQrDataUrl(payload: unknown): Promise<string> {
