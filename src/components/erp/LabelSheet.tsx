@@ -64,7 +64,7 @@ export function LabelSheet({
               }}
             >
               <div style={{ flex: 1, minWidth: 0 }}>
-                <div style={{ fontSize: "8pt", fontWeight: 800, lineHeight: 1.1, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{it.name}</div>
+                <div style={{ fontSize: "8pt", fontWeight: 800, lineHeight: 1.1, overflow: "hidden", display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical", wordBreak: "break-word" }}>{it.name}</div>
                 <div style={{ fontSize: "7pt", fontFamily: "monospace", fontWeight: 700, marginTop: "1mm" }}>{it.id}</div>
                 {imgs[it.id] && <img src={imgs[it.id].b} alt="" style={{ width: "100%", height: `${Math.max(6, innerH * 0.4)}mm`, objectFit: "contain", marginTop: "1mm" }} />}
               </div>
@@ -82,7 +82,7 @@ export function LabelSheet({
       {items.map((it) => (
         <div key={it.id} style={{ border: "1px dashed #aaa", padding: "2mm", display: "flex", gap: "2mm", height: "25mm" }}>
           <div style={{ flex: 1, minWidth: 0 }}>
-            <div style={{ fontSize: "8pt", fontWeight: 800, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{it.name}</div>
+            <div style={{ fontSize: "8pt", fontWeight: 800, lineHeight: 1.1, overflow: "hidden", display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical", wordBreak: "break-word" }}>{it.name}</div>
             <div style={{ fontSize: "7pt", fontFamily: "monospace", fontWeight: 700, marginTop: "1mm" }}>{it.id}</div>
             {imgs[it.id] && <img src={imgs[it.id].b} alt="" style={{ width: "100%", height: "9mm", objectFit: "contain", marginTop: "1mm" }} />}
           </div>
