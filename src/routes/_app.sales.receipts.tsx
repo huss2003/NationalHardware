@@ -261,6 +261,11 @@ function ReceiptsPage() {
                       <Button size="sm" variant="outline" className="gap-1 h-8" onClick={() => printReceipt(r)}>
                         <Printer className="h-3.5 w-3.5" /> Print
                       </Button>
+                      {isPrintServerEnabled() && (
+                        <Button size="sm" variant="outline" className="gap-1 h-8" onClick={() => thermalReceipt(r)}>
+                          <ThermalIcon className="h-3.5 w-3.5" /> Thermal
+                        </Button>
+                      )}
                       <Button size="sm" variant="outline" className="gap-1 h-8" onClick={() => downloadReceipt(r)}>
                         <Download className="h-3.5 w-3.5" /> PDF
                       </Button>
