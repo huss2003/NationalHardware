@@ -60,12 +60,8 @@ export function ReprintLabelDialog({
   const size: LabelSize = custom
     ? { w: Math.max(10, customW || 0), h: Math.max(10, customH || 0) }
     : THERMAL_SIZES[sizeIdx].size;
-  const previewSize: LabelSize = fmt === "thermal"
-    ? {
-        w: orientation === "horizontal" ? Math.max(size.w, size.h) : Math.min(size.w, size.h),
-        h: orientation === "horizontal" ? Math.min(size.w, size.h) : Math.max(size.w, size.h),
-      }
-    : size;
+  // @page dimensions always match the physical paper — never swap on orientation.
+  const previewSize: LabelSize = size;
 
   // Generate the QR images for every item once the dialog has items.
   useEffect(() => {
