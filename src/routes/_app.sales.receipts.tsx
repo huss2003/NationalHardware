@@ -11,8 +11,9 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "
 import { PageHeader } from "@/components/erp/PageHeader";
 import { inr, fmtDate } from "@/lib/codes";
 import { useAuth } from "@/lib/auth-store";
+import { isPrintServerEnabled, printReceipt as printReceiptServer } from "@/lib/printServer";
 import { toast } from "sonner";
-import { ArrowLeft, Receipt as ReceiptIcon, Wallet, FileText, Check, MessageCircle } from "lucide-react";
+import { ArrowLeft, Receipt as ReceiptIcon, Wallet, FileText, Check, MessageCircle, Printer as ThermalIcon } from "lucide-react";
 import { TableSkeleton } from "@/components/erp/Skeletons";
 // jspdf + jspdf-autotable (~250KB) loaded only when the user prints/downloads a receipt.
 import { Printer, Download } from "lucide-react";
@@ -92,6 +93,27 @@ function ReceiptsPage() {
     pdf.autoPrint();
     const url = pdf.output("bloburl");
     window.open(url, "_blank");
+  };
+  // Send the receipt to the SEZNIK POS58 thermal printer via the local print server.
+  const thermalReceipt = async (r: Receipt) => {
+    try {
+      const cust = customers.find((c) => c.id === r.customer_id);
+      await printReceiptServer({
+        header: shop?.shop_name ?? "RECEIPT",
+        footer: "Thank you!",
+        items: [
+          { name: `Receipt ${r.receipt_no}`, price: Number(r.amount) },
+          { name: cust?.name ?? r.customers?.name ?? "Customer", price: 0 },
+          { name: `Mode: ${r.mode}`, price: 0 },
+        ],
+        subtotal: Number(r.amount),
+        tax: 0,
+        total: Number(r.amount),
+      });
+      toast.success("Receipt sent to POS58 printer");
+    } catch (e: any) {
+      toast.error(`Print server error: ${e.message ?? e}`);
+    }
   };
   const downloadReceipt = async (r: Receipt) => {
     const pdf = await buildPdfFor(r);
