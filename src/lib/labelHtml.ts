@@ -28,39 +28,53 @@ export function buildLabelHtml({
   size: LabelSize;
   orientation: LabelOrientation;
 }): string {
-  let pageCss = "";
-  let body = "";
-
   if (format === "thermal") {
     const pageW = size.w;
-    const pageH = size.h;
-    const qrSize = Math.max(8, Math.min(pageW * 0.40, pageH * 0.40));
+    const qrSize = Math.max(8, Math.min(pageW * 0.40, size.h * 0.40));
+    const textH = 15;
+    const contentH = Math.max(qrSize, textH);
+    const contentW = pageW;
 
-    pageCss = `@page { size: ${pageW}mm ${pageH}mm; margin: 0; }`;
+    const pageCss = `@page { size: ${contentW}mm ${contentH}mm; margin: 0; }`;
 
-    body = items
+    const body = items
       .map((it, idx) => {
         const last = idx === items.length - 1;
         const qImg = imgs[it.id]?.q
           ? `<img src="${imgs[it.id].q}" style="width:${qrSize}mm;height:${qrSize}mm;image-rendering:pixelated" />`
           : "";
-        return `<div class="label" style="width:${pageW}mm;height:${pageH}mm;${last ? "" : "page-break-after:always;break-after:page;"}background:#fff;box-sizing:border-box;overflow:hidden;display:flex;flex-direction:row;align-items:stretch;padding:1.5mm;gap:2mm">
-  <div style="flex:1;min-width:0;display:flex;flex-direction:column;justify-content:center;overflow:hidden">
+        return `<div class="label" style="${last ? "" : "page-break-after:always;break-after:page;"}box-sizing:border-box;overflow:hidden;display:flex;flex-direction:row;align-items:stretch;padding:0;margin:0;gap:0">
+  <div style="flex:1;min-width:0;display:flex;flex-direction:column;justify-content:flex-start;overflow:hidden">
     <div style="font-size:9pt;font-weight:900;line-height:1.2;overflow:hidden;display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;word-break:break-word;overflow-wrap:anywhere;margin:0">${esc(it.name)}</div>
     <div style="font-size:7pt;font-family:monospace;font-weight:900;margin-top:0.5mm;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${esc(it.id)}</div>
   </div>
-  <div style="flex-shrink:0;display:flex;align-items:center;justify-content:center">${qImg}</div>
+  <div style="flex-shrink:0;display:flex;align-items:flex-start;justify-content:center">${qImg}</div>
 </div>`;
       })
       .join("");
-  } else {
-    pageCss = `@page { size: A4; margin: 5mm; }`;
-    const cells = items
-      .map((it) => {
-        const qImg = imgs[it.id]?.q
-          ? `<img src="${imgs[it.id].q}" style="width:21mm;height:21mm;image-rendering:pixelated" />`
-          : "";
-        return `
+
+    return `<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8" />
+<style>
+  ${pageCss}
+  html,body{margin:0;padding:0;background:#fff;overflow:hidden}
+  .label{width:${contentW}mm;height:${contentH}mm}
+  *{ -webkit-print-color-adjust:exact; print-color-adjust:exact }
+</style>
+</head>
+<body>${body}</body>
+</html>`;
+  }
+
+  const pageCss = `@page { size: A4; margin: 5mm; }`;
+  const cells = items
+    .map((it) => {
+      const qImg = imgs[it.id]?.q
+        ? `<img src="${imgs[it.id].q}" style="width:21mm;height:21mm;image-rendering:pixelated" />`
+        : "";
+      return `
 <div style="border:1px dashed #aaa;padding:2mm;display:flex;align-items:center;gap:2mm;height:25mm;box-sizing:border-box">
   <div style="flex:1;min-width:0;display:flex;flex-direction:column;justify-content:center;height:100%">
     <div style="font-size:10pt;font-weight:900;line-height:1.15;overflow:hidden;display:-webkit-box;-webkit-line-clamp:4;-webkit-box-orient:vertical;word-break:break-word">${esc(it.name)}</div>
@@ -68,10 +82,9 @@ export function buildLabelHtml({
   </div>
   ${qImg}
 </div>`;
-      })
-      .join("");
-    body = `<div style="display:grid;grid-template-columns:repeat(4,1fr);gap:2mm">${cells}</div>`;
-  }
+    })
+    .join("");
+  const body = `<div style="display:grid;grid-template-columns:repeat(4,1fr);gap:2mm">${cells}</div>`;
 
   return `<!DOCTYPE html>
 <html>
@@ -79,7 +92,7 @@ export function buildLabelHtml({
 <meta charset="utf-8" />
 <style>
   ${pageCss}
-  html,body{margin:0;padding:0;width:${size.w}mm;height:${size.h}mm;background:#fff;overflow:hidden}
+  html,body{margin:0;padding:0;background:#fff;overflow:hidden}
   *{ -webkit-print-color-adjust:exact; print-color-adjust:exact }
 </style>
 </head>
