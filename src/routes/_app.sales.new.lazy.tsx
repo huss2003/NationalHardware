@@ -1,5 +1,6 @@
 import { createLazyFileRoute } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
+import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { X, Plus } from "lucide-react";
 import { SaleBillForm, type ProductRow } from "@/components/erp/SaleBillForm";
@@ -21,15 +22,38 @@ function newId(): string {
   return `t_${Date.now()}_${Math.random().toString(36).slice(2)}`;
 }
 
-function NewSale() {
-  // Shared reference data — fetched once for all tabs.
-  const [customers, setCustomers] = useState<Customer[]>([]);
-  const [products, setProducts] = useState<ProductRow[]>([]);
-  const [subcats, setSubcats] = useState<SubCat[]>([]);
-  const [godowns, setGodowns] = useState<Godown[]>([]);
-  const [knownPrefixes, setKnownPrefixes] = useState<string[]>([]);
+async function fetchSalePageData() {
+  const [custRes, prodRes, godownRes, subRes] = await Promise.all([
+    supabase.from("customers").select("id, name, state, phone").order("name"),
+    supabase.from("products")
+      .select("id,name,prefix,hsn,default_price,gst_rate,unit,alt_unit,alt_conversion,subcategory_id,item_group,finish")
+      .eq("active", true).order("name"),
+    supabase.from("godowns").select("id, name").eq("active", true).order("name"),
+    supabase.from("product_subcategories").select("id,name,category").eq("active", true).order("name"),
+  ]);
+  return {
+    customers: ((custRes.data ?? []) as Customer[]),
+    products: ((prodRes.data ?? []) as ProductRow[]),
+    godowns: ((godownRes.data ?? []) as Godown[]),
+    subcats: ((subRes.data ?? []) as SubCat[]),
+  };
+}
 
-  // Tabs — restored from sessionStorage so open bills survive refresh.
+function NewSale() {
+  const { data, isLoading } = useQuery({
+    queryKey: ["sale-page-data"],
+    queryFn: fetchSalePageData,
+    staleTime: 5 * 60 * 1000,
+  });
+
+  const customers = data?.customers ?? [];
+  const products = data?.products ?? [];
+  const subcats = data?.subcats ?? [];
+  const godowns = data?.godowns ?? [];
+  const knownPrefixes = products.length
+    ? Array.from(new Set(products.map((p) => p.prefix).filter(Boolean)))
+    : [];
+
   const [tabs, setTabs] = useState<Tab[]>(() => {
     try {
       const raw = sessionStorage.getItem(TABS_KEY);
@@ -56,7 +80,6 @@ function NewSale() {
     return "";
   });
 
-  // Ensure activeId is always valid.
   useEffect(() => {
     if (!tabs.some((t) => t.id === activeId)) {
       setActiveId(tabs[0]?.id ?? "");
@@ -69,29 +92,13 @@ function NewSale() {
     } catch {}
   }, [tabs, activeId]);
 
-  useEffect(() => {
-    supabase.from("customers").select("*").order("name").then(({ data }) => setCustomers((data ?? []) as any));
-    supabase.from("godowns").select("id, name").eq("active", true).order("name")
-      .then(({ data }) => setGodowns((data ?? []) as any));
-    supabase.from("products")
-      .select("id,name,prefix,hsn,default_price,gst_rate,unit,alt_unit,alt_conversion,subcategory_id,item_group,finish")
-      .eq("active", true)
-      .order("name")
-      .then(({ data }) => {
-        const rows = (data ?? []) as ProductRow[];
-        setProducts(rows);
-        setKnownPrefixes(Array.from(new Set(rows.map((p) => p.prefix).filter(Boolean))));
-      });
-    supabase.from("product_subcategories")
-      .select("id,name,category")
-      .eq("active", true)
-      .order("name")
-      .then(({ data }) => setSubcats((data ?? []) as any));
-  }, []);
+  const [extraCustomers, setExtraCustomers] = useState<Customer[]>([]);
 
   const onCustomerCreated = (c: Customer) => {
-    setCustomers((prev) => [...prev, c].sort((a, b) => a.name.localeCompare(b.name)));
+    setExtraCustomers((prev) => [...prev, c]);
   };
+
+  const allCustomers = [...customers, ...extraCustomers].sort((a, b) => a.name.localeCompare(b.name));
 
   const addTab = () => {
     setTabs((prev) => {
@@ -106,7 +113,6 @@ function NewSale() {
     try { sessionStorage.removeItem(`sale_tab_${id}`); } catch {}
     setTabs((prev) => {
       if (prev.length <= 1) {
-        // Always keep at least one bill — replace with a fresh blank one.
         const t = { id: newId() };
         setActiveId(t.id);
         return [t];
@@ -117,14 +123,16 @@ function NewSale() {
     });
   };
 
-  // Saving one bill closes only that tab (and keeps a blank one if it was the last).
   const onSaved = (id: string) => {
     closeTab(id);
   };
 
+  if (isLoading) {
+    return <div className="flex items-center justify-center h-64 text-muted-foreground text-sm">Loading sale data…</div>;
+  }
+
   return (
     <div className="w-full">
-      {/* Tab bar */}
       <div className="sticky top-0 z-30 flex items-stretch gap-1 bg-white border-b border-[#e8ecf1] px-2 overflow-x-auto">
         {tabs.map((t, i) => {
           const isActive = t.id === activeId;
@@ -164,13 +172,12 @@ function NewSale() {
         </button>
       </div>
 
-      {/* All bills rendered; only the active one is visible so each keeps its own state. */}
       {tabs.map((t) => (
         <div key={t.id} className={t.id === activeId ? "block" : "hidden"}>
           <SaleBillForm
             tabId={t.id}
             active={t.id === activeId}
-            customers={customers}
+            customers={allCustomers}
             products={products}
             subcats={subcats}
             godowns={godowns}
