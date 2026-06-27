@@ -1,4 +1,5 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import { PersistQueryClientProvider } from "@tanstack/react-query-persist-client";
 import {
   Outlet,
   Link,
@@ -9,8 +10,10 @@ import {
 } from "@tanstack/react-router";
 
 import appCss from "../styles.css?url";
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { initAuthListener } from "@/lib/auth-store";
+import { localStoragePersister } from "@/router";
+import { WifiOff } from "lucide-react";
 
 function NotFoundComponent() {
   return (
@@ -136,15 +139,45 @@ function RootShell({ children }: { children: React.ReactNode }) {
   );
 }
 
+function OfflineBanner() {
+  const [online, setOnline] = useState(navigator.onLine);
+  useEffect(() => {
+    const go = () => setOnline(true);
+    const off = () => setOnline(false);
+    window.addEventListener("online", go);
+    window.addEventListener("offline", off);
+    return () => { window.removeEventListener("online", go); window.removeEventListener("offline", off); };
+  }, []);
+  if (online) return null;
+  return (
+    <div className="fixed bottom-0 left-0 right-0 z-[9999] flex items-center justify-center gap-2 bg-amber-500 text-white px-4 py-2 text-sm font-medium shadow-lg">
+      <WifiOff className="h-4 w-4" />
+      You are offline — viewing cached data only
+    </div>
+  );
+}
+
 function RootComponent() {
   const { queryClient } = Route.useRouteContext();
   useEffect(() => {
     initAuthListener();
+    if ("serviceWorker" in navigator) {
+      navigator.serviceWorker.register("/sw.js").catch(() => {});
+    }
   }, []);
 
-  return (
+  const persistOpts = localStoragePersister
+    ? { persister: localStoragePersister, maxAge: 30 * 60 * 1000 }
+    : undefined;
+
+  const content = (
     <QueryClientProvider client={queryClient}>
       <Outlet />
+      <OfflineBanner />
     </QueryClientProvider>
   );
+
+  return persistOpts
+    ? <PersistQueryClientProvider client={queryClient} persistOptions={persistOpts}>{content}</PersistQueryClientProvider>
+    : content;
 }

@@ -1,15 +1,20 @@
 import { QueryClient } from "@tanstack/react-query";
+import { PersistQueryClientProvider } from "@tanstack/react-query-persist-client";
+import { createSyncStoragePersister } from "@tanstack/query-sync-storage-persister";
 import { createRouter } from "@tanstack/react-router";
 import { routeTree } from "./routeTree.gen";
 import { RoutePending } from "./components/erp/RoutePending";
+
+export const localStoragePersister = typeof window !== "undefined"
+  ? createSyncStoragePersister({ storage: localStorage, key: "scanflow-query-cache" })
+  : undefined;
 
 export const getRouter = () => {
   const queryClient = new QueryClient({
     defaultOptions: {
       queries: {
-        // Cache aggressively so navigating back to a page is instant.
-        staleTime: 5 * 60 * 1000, // 5 min — data considered fresh
-        gcTime: 30 * 60 * 1000, // 30 min — keep in memory after unmount
+        staleTime: 5 * 60 * 1000,
+        gcTime: 30 * 60 * 1000,
         refetchOnWindowFocus: false,
         refetchOnReconnect: false,
         retry: 1,
