@@ -35,6 +35,8 @@ function htmlToPdf(html, outputPath) {
       "--disable-gpu",
       "--no-sandbox",
       "--no-pdf-header-footer",
+      "--run-all-compositor-stages-before-draw",
+      "--virtual-time-budget=1000",
       `--print-to-pdf=${pdfPath}`,
       `file:///${tmpHtml.replace(/\\/g, "/")}`,
     ];
@@ -44,6 +46,7 @@ function htmlToPdf(html, outputPath) {
         stdio: "pipe",
         windowsHide: true,
       });
+      console.log(`PDF saved: ${pdfPath} (${fs.statSync(pdfPath).size} bytes)`);
       resolve(pdfPath);
     } catch (err) {
       reject(new Error(`Edge PDF generation failed: ${err.message}`));
@@ -53,24 +56,35 @@ function htmlToPdf(html, outputPath) {
   });
 }
 
-async function printPdf(pdfPath, printerName) {
-  const { print } = require("pdf-to-printer");
+async function printPdf(pdfPath, printerName, paperWidth, paperHeight) {
+  const { execSync } = require("child_process");
   const printer = getWindowsPrinterName(printerName || "LABEL");
-  await print(pdfPath, {
-    printer: printer,
-    silent: true,
-  });
+
+  if (paperWidth && paperHeight) {
+    const orient = paperWidth >= paperHeight ? "landscape" : "portrait";
+    const sumatraPath = path.join(__dirname, "node_modules", "pdf-to-printer", "dist", "SumatraPDF.exe");
+    const args = [
+      "-print-to", printer,
+      "-silent",
+      "-print-settings", `paper=${paperWidth}x${paperHeight},orientation=${orient},noscale`,
+      pdfPath,
+    ];
+    execSync(`"${sumatraPath}" ${args.join(" ")}`, { timeout: 30000, stdio: "pipe", windowsHide: true });
+  } else {
+    const { print } = require("pdf-to-printer");
+    await print(pdfPath, { printer, silent: true });
+  }
 }
 
 app.post("/api/print/html", async (req, res) => {
   try {
     ensureEdgeExists();
-    const { html, printerName } = req.body;
+    const { html, printerName, paperWidth, paperHeight } = req.body;
     if (!html) {
       return res.status(400).json({ error: "Missing 'html' in request body" });
     }
     const pdfPath = await htmlToPdf(html, null);
-    await printPdf(pdfPath, printerName);
+    await printPdf(pdfPath, printerName, paperWidth, paperHeight);
     res.json({ success: true, message: `Printed to: ${printerName || "LABEL"}` });
   } catch (err) {
     console.error("Print HTML error:", err);

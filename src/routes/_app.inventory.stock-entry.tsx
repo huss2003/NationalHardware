@@ -221,7 +221,7 @@ function StockEntryPage() {
             <Label className="text-xs mb-1.5 block">Label format</Label>
             <div className="grid grid-cols-2 gap-2 p-1 bg-muted rounded-lg">
               {([
-                { v: "thermal", label: "Thermal (50×25mm)" },
+                { v: "thermal", label: "Thermal label" },
                 { v: "a4", label: "A4 sheet" },
               ] as const).map((o) => (
                 <button

@@ -17,10 +17,14 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
 
 // Roll/label sizes for the SEZNIK DEV thermal printer (LABEL logical printer,
-// 203 DPI). 50 x 30 mm is the validated/confirmed working size.
+// 203 DPI). Sizes with * are confirmed working via direct test.
 const THERMAL_SIZES: { label: string; size: LabelSize }[] = [
-  { label: '50 × 85 mm', size: { w: 50, h: 85 } },
+  { label: '42 × 42 mm', size: { w: 42, h: 42 } },
+  { label: '40 × 40 mm', size: { w: 40, h: 40 } },
   { label: '50 × 50 mm', size: { w: 50, h: 50 } },
+  { label: '40 × 60 mm', size: { w: 40, h: 60 } },
+  { label: '60 × 60 mm', size: { w: 60, h: 60 } },
+  { label: '50 × 85 mm', size: { w: 50, h: 85 } },
   { label: '50 × 30 mm', size: { w: 50, h: 30 } },
   { label: '50 × 25 mm', size: { w: 50, h: 25 } },
   { label: '50 × 20 mm', size: { w: 50, h: 20 } },
@@ -41,7 +45,7 @@ export function ReprintLabelDialog({
   title?: string;
 }) {
   const [fmt, setFmt] = useState<"thermal" | "a4">(format);
-  const [sizeIdx, setSizeIdx] = useState(2); // default 50x30mm
+  const [sizeIdx, setSizeIdx] = useState(0); // default 42x42mm
   const [orientation, setOrientation] = useState<LabelOrientation>("horizontal");
   const [custom, setCustom] = useState(false);
   const [customW, setCustomW] = useState(50);
@@ -50,9 +54,9 @@ export function ReprintLabelDialog({
 
   // Print destination: browser print dialog vs SEZNIK print server.
   const [destination, setDestination] = useState<"browser" | "server">(
-    isPrintServerEnabled() ? "server" : "browser",
+    getPrintServerUrl() ? "server" : "browser",
   );
-  const [serverUrl, setServerUrl] = useState(getPrintServerUrl());
+  const [serverUrl, setServerUrl] = useState(getPrintServerUrl() || "http://localhost:3001");
   const [testState, setTestState] = useState<"idle" | "testing" | "ok" | "fail">("idle");
   const [sending, setSending] = useState(false);
 
@@ -74,6 +78,17 @@ export function ReprintLabelDialog({
     })();
     return () => { alive = false; };
   }, [items]);
+
+  // Auto-test print server connection when dialog opens.
+  useEffect(() => {
+    if (open && destination === "server" && serverUrl) {
+      setPrintServerUrl(serverUrl);
+      setTestState("testing");
+      getPrinters()
+        .then(() => { setTestState("ok"); setPrintServerEnabled(true); })
+        .catch(() => setTestState("fail"));
+    }
+  }, [open]);
 
   // The exact HTML the printer receives — also rendered in the preview iframe.
   const html = useMemo(
@@ -216,7 +231,7 @@ export function ReprintLabelDialog({
           {fmt === "thermal" && (
             <>
             <div>
-              <div className="text-xs font-medium mb-1.5">Label size (SEZNIK — 50 × 30 mm confirmed)</div>
+              <div className="text-xs font-medium mb-1.5">Label size (SEZNIK thermal printer)</div>
               <div className="grid grid-cols-4 gap-2">
                 {THERMAL_SIZES.map((s, i) => (
                   <button

@@ -30,12 +30,10 @@ export function buildLabelHtml({
 }): string {
   if (format === "thermal") {
     const pageW = size.w;
-    const qrSize = Math.max(8, Math.min(pageW * 0.40, size.h * 0.40));
-    const textH = 15;
-    const contentH = Math.max(qrSize, textH);
-    const contentW = pageW;
+    const pageH = size.h;
+    const qrSize = Math.round(Math.min(pageW, pageH) * 0.50);
 
-    const pageCss = `@page { size: ${contentW}mm ${contentH}mm; margin: 0; }`;
+    const pageCss = `@page { size: ${pageW}mm ${pageH}mm; margin: 0; }`;
 
     const body = items
       .map((it, idx) => {
@@ -43,9 +41,9 @@ export function buildLabelHtml({
         const qImg = imgs[it.id]?.q
           ? `<img src="${imgs[it.id].q}" style="width:${qrSize}mm;height:${qrSize}mm;image-rendering:pixelated" />`
           : "";
-        return `<div class="label" style="${last ? "" : "page-break-after:always;break-after:page;"}box-sizing:border-box;overflow:hidden;display:flex;flex-direction:row;align-items:stretch;padding:0;margin:0;gap:0">
-  <div style="flex:1;min-width:0;display:flex;flex-direction:column;justify-content:flex-start;overflow:hidden">
-    <div style="font-size:9pt;font-weight:900;line-height:1.2;overflow:hidden;display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;word-break:break-word;overflow-wrap:anywhere;margin:0">${esc(it.name)}</div>
+        return `<div class="label" style="${last ? "" : "page-break-after:always;break-after:page;"}width:${pageW}mm;height:${pageH}mm;box-sizing:border-box;overflow:hidden;display:flex;flex-direction:row;align-items:stretch;padding-top:1mm;padding-left:0;padding-right:0;padding-bottom:0;margin:0;gap:0">
+  <div style="flex:1;min-width:0;display:flex;flex-direction:column;justify-content:flex-start;overflow:hidden;padding:0">
+    <div style="font-size:9pt;font-weight:900;line-height:1.2;overflow:hidden;display:-webkit-box;-webkit-line-clamp:4;-webkit-box-orient:vertical;word-break:break-word;overflow-wrap:anywhere;margin:0">${esc(it.name)}</div>
     <div style="font-size:7pt;font-family:monospace;font-weight:900;margin-top:0.5mm;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${esc(it.id)}</div>
   </div>
   <div style="flex-shrink:0;display:flex;align-items:flex-start;justify-content:center">${qImg}</div>
@@ -59,9 +57,8 @@ export function buildLabelHtml({
 <meta charset="utf-8" />
 <style>
   ${pageCss}
-  html,body{margin:0;padding:0;background:#fff;overflow:hidden}
-  .label{width:${contentW}mm;height:${contentH}mm}
-  *{ -webkit-print-color-adjust:exact; print-color-adjust:exact }
+  *{margin:0;padding:0;box-sizing:border-box;-webkit-print-color-adjust:exact;print-color-adjust:exact}
+  html,body{width:${pageW}mm;height:${pageH}mm;overflow:hidden;background:#fff}
 </style>
 </head>
 <body>${body}</body>
