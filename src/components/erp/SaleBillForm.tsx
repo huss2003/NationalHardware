@@ -7,7 +7,7 @@ import { useAuth } from "@/lib/auth-store";
 import { toast } from "sonner";
 import { inr, parseScannedCode } from "@/lib/codes";
 import {
-  Trash2, ArrowLeft, Check, ScanLine,
+  Trash2, ArrowLeft, Check, ScanLine, History,
   Plus, Calendar, MessageCircle, DoorOpen, Warehouse,
 } from "lucide-react";
 import { useUiConfig } from "@/lib/ui-config";
@@ -81,6 +81,12 @@ export function SaleBillForm({
   const draftRef = useRef<HTMLInputElement>(null);
   const scanRef = useRef<HTMLInputElement>(null);
   const [draftRect, setDraftRect] = useState<{ left: number; top: number; width: number; placement: "below" | "above"; maxHeight: number } | null>(null);
+
+  const [rateHistoryOpen, setRateHistoryOpen] = useState(false);
+  const [rateHistoryRow, setRateHistoryRow] = useState<number | null>(null);
+  const [rateHistoryData, setRateHistoryData] = useState<{ date: string; invoice_no: string | null; rate: number; qty: number }[]>([]);
+  const [rateHistoryProduct, setRateHistoryProduct] = useState("");
+  const [rateHistoryLoading, setRateHistoryLoading] = useState(false);
 
   const hydrated = useRef(false);
 
@@ -181,6 +187,52 @@ export function SaleBillForm({
 
   // Parameter (finish) label for a product variant, else its name.
   const variantLabel = (p: ProductRow) => (p.finish && String(p.finish).trim() ? p.finish : p.name);
+
+  const openRateHistory = async (i: number, line: Line) => {
+    if (!customerId) return;
+    setRateHistoryRow(i);
+    setRateHistoryProduct(line.name);
+    setRateHistoryLoading(true);
+    setRateHistoryOpen(true);
+
+    // Step 1: get all sale IDs for this customer
+    const { data: saleRows } = await supabase
+      .from("sales")
+      .select("id, invoice_no, invoice_date")
+      .eq("customer_id", customerId)
+      .order("invoice_date", { ascending: false });
+
+    if (!saleRows || saleRows.length === 0) {
+      setRateHistoryData([]);
+      setRateHistoryLoading(false);
+      return;
+    }
+
+    const saleMap = new Map(saleRows.map((s: any) => [s.id, s]));
+    const saleIds = saleRows.map((s: any) => s.id);
+
+    // Step 2: get sales_items for those sales + this product
+    const { data: itemRows } = await supabase
+      .from("sales_items")
+      .select("rate, qty, sale_id")
+      .eq("product_id", line.product_id)
+      .in("sale_id", saleIds)
+      .order("qty", { ascending: false });
+
+    const rows = (itemRows ?? []).map((r: any) => {
+      const sale = saleMap.get(r.sale_id);
+      const raw = sale?.invoice_date ?? "";
+      const dateStr = raw ? new Date(raw).toLocaleDateString("en-IN", { day: "2-digit", month: "short", year: "numeric" }) : "—";
+      return {
+        date: dateStr,
+        invoice_no: sale?.invoice_no ?? "—",
+        rate: Number(r.rate),
+        qty: Number(r.qty),
+      };
+    });
+    setRateHistoryData(rows);
+    setRateHistoryLoading(false);
+  };
 
   // Build item groups: every product collapses by name (within its sub-category)
   // into one selectable item. Its rows become the parameters (finishes).
@@ -610,13 +662,25 @@ export function SaleBillForm({
                         : "—"}
                     </td>
                     <td className="border border-slate-300 px-0 py-0">
-                      <input
-                        type="number"
-                        value={l.rate}
-                        onChange={(e) => upd(i, { rate: Number(e.target.value) })}
-                        className="w-full h-full px-2 py-1.5 text-right bg-transparent focus:outline-none focus:bg-blue-50 focus:ring-2 focus:ring-inset focus:ring-[#3b82f6]"
-                        aria-label={`Rate for ${l.name}`}
-                      />
+                      <div className="flex items-center h-full">
+                        <input
+                          type="number"
+                          value={l.rate}
+                          onChange={(e) => upd(i, { rate: Number(e.target.value) })}
+                          className="flex-1 h-full px-2 py-1.5 text-right bg-transparent focus:outline-none focus:bg-blue-50 focus:ring-2 focus:ring-inset focus:ring-[#3b82f6]"
+                          aria-label={`Rate for ${l.name}`}
+                        />
+                        {customerId && (
+                          <button
+                            type="button"
+                            title={`View price history for ${l.name}`}
+                            onClick={() => openRateHistory(i, l)}
+                            className="px-1 text-slate-400 hover:text-blue-500 shrink-0"
+                          >
+                            <History className="h-3.5 w-3.5" />
+                          </button>
+                        )}
+                      </div>
                     </td>
                     {f.gst_rate.visible && (
                       <td className="border border-slate-300 px-0 py-0">
@@ -856,6 +920,61 @@ export function SaleBillForm({
           </div>
         </div>
       </footer>
+
+      {/* Price History Dialog */}
+      {rateHistoryOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40" onClick={() => setRateHistoryOpen(false)}>
+          <div className="bg-white rounded-xl shadow-2xl w-full max-w-md mx-4 overflow-hidden" onClick={(e) => e.stopPropagation()}>
+            <div className="flex items-center justify-between px-5 py-3 border-b border-slate-200 bg-slate-50">
+              <div>
+                <div className="text-sm font-bold text-slate-800">Price History</div>
+                <div className="text-xs text-slate-500 mt-0.5">{rateHistoryProduct}</div>
+              </div>
+              <button type="button" onClick={() => setRateHistoryOpen(false)} className="text-slate-400 hover:text-slate-600 text-lg leading-none">&times;</button>
+            </div>
+            <div className="px-5 py-3 max-h-[320px] overflow-y-auto">
+              {rateHistoryLoading ? (
+                <div className="py-6 text-center text-sm text-slate-400">Loading…</div>
+              ) : rateHistoryData.length === 0 ? (
+                <div className="py-6 text-center text-sm text-slate-400">No previous sales found for this item.</div>
+              ) : (
+                <table className="w-full text-xs">
+                  <thead>
+                    <tr className="text-left text-slate-500 border-b border-slate-100">
+                      <th className="py-1.5 font-medium">Date</th>
+                      <th className="py-1.5 font-medium">Bill No.</th>
+                      <th className="py-1.5 font-medium text-right">Qty</th>
+                      <th className="py-1.5 font-medium text-right">Rate</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {rateHistoryData.map((r, idx) => (
+                      <tr
+                        key={idx}
+                        className="border-b border-slate-50 hover:bg-blue-50 cursor-pointer"
+                        onClick={() => {
+                          if (rateHistoryRow != null) {
+                            upd(rateHistoryRow, { rate: r.rate });
+                          }
+                          setRateHistoryOpen(false);
+                        }}
+                      >
+                        <td className="py-2 text-slate-700">{r.date}</td>
+                        <td className="py-2 text-slate-700">{r.invoice_no ?? "—"}</td>
+                        <td className="py-2 text-right text-slate-700">{r.qty}</td>
+                        <td className="py-2 text-right font-medium text-slate-800">{inr(r.rate)}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              )}
+            </div>
+            <div className="px-5 py-2 border-t border-slate-100 bg-slate-50 text-[10px] text-slate-400 text-right">
+              Click a row to apply that rate
+            </div>
+          </div>
+        </div>
+      )}
 
       <QuickCreatePartyDialog
         open={createCustomerOpen}
