@@ -40,7 +40,9 @@ export function LabelSheet({
     const pageH = isHorizontal ? Math.min(size.w, size.h) : Math.max(size.w, size.h);
     const innerW = pageW;
     const innerH = pageH;
-    const qrSize = Math.max(14, Math.min(innerH - 2, innerW * 0.55));
+    // QR sized to 38% of the smaller dimension — big enough to scan but
+    // leaves room for the item name and ID without overlap.
+    const qrSize = Math.max(10, Math.min(innerH * 0.38, innerW * 0.38));
     return (
       <div className="print-area">
         <style>{`@media print { @page { size: ${pageW}mm ${pageH}mm; margin: 0; } html, body { width: ${pageW}mm; height: ${pageH}mm; } }`}</style>
@@ -51,10 +53,10 @@ export function LabelSheet({
                 width: `${innerW}mm`,
                 height: `${innerH}mm`,
                 boxSizing: "border-box",
-                padding: "1mm",
+                padding: "1.5mm",
                 display: "flex",
                 alignItems: "center",
-                gap: "1.5mm",
+                gap: "2mm",
                 background: "#fff",
                 overflow: "hidden",
                 position: "absolute",
@@ -65,10 +67,10 @@ export function LabelSheet({
               }}
             >
               <div style={{ flex: 1, minWidth: 0, display: "flex", flexDirection: "column", justifyContent: "center", height: "100%" }}>
-                <div style={{ fontSize: "10pt", fontWeight: 900, lineHeight: 1.15, overflow: "hidden", display: "-webkit-box", WebkitLineClamp: 4, WebkitBoxOrient: "vertical", wordBreak: "break-word" }}>{it.name}</div>
-                <div style={{ fontSize: "8pt", fontFamily: "monospace", fontWeight: 900, marginTop: "1mm" }}>{it.id}</div>
+                <div style={{ fontSize: "9pt", fontWeight: 900, lineHeight: 1.2, overflow: "hidden", display: "-webkit-box", WebkitLineClamp: 3, WebkitBoxOrient: "vertical", wordBreak: "break-word", margin: 0 }}>{it.name}</div>
+                <div style={{ fontSize: "7pt", fontFamily: "monospace", fontWeight: 900, marginTop: "0.5mm", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{it.id}</div>
               </div>
-              {imgs[it.id]?.q && <img src={imgs[it.id].q} alt="" style={{ width: `${qrSize}mm`, height: `${qrSize}mm`, imageRendering: "pixelated" }} />}
+              {imgs[it.id]?.q && <img src={imgs[it.id].q} alt="" style={{ width: `${qrSize}mm`, height: `${qrSize}mm`, imageRendering: "pixelated", flexShrink: 0 }} />}
             </div>
           </div>
         ))}

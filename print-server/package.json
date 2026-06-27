@@ -1,0 +1,17 @@
+{
+  "name": "seznik-print-server",
+  "version": "1.0.0",
+  "description": "Print server for SEZNIK DEV thermal label printer",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "test": "node test.js"
+  },
+  "dependencies": {
+    "cors": "^2.8.5",
+    "express": "^4.21.0",
+    "pdf-to-printer": "^3.0.0",
+    "qrcode": "^1.5.4",
+    "temp": "^0.9.4"
+  }
+}

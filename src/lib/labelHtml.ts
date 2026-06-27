@@ -32,23 +32,11 @@ export function buildLabelHtml({
   let body = "";
 
   if (format === "thermal") {
-    // @page dimensions ALWAYS match the physical paper. Orientation only
-    // controls how content is arranged inside the fixed label size.
     const pageW = size.w;
     const pageH = size.h;
-    const innerW = pageW;
-    const innerH = pageH;
-    const isHorizontal = orientation === "horizontal";
-    // Lay content out as a row (QR beside text) for horizontal, or a column
-    // (QR above text) for vertical — within the same fixed page size.
-    const flexDir = isHorizontal ? "row" : "column";
-    // No barcode anymore — the QR alone carries the item ID, so size it from
-    // the dimension that runs across the content flow.
-    const qrSize = isHorizontal
-      ? Math.max(14, Math.min(innerH - 2, innerW * 0.55))
-      : Math.max(14, Math.min(innerW - 2, innerH * 0.55));
+    const qrSize = Math.max(8, Math.min(pageW * 0.40, pageH * 0.40));
 
-    pageCss = `@page { size: ${pageW}mm ${pageH}mm; margin: 0; } @media print { html, body { width: ${pageW}mm; height: ${pageH}mm; } }`;
+    pageCss = `@page { size: ${pageW}mm ${pageH}mm; margin: 0; }`;
 
     body = items
       .map((it, idx) => {
@@ -56,15 +44,12 @@ export function buildLabelHtml({
         const qImg = imgs[it.id]?.q
           ? `<img src="${imgs[it.id].q}" style="width:${qrSize}mm;height:${qrSize}mm;image-rendering:pixelated" />`
           : "";
-        return `
-<div class="label" style="width:${pageW}mm;height:${pageH}mm;${last ? "" : "page-break-after:always;break-after:page;"}background:#fff;box-sizing:border-box;overflow:hidden;position:relative">
-  <div style="width:${innerW}mm;height:${innerH}mm;box-sizing:border-box;padding:1mm;display:flex;flex-direction:${flexDir};align-items:center;justify-content:center;gap:1.5mm;background:#fff;overflow:hidden;position:absolute;top:0;left:0;transform-origin:top left;transform:none">
-    <div style="flex:1;min-width:0;display:flex;flex-direction:column;justify-content:center;height:100%">
-      <div style="font-size:10pt;font-weight:900;line-height:1.15;overflow:hidden;display:-webkit-box;-webkit-line-clamp:4;-webkit-box-orient:vertical;word-break:break-word">${esc(it.name)}</div>
-      <div style="font-size:8pt;font-family:monospace;font-weight:900;margin-top:1mm">${esc(it.id)}</div>
-    </div>
-    ${qImg}
+        return `<div class="label" style="width:${pageW}mm;height:${pageH}mm;${last ? "" : "page-break-after:always;break-after:page;"}background:#fff;box-sizing:border-box;overflow:hidden;display:flex;flex-direction:row;align-items:stretch;padding:1.5mm;gap:2mm">
+  <div style="flex:1;min-width:0;display:flex;flex-direction:column;justify-content:center;overflow:hidden">
+    <div style="font-size:9pt;font-weight:900;line-height:1.2;overflow:hidden;display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;word-break:break-word;overflow-wrap:anywhere;margin:0">${esc(it.name)}</div>
+    <div style="font-size:7pt;font-family:monospace;font-weight:900;margin-top:0.5mm;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${esc(it.id)}</div>
   </div>
+  <div style="flex-shrink:0;display:flex;align-items:center;justify-content:center">${qImg}</div>
 </div>`;
       })
       .join("");
@@ -94,7 +79,7 @@ export function buildLabelHtml({
 <meta charset="utf-8" />
 <style>
   ${pageCss}
-  html,body{margin:0;padding:0;background:#fff}
+  html,body{margin:0;padding:0;width:${size.w}mm;height:${size.h}mm;background:#fff;overflow:hidden}
   *{ -webkit-print-color-adjust:exact; print-color-adjust:exact }
 </style>
 </head>

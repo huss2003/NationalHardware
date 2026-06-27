@@ -17,10 +17,9 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
 
 // Roll/label sizes for the SEZNIK DEV thermal printer (LABEL logical printer,
-// 203 DPI). 50 x 75 mm is the validated/confirmed working size. The earlier
-// 50mm-width presets are kept for the receipt-width thermal roll variants.
+// 203 DPI). 50 x 30 mm is the validated/confirmed working size.
 const THERMAL_SIZES: { label: string; size: LabelSize }[] = [
-  { label: '50 × 75 mm', size: { w: 50, h: 75 } },
+  { label: '50 × 85 mm', size: { w: 50, h: 85 } },
   { label: '50 × 50 mm', size: { w: 50, h: 50 } },
   { label: '50 × 30 mm', size: { w: 50, h: 30 } },
   { label: '50 × 25 mm', size: { w: 50, h: 25 } },
@@ -42,7 +41,7 @@ export function ReprintLabelDialog({
   title?: string;
 }) {
   const [fmt, setFmt] = useState<"thermal" | "a4">(format);
-  const [sizeIdx, setSizeIdx] = useState(0);
+  const [sizeIdx, setSizeIdx] = useState(2); // default 50x30mm
   const [orientation, setOrientation] = useState<LabelOrientation>("horizontal");
   const [custom, setCustom] = useState(false);
   const [customW, setCustomW] = useState(50);
@@ -217,7 +216,7 @@ export function ReprintLabelDialog({
           {fmt === "thermal" && (
             <>
             <div>
-              <div className="text-xs font-medium mb-1.5">Label size (SEZNIK — 50 × 75 mm confirmed)</div>
+              <div className="text-xs font-medium mb-1.5">Label size (SEZNIK — 50 × 30 mm confirmed)</div>
               <div className="grid grid-cols-4 gap-2">
                 {THERMAL_SIZES.map((s, i) => (
                   <button
