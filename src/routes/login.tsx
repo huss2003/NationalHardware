@@ -16,7 +16,7 @@ export const Route = createFileRoute("/login")({
   component: LoginPage,
 });
 
-const ADMIN_CODE = "5352";
+const ADMIN_CODE = "515253";
 
 function LoginPage() {
   const navigate = useNavigate();

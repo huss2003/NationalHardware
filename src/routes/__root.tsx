@@ -140,15 +140,30 @@ function RootShell({ children }: { children: React.ReactNode }) {
 }
 
 function OfflineBanner() {
-  const [online, setOnline] = useState(navigator.onLine);
+  // navigator.onLine is unreliable (often false with working connectivity), so
+  // confirm with a real request to the backend before claiming we're offline.
+  const [offline, setOffline] = useState(false);
   useEffect(() => {
-    const go = () => setOnline(true);
-    const off = () => setOnline(false);
-    window.addEventListener("online", go);
-    window.addEventListener("offline", off);
-    return () => { window.removeEventListener("online", go); window.removeEventListener("offline", off); };
+    let cancelled = false;
+    const check = async () => {
+      try {
+        await fetch(`${import.meta.env.VITE_SUPABASE_URL}/auth/v1/health`, {
+          mode: "no-cors",
+          cache: "no-store",
+        });
+        if (!cancelled) setOffline(false);
+      } catch {
+        if (!cancelled) setOffline(true);
+      }
+    };
+    check();
+    const onOff = () => check();
+    const onOn = () => setOffline(false);
+    window.addEventListener("online", onOn);
+    window.addEventListener("offline", onOff);
+    return () => { cancelled = true; window.removeEventListener("online", onOn); window.removeEventListener("offline", onOff); };
   }, []);
-  if (online) return null;
+  if (!offline) return null;
   return (
     <div className="fixed bottom-0 left-0 right-0 z-[9999] flex items-center justify-center gap-2 bg-amber-500 text-white px-4 py-2 text-sm font-medium shadow-lg">
       <WifiOff className="h-4 w-4" />
