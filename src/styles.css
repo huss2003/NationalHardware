@@ -99,6 +99,8 @@
 @layer base {
   * { border-color: var(--color-border); }
   html, body { height: 100%; }
+  /* Never allow horizontal scroll; keeps fixed overlays (e.g. dialogs) aligned to the visual viewport on phones. */
+  html, body { overflow-x: hidden; max-width: 100%; }
   body {
     background-color: var(--color-background);
     color: var(--color-foreground);

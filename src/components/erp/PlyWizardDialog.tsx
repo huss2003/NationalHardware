@@ -57,10 +57,10 @@ export function PlyWizardDialog({
     <Dialog open={open} onOpenChange={(v) => (v ? onOpenChange(true) : close())}>
       <DialogContent
         style={{ ["--accent" as string]: ACCENT }}
-        className="w-[calc(100%-1.5rem)] max-w-md gap-0 overflow-hidden rounded-3xl p-0 sm:max-w-lg"
+        className="flex max-h-[90vh] w-[calc(100vw-1rem)] max-w-md flex-col gap-0 overflow-hidden rounded-3xl p-0 sm:max-w-lg"
       >
         {/* Header: back + title + progress rail + chosen-value breadcrumb */}
-        <div className="px-5 pt-5 pb-4">
+        <div className="shrink-0 px-5 pt-5 pb-4">
           <div className="flex items-center gap-2">
             {step > 0 ? (
               <button
@@ -109,7 +109,7 @@ export function PlyWizardDialog({
         </div>
 
         {/* Body */}
-        <div className="max-h-[60vh] overflow-y-auto bg-[#faf7f3] px-5 py-5">
+        <div className="flex-1 overflow-y-auto bg-[#faf7f3] px-5 py-5">
           {step === 0 && (
             <div className="grid grid-cols-2 gap-3">
               {THICKNESS.map((t) => (
@@ -190,7 +190,7 @@ export function PlyWizardDialog({
 
         {/* Sticky action — only on the final step */}
         {step === 3 && (
-          <div className="border-t border-slate-100 bg-white px-5 py-4">
+          <div className="shrink-0 border-t border-slate-100 bg-white px-5 py-4">
             <Button
               type="button"
               className="h-14 w-full rounded-2xl text-base font-bold text-white shadow-sm disabled:opacity-40"

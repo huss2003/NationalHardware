@@ -504,7 +504,7 @@ export function SaleBillForm({
             </div>
 
             {f.customer.visible && (
-              <div className="flex-1 min-w-[220px] space-y-1">
+              <div className="w-full sm:flex-1 sm:w-auto min-w-0 sm:min-w-[220px] space-y-1">
                 <label className="text-[10px] uppercase tracking-wider text-[#94a3b8] font-bold">
                   Customer {f.customer.required && <span className="text-red-500">*</span>}
                 </label>
@@ -996,7 +996,7 @@ export function SaleBillForm({
 
       {/* Sticky Totals Bar */}
       <footer className="sticky bottom-3 z-20 w-full max-w-7xl mx-auto bg-white border border-[#e8ecf1] rounded-2xl px-3 md:px-5 py-2.5 md:py-3 shadow-2xl shadow-slate-200/60">
-        <div className="max-w-7xl mx-auto flex items-center justify-between gap-3 flex-nowrap">
+        <div className="max-w-7xl mx-auto flex flex-wrap items-center justify-between gap-x-3 gap-y-2">
           <div className="flex items-center gap-4 md:gap-6 min-w-0">
             <div className="shrink-0">
               <p className="text-[9px] uppercase font-bold text-[#94a3b8] leading-tight">Subtotal</p>
