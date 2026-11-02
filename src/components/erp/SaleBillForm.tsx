@@ -375,23 +375,23 @@ export function SaleBillForm({
     setTimeout(() => draftRef.current?.focus(), 0);
   };
 
-  // PLY wizard line: qty = pieces (default 1), area = fixed sq ft per piece,
-  // rate = user rate. amount = qty * area * rate.
-  const addPlyLine = (item: { name: string; area: number; rate: number }) => {
+  // PLY wizard line: qty = pieces, area = fixed sq ft per piece, rate = effective
+  // per-sq-ft rate (discount already baked in). amount = qty * area * rate.
+  const addPlyLine = (item: { name: string; area: number; rate: number; qty: number }) => {
     setLines((prev) => [...prev, {
       product_id: PLY_CUSTOM_PRODUCT_ID, item_instance_id: null, name: item.name,
-      qty: 1, rate: item.rate, gst_rate: 0, area: item.area,
+      qty: item.qty, rate: item.rate, gst_rate: 0, area: item.area,
       hsn: null, unit: "sqft", alt_unit: null, alt_conversion: null,
       is_lot: false, max_qty: undefined,
       source_godown_id: sourceGodownId || null,
     }]);
   };
 
-  // MICA wizard line: qty = pieces (default 1), rate = entered amount, no area.
-  const addMicaLine = (item: { name: string; amount: number }) => {
+  // MICA wizard line: qty = pieces, rate = effective per-piece amount (discount baked in), no area.
+  const addMicaLine = (item: { name: string; amount: number; qty: number }) => {
     setLines((prev) => [...prev, {
       product_id: MICA_CUSTOM_PRODUCT_ID, item_instance_id: null, name: item.name,
-      qty: 1, rate: item.amount, gst_rate: 0,
+      qty: item.qty, rate: item.amount, gst_rate: 0,
       hsn: null, unit: "pcs", alt_unit: null, alt_conversion: null,
       is_lot: false, max_qty: undefined,
       source_godown_id: sourceGodownId || null,

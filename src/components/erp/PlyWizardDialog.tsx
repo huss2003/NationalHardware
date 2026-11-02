@@ -3,6 +3,7 @@ import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { ArrowLeft, Check } from "lucide-react";
 import { inr } from "@/lib/codes";
+import { DiscountStep, QuantityStep, type DiscountMode } from "@/components/erp/WizardSteps";
 
 const THICKNESS = ["18 mm", "12 mm", "9 mm", "8 mm", "6 mm", "25 mm Board"] as const;
 const BRANDS = ["Applewood Ultra", "Applewood Premium", "Velocity", "Primo Wud"] as const;
@@ -14,12 +15,20 @@ export function sizeArea(size: string): number {
   return Number.isFinite(a) && Number.isFinite(b) ? a * b : 0;
 }
 
-type Added = { name: string; area: number; rate: number };
+// Discount baked into an effective per-sq-ft rate so the line stays (qty, rate, area).
+// pct: rate*(1-p/100).  per-piece ₹d: rate - d/area  (d is ₹ off each piece).
+function effectiveRate(rate: number, area: number, mode: DiscountMode, disc: number): number {
+  if (disc <= 0) return rate;
+  const r = mode === "pct" ? rate * (1 - disc / 100) : rate - (area > 0 ? disc / area : 0);
+  return Math.max(0, r);
+}
+
+type Added = { name: string; area: number; rate: number; qty: number };
 
 // Honey-amber accent gives PLY its own identity, distinct from the blue app chrome.
 const ACCENT = "#b26a2b";
 
-/** Stepped PLY picker: thickness -> brand -> size -> rate -> add to cart. Mobile-first. */
+/** PLY picker: thickness -> brand -> size -> rate -> quantity -> discount -> add. Mobile-first. */
 export function PlyWizardDialog({
   open,
   onOpenChange,
@@ -34,20 +43,29 @@ export function PlyWizardDialog({
   const [brand, setBrand] = useState("");
   const [size, setSize] = useState("");
   const [rate, setRate] = useState("");
+  const [qty, setQty] = useState("1");
+  const [discMode, setDiscMode] = useState<DiscountMode>("pct");
+  const [disc, setDisc] = useState("");
 
-  const reset = () => { setStep(0); setThickness(""); setBrand(""); setSize(""); setRate(""); };
+  const reset = () => {
+    setStep(0); setThickness(""); setBrand(""); setSize(""); setRate(""); setQty("1"); setDiscMode("pct"); setDisc("");
+  };
   const close = () => { onOpenChange(false); reset(); };
 
+  const area = sizeArea(size);
+  const rateN = Number(rate) || 0;
+  const qtyN = Math.max(1, Number(qty) || 1);
+  const discN = Number(disc) || 0;
+  const rateEff = effectiveRate(rateN, area, discMode, discN);
+  const net = qtyN * area * rateEff;
+
   const addToCart = () => {
-    const r = Number(rate);
-    if (!Number.isFinite(r) || r <= 0) return;
-    onAdd({ name: `PLY — ${thickness} — ${brand} — ${size}`, area: sizeArea(size), rate: r });
+    if (rateN <= 0) return;
+    onAdd({ name: `PLY — ${thickness} — ${brand} — ${size}`, area, rate: rateEff, qty: qtyN });
     close();
   };
 
-  const titles = ["Choose thickness", "Choose brand", "Choose size", "Set rate"];
-  const area = sizeArea(size);
-  const amount = area * (Number(rate) || 0);
+  const titles = ["Choose thickness", "Choose brand", "Choose size", "Set rate", "Quantity", "Discount"];
   const chips = [thickness, brand, size].filter(Boolean);
 
   const tileClass =
@@ -85,7 +103,7 @@ export function PlyWizardDialog({
           </div>
 
           <div className="mt-4 flex gap-1.5" aria-hidden>
-            {[0, 1, 2, 3].map((i) => (
+            {[0, 1, 2, 3, 4, 5].map((i) => (
               <span
                 key={i}
                 className="h-1.5 flex-1 rounded-full transition-colors"
@@ -173,7 +191,7 @@ export function PlyWizardDialog({
                     autoFocus
                     value={rate}
                     onChange={(e) => setRate(e.target.value)}
-                    onKeyDown={(e) => { if (e.key === "Enter") addToCart(); }}
+                    onKeyDown={(e) => { if (e.key === "Enter" && rateN > 0) setStep(4); }}
                     placeholder="0"
                     className="w-full bg-transparent text-2xl font-bold text-slate-900 tabular-nums focus:outline-none"
                   />
@@ -181,21 +199,55 @@ export function PlyWizardDialog({
               </label>
 
               <div className="flex items-baseline justify-between rounded-2xl bg-[#f6efe7] px-4 py-3">
-                <span className="text-sm font-semibold text-slate-600">Amount</span>
-                <span className="text-2xl font-extrabold tabular-nums" style={{ color: ACCENT }}>{inr(amount)}</span>
+                <span className="text-sm font-semibold text-slate-600">Per piece</span>
+                <span className="text-xl font-extrabold tabular-nums" style={{ color: ACCENT }}>{inr(area * rateN)}</span>
               </div>
+
+              <Button
+                type="button"
+                className="h-14 w-full rounded-2xl text-base font-bold text-white disabled:opacity-40"
+                style={{ backgroundColor: ACCENT }}
+                disabled={!(rateN > 0)}
+                onClick={() => setStep(4)}
+              >
+                Next
+              </Button>
             </div>
+          )}
+
+          {step === 4 && (
+            <QuantityStep
+              accent={ACCENT}
+              perUnitLabel="Per piece"
+              perUnit={area * rateN}
+              qty={qty}
+              setQty={setQty}
+              onNext={() => setStep(5)}
+            />
+          )}
+
+          {step === 5 && (
+            <DiscountStep
+              accent={ACCENT}
+              gross={qtyN * area * rateN}
+              net={net}
+              qty={qtyN}
+              mode={discMode}
+              setMode={setDiscMode}
+              value={disc}
+              setValue={setDisc}
+            />
           )}
         </div>
 
-        {/* Sticky action — only on the final step */}
-        {step === 3 && (
+        {/* Sticky action — only on the final (discount) step */}
+        {step === 5 && (
           <div className="shrink-0 border-t border-slate-100 bg-white px-5 py-4">
             <Button
               type="button"
               className="h-14 w-full rounded-2xl text-base font-bold text-white shadow-sm disabled:opacity-40"
               style={{ backgroundColor: ACCENT }}
-              disabled={!(Number(rate) > 0)}
+              disabled={!(rateN > 0)}
               onClick={addToCart}
             >
               <Check className="mr-1.5 h-5 w-5" /> Add to cart

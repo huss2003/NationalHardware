@@ -3,15 +3,22 @@ import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { ArrowLeft, Check } from "lucide-react";
 import { inr } from "@/lib/codes";
+import { DiscountStep, QuantityStep, type DiscountMode } from "@/components/erp/WizardSteps";
 
 const CATEGORIES = ["National old", "National Digital", "National Premium", "Lami Décor"] as const;
 
-type Added = { name: string; amount: number };
+type Added = { name: string; amount: number; qty: number };
 
 // Teal accent gives MICA its own identity, distinct from PLY (amber) and the blue app chrome.
 const ACCENT = "#0f766e";
 
-/** Stepped MICA picker: category -> mica number -> amount -> add to cart. Mobile-first. */
+// Discount baked into an effective per-piece amount. pct: amt*(1-p/100). per-piece ₹d: amt - d.
+function effectiveAmount(amount: number, mode: DiscountMode, disc: number): number {
+  if (disc <= 0) return amount;
+  return Math.max(0, mode === "pct" ? amount * (1 - disc / 100) : amount - disc);
+}
+
+/** MICA picker: category -> mica number -> amount -> quantity -> discount -> add. Mobile-first. */
 export function MicaWizardDialog({
   open,
   onOpenChange,
@@ -25,18 +32,28 @@ export function MicaWizardDialog({
   const [category, setCategory] = useState("");
   const [micaNo, setMicaNo] = useState("");
   const [amount, setAmount] = useState("");
+  const [qty, setQty] = useState("1");
+  const [discMode, setDiscMode] = useState<DiscountMode>("pct");
+  const [disc, setDisc] = useState("");
 
-  const reset = () => { setStep(0); setCategory(""); setMicaNo(""); setAmount(""); };
+  const reset = () => {
+    setStep(0); setCategory(""); setMicaNo(""); setAmount(""); setQty("1"); setDiscMode("pct"); setDisc("");
+  };
   const close = () => { onOpenChange(false); reset(); };
 
+  const amountN = Number(amount) || 0;
+  const qtyN = Math.max(1, Number(qty) || 1);
+  const discN = Number(disc) || 0;
+  const amountEff = effectiveAmount(amountN, discMode, discN);
+  const net = qtyN * amountEff;
+
   const addToCart = () => {
-    const a = Number(amount);
-    if (!micaNo.trim() || !Number.isFinite(a) || a <= 0) return;
-    onAdd({ name: `${micaNo.trim()} (${category})`, amount: a });
+    if (!micaNo.trim() || amountN <= 0) return;
+    onAdd({ name: `${micaNo.trim()} (${category})`, amount: amountEff, qty: qtyN });
     close();
   };
 
-  const titles = ["Choose category", "Enter mica number", "Enter amount"];
+  const titles = ["Choose category", "Enter mica number", "Enter amount", "Quantity", "Discount"];
   const chips = [category, micaNo.trim()].filter(Boolean);
 
   return (
@@ -66,7 +83,7 @@ export function MicaWizardDialog({
           </div>
 
           <div className="mt-4 flex gap-1.5" aria-hidden>
-            {[0, 1, 2].map((i) => (
+            {[0, 1, 2, 3, 4].map((i) => (
               <span
                 key={i}
                 className="h-1.5 flex-1 rounded-full transition-colors"
@@ -141,7 +158,7 @@ export function MicaWizardDialog({
                 <p className="mt-0.5 text-xs text-slate-500">{category}</p>
               </div>
               <label className="block">
-                <span className="mb-2 block text-sm font-semibold text-slate-700">Amount</span>
+                <span className="mb-2 block text-sm font-semibold text-slate-700">Amount (per piece)</span>
                 <div className="flex items-center rounded-2xl border-2 border-slate-200 bg-white px-4 py-3 focus-within:border-[color:var(--accent)]">
                   <span className="mr-2 text-xl font-bold text-slate-400">₹</span>
                   <input
@@ -151,28 +168,57 @@ export function MicaWizardDialog({
                     autoFocus
                     value={amount}
                     onChange={(e) => setAmount(e.target.value)}
-                    onKeyDown={(e) => { if (e.key === "Enter") addToCart(); }}
+                    onKeyDown={(e) => { if (e.key === "Enter" && amountN > 0) setStep(3); }}
                     placeholder="0"
                     className="w-full bg-transparent text-2xl font-bold text-slate-900 tabular-nums focus:outline-none"
                   />
                 </div>
               </label>
-              <div className="flex items-baseline justify-between rounded-2xl bg-[#e6f1ef] px-4 py-3">
-                <span className="text-sm font-semibold text-slate-600">Amount</span>
-                <span className="text-2xl font-extrabold tabular-nums" style={{ color: ACCENT }}>{inr(Number(amount) || 0)}</span>
-              </div>
+              <Button
+                type="button"
+                className="h-14 w-full rounded-2xl text-base font-bold text-white disabled:opacity-40"
+                style={{ backgroundColor: ACCENT }}
+                disabled={!(amountN > 0)}
+                onClick={() => setStep(3)}
+              >
+                Next
+              </Button>
             </div>
+          )}
+
+          {step === 3 && (
+            <QuantityStep
+              accent={ACCENT}
+              perUnitLabel="Per piece"
+              perUnit={amountN}
+              qty={qty}
+              setQty={setQty}
+              onNext={() => setStep(4)}
+            />
+          )}
+
+          {step === 4 && (
+            <DiscountStep
+              accent={ACCENT}
+              gross={qtyN * amountN}
+              net={net}
+              qty={qtyN}
+              mode={discMode}
+              setMode={setDiscMode}
+              value={disc}
+              setValue={setDisc}
+            />
           )}
         </div>
 
-        {/* Sticky action — final step */}
-        {step === 2 && (
+        {/* Sticky action — final (discount) step */}
+        {step === 4 && (
           <div className="shrink-0 border-t border-slate-100 bg-white px-5 py-4">
             <Button
               type="button"
               className="h-14 w-full rounded-2xl text-base font-bold text-white shadow-sm disabled:opacity-40"
               style={{ backgroundColor: ACCENT }}
-              disabled={!(Number(amount) > 0)}
+              disabled={!(amountN > 0)}
               onClick={addToCart}
             >
               <Check className="mr-1.5 h-5 w-5" /> Add to cart
