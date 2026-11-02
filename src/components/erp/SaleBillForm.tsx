@@ -24,7 +24,13 @@ type Line = {
   unit?: string | null; alt_unit?: string | null; alt_conversion?: number | null;
   is_lot?: boolean; max_qty?: number;
   source_godown_id?: string | null;
+  // Tiles (PLY wizard) items: fixed area per piece (sq ft). qty = pieces.
+  // amount = qty * area * rate. Absent for scanned lines (amount = qty * rate).
+  area?: number;
 };
+
+// Line total: pieces * per-piece-area * rate (area defaults to 1 for scanned lines).
+const lineAmount = (l: Line) => l.qty * l.rate * (l.area ?? 1);
 
 export type ProductRow = {
   id: string; name: string; prefix: string; hsn: string | null;
@@ -366,11 +372,12 @@ export function SaleBillForm({
     setTimeout(() => draftRef.current?.focus(), 0);
   };
 
-  // PLY wizard line: qty = area (sq ft), rate = user rate. amount = qty*rate.
+  // PLY wizard line: qty = pieces (default 1), area = fixed sq ft per piece,
+  // rate = user rate. amount = qty * area * rate.
   const addPlyLine = (item: { name: string; area: number; rate: number }) => {
     setLines((prev) => [...prev, {
       product_id: PLY_CUSTOM_PRODUCT_ID, item_instance_id: null, name: item.name,
-      qty: item.area, rate: item.rate, gst_rate: 0,
+      qty: 1, rate: item.rate, gst_rate: 0, area: item.area,
       hsn: null, unit: "sqft", alt_unit: null, alt_conversion: null,
       is_lot: false, max_qty: undefined,
       source_godown_id: sourceGodownId || null,
@@ -409,8 +416,8 @@ export function SaleBillForm({
   const rm = (i: number) => setLines(lines.filter((_, idx) => idx !== i));
   const upd = (i: number, patch: Partial<Line>) => setLines(lines.map((l, idx) => idx === i ? { ...l, ...patch } : l));
 
-  const subtotal = lines.reduce((a, l) => a + l.qty * l.rate, 0);
-  const tax = lines.reduce((a, l) => a + (l.qty * l.rate * l.gst_rate / 100), 0);
+  const subtotal = lines.reduce((a, l) => a + lineAmount(l), 0);
+  const tax = lines.reduce((a, l) => a + (lineAmount(l) * l.gst_rate / 100), 0);
   const total = subtotal + tax - discount;
 
   const finalize = async (alsoWhatsApp: boolean) => {
@@ -425,7 +432,9 @@ export function SaleBillForm({
         payment_mode: paymentMode,
         paid_amount: paymentMode === "cash" ? total : 0,
         discount,
-        items: lines,
+        // record_sale computes line_total as qty*rate; fold per-piece area in
+        // so pieces*(rate*area) is stored correctly for PLY wizard lines.
+        items: lines.map((l) => l.area != null ? { ...l, rate: l.rate * l.area } : l),
       } as any,
       _actor_user_id: user?.id ?? "",
     });
@@ -444,7 +453,7 @@ export function SaleBillForm({
           const { buildInvoicePdf, shareInvoiceOnWhatsApp } = await import("@/lib/invoice-pdf");
           const pdf = buildInvoicePdf({
             shop, sale: sale as any, customer,
-            items: lines.map((l) => ({ ...l, line_total: l.qty * l.rate })),
+            items: lines.map((l) => ({ ...l, line_total: lineAmount(l) })),
           });
           const blob = pdf.output("blob");
           const path = `${new Date().getFullYear()}/${sale!.invoice_no}.pdf`;
@@ -641,7 +650,7 @@ export function SaleBillForm({
                               aria-label={`Quantity for ${l.name}`}
                             />
                           </td>
-                          <td className="border border-slate-300 px-2 py-1.5 text-slate-500">{l.unit ?? "—"}</td>
+                          <td className="border border-slate-300 px-2 py-1.5 text-slate-500 tabular-nums">{l.area ?? "—"}</td>
                           <td className="border border-slate-300 px-1 py-1 text-right">
                             <input
                               type="number"
@@ -653,7 +662,7 @@ export function SaleBillForm({
                             />
                           </td>
                           <td className="border border-slate-300 px-2 py-1.5 text-right tabular-nums text-slate-500">{l.gst_rate}</td>
-                          <td className="border border-slate-300 px-2 py-1.5 text-right font-bold tabular-nums text-slate-800">{inr(l.qty * l.rate)}</td>
+                          <td className="border border-slate-300 px-2 py-1.5 text-right font-bold tabular-nums text-slate-800">{inr(lineAmount(l))}</td>
                           <td className="border border-slate-300 px-1 py-1 text-center">
                             <button
                               type="button"
