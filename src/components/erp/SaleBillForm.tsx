@@ -14,9 +14,11 @@ import { useUiConfig } from "@/lib/ui-config";
 import { ScanWarning, type ScanWarningKind } from "@/components/erp/ScanWarning";
 import { QuickCreatePartyDialog } from "@/components/erp/QuickCreatePartyDialog";
 import { PlyWizardDialog } from "@/components/erp/PlyWizardDialog";
+import { MicaWizardDialog } from "@/components/erp/MicaWizardDialog";
 
-// Inactive placeholder product that custom PLY wizard lines reference (sales_items.product_id is NOT NULL).
+// Inactive placeholder products that custom wizard lines reference (sales_items.product_id is NOT NULL).
 const PLY_CUSTOM_PRODUCT_ID = "3b53f4d0-550d-4206-b5a7-582a1e18fc09";
+const MICA_CUSTOM_PRODUCT_ID = "128823b7-bf9b-461a-be1b-902b5055e46f";
 
 type Line = {
   product_id: string; item_instance_id: string | null; name: string;
@@ -87,6 +89,7 @@ export function SaleBillForm({
   const [busy, setBusy] = useState(false);
   const [createCustomerOpen, setCreateCustomerOpen] = useState(false);
   const [plyOpen, setPlyOpen] = useState(false);
+  const [micaOpen, setMicaOpen] = useState(false);
   const [draftSub, setDraftSub] = useState<any | null>(null);
   const [draftQuery, setDraftQuery] = useState("");
   const [draftFocused, setDraftFocused] = useState(false);
@@ -384,6 +387,17 @@ export function SaleBillForm({
     }]);
   };
 
+  // MICA wizard line: qty = pieces (default 1), rate = entered amount, no area.
+  const addMicaLine = (item: { name: string; amount: number }) => {
+    setLines((prev) => [...prev, {
+      product_id: MICA_CUSTOM_PRODUCT_ID, item_instance_id: null, name: item.name,
+      qty: 1, rate: item.amount, gst_rate: 0,
+      hsn: null, unit: "pcs", alt_unit: null, alt_conversion: null,
+      is_lot: false, max_qty: undefined,
+      source_godown_id: sourceGodownId || null,
+    }]);
+  };
+
   const pickDraftGroup = (g: any) => {
     const variants = (g.products ?? []) as ProductRow[];
     // Single product (no parameters) → add it directly. Else go to parameters.
@@ -593,7 +607,7 @@ export function SaleBillForm({
               <button
                 key={label}
                 type="button"
-                onClick={label === "DOORS" ? goAddDoor : label === "PLY" ? () => setPlyOpen(true) : undefined}
+                onClick={label === "DOORS" ? goAddDoor : label === "PLY" ? () => setPlyOpen(true) : label === "MICA" ? () => setMicaOpen(true) : undefined}
                 className="group flex flex-col items-center justify-center gap-3 bg-white border border-[#e8ecf1] rounded-xl p-6 shadow-sm transition-all hover:border-[#3b82f6] hover:shadow-md active:scale-[0.98]"
               >
                 <img
@@ -681,6 +695,7 @@ export function SaleBillForm({
               </div>
             )}
             <PlyWizardDialog open={plyOpen} onOpenChange={setPlyOpen} onAdd={addPlyLine} />
+            <MicaWizardDialog open={micaOpen} onOpenChange={setMicaOpen} onAdd={addMicaLine} />
           </>
         )}
 
