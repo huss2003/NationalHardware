@@ -37,6 +37,8 @@ type Godown = { id: string; name: string };
 type Props = {
   tabId: string;
   active: boolean;
+  /** "scan" = barcode strip + entry grid (default). "tiles" = PLY/MICA/HARDWARE placeholder tiles. */
+  entryMode?: "scan" | "tiles";
   customers: Customer[];
   products: ProductRow[];
   subcats: SubCat[];
@@ -55,7 +57,7 @@ type PersistShape = {
 };
 
 export function SaleBillForm({
-  tabId, active, customers, products, subcats, godowns, knownPrefixes,
+  tabId, active, entryMode = "scan", customers, products, subcats, godowns, knownPrefixes,
   onCustomerCreated, onSaved,
 }: Props) {
   const nav = useNavigate();
@@ -559,6 +561,26 @@ export function SaleBillForm({
           )}
         </header>
 
+        {entryMode === "tiles" ? (
+          // ponytail: placeholder category tiles; click filtering wired later.
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+            {(["PLY", "MICA", "HARDWARE"] as const).map((label) => (
+              <button
+                key={label}
+                type="button"
+                className="group flex flex-col items-center justify-center gap-3 bg-white border border-[#e8ecf1] rounded-xl p-6 shadow-sm transition-all hover:border-[#3b82f6] hover:shadow-md active:scale-[0.98]"
+              >
+                <img
+                  src={`https://placehold.co/320x200?text=${label}`}
+                  alt={`${label} category`}
+                  className="w-full h-32 object-cover rounded-lg bg-slate-100"
+                />
+                <span className="text-lg font-bold tracking-wide text-slate-700 group-hover:text-[#3b82f6]">{label}</span>
+              </button>
+            ))}
+          </div>
+        ) : (
+        <>
         {/* Compact scanner strip (barcode wedge) */}
         <div className="flex items-center gap-2 bg-white border border-[#e8ecf1] rounded-lg px-3 py-2 shadow-sm">
           <ScanLine className="h-4 w-4 text-[#3b82f6] shrink-0" />
@@ -863,6 +885,8 @@ export function SaleBillForm({
             </table>
           </div>
         </div>
+        </>
+        )}
       </div>
 
       {/* Sticky Totals Bar */}

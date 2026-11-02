@@ -22,6 +22,7 @@ const items = [
   { key: "purchases",  to: "/purchases",       label: "Purchases",  icon: ShoppingCart },
   { key: "purchase_returns", to: "/purchase-returns", label: "Purchase Returns", icon: RotateCcw },
   { key: "sales",      to: "/sales",           label: "Sales",      icon: Receipt },
+  { key: "sales2",     to: "/sales2",          label: "Sales 2",    icon: Receipt },
   { key: "sales_returns",    to: "/sales-returns",    label: "Sales Returns",    icon: Undo2 },
   { key: "ledger",           to: "/ledger",           label: "Ledger",           icon: BookOpen },
   { key: "godowns",          to: "/godowns",          label: "Godowns",          icon: Warehouse },

@@ -13,6 +13,7 @@ import { Route as LoginRouteImport } from './routes/login'
 import { Route as AppRouteImport } from './routes/_app'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as AppSettingsRouteImport } from './routes/_app.settings'
+import { Route as AppSales2RouteImport } from './routes/_app.sales2'
 import { Route as AppReportsRouteImport } from './routes/_app.reports'
 import { Route as AppLedgerRouteImport } from './routes/_app.ledger'
 import { Route as AppDoorRouteImport } from './routes/_app.door'
@@ -57,6 +58,11 @@ const AppSettingsRoute = AppSettingsRouteImport.update({
   path: '/settings',
   getParentRoute: () => AppRoute,
 } as any)
+const AppSales2Route = AppSales2RouteImport.update({
+  id: '/sales2',
+  path: '/sales2',
+  getParentRoute: () => AppRoute,
+} as any).lazy(() => import('./routes/_app.sales2.lazy').then((d) => d.Route))
 const AppReportsRoute = AppReportsRouteImport.update({
   id: '/reports',
   path: '/reports',
@@ -207,6 +213,7 @@ export interface FileRoutesByFullPath {
   '/door': typeof AppDoorRoute
   '/ledger': typeof AppLedgerRoute
   '/reports': typeof AppReportsRoute
+  '/sales2': typeof AppSales2Route
   '/settings': typeof AppSettingsRoute
   '/inventory/$productId': typeof AppInventoryProductIdRoute
   '/inventory/scan': typeof AppInventoryScanRoute
@@ -236,6 +243,7 @@ export interface FileRoutesByTo {
   '/door': typeof AppDoorRoute
   '/ledger': typeof AppLedgerRoute
   '/reports': typeof AppReportsRoute
+  '/sales2': typeof AppSales2Route
   '/settings': typeof AppSettingsRoute
   '/inventory/$productId': typeof AppInventoryProductIdRoute
   '/inventory/scan': typeof AppInventoryScanRoute
@@ -267,6 +275,7 @@ export interface FileRoutesById {
   '/_app/door': typeof AppDoorRoute
   '/_app/ledger': typeof AppLedgerRoute
   '/_app/reports': typeof AppReportsRoute
+  '/_app/sales2': typeof AppSales2Route
   '/_app/settings': typeof AppSettingsRoute
   '/_app/inventory/$productId': typeof AppInventoryProductIdRoute
   '/_app/inventory/scan': typeof AppInventoryScanRoute
@@ -298,6 +307,7 @@ export interface FileRouteTypes {
     | '/door'
     | '/ledger'
     | '/reports'
+    | '/sales2'
     | '/settings'
     | '/inventory/$productId'
     | '/inventory/scan'
@@ -327,6 +337,7 @@ export interface FileRouteTypes {
     | '/door'
     | '/ledger'
     | '/reports'
+    | '/sales2'
     | '/settings'
     | '/inventory/$productId'
     | '/inventory/scan'
@@ -357,6 +368,7 @@ export interface FileRouteTypes {
     | '/_app/door'
     | '/_app/ledger'
     | '/_app/reports'
+    | '/_app/sales2'
     | '/_app/settings'
     | '/_app/inventory/$productId'
     | '/_app/inventory/scan'
@@ -414,6 +426,13 @@ declare module '@tanstack/react-router' {
       path: '/settings'
       fullPath: '/settings'
       preLoaderRoute: typeof AppSettingsRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/_app/sales2': {
+      id: '/_app/sales2'
+      path: '/sales2'
+      fullPath: '/sales2'
+      preLoaderRoute: typeof AppSales2RouteImport
       parentRoute: typeof AppRoute
     }
     '/_app/reports': {
@@ -593,6 +612,7 @@ interface AppRouteChildren {
   AppDoorRoute: typeof AppDoorRoute
   AppLedgerRoute: typeof AppLedgerRoute
   AppReportsRoute: typeof AppReportsRoute
+  AppSales2Route: typeof AppSales2Route
   AppSettingsRoute: typeof AppSettingsRoute
   AppInventoryProductIdRoute: typeof AppInventoryProductIdRoute
   AppInventoryScanRoute: typeof AppInventoryScanRoute
@@ -620,6 +640,7 @@ const AppRouteChildren: AppRouteChildren = {
   AppDoorRoute: AppDoorRoute,
   AppLedgerRoute: AppLedgerRoute,
   AppReportsRoute: AppReportsRoute,
+  AppSales2Route: AppSales2Route,
   AppSettingsRoute: AppSettingsRoute,
   AppInventoryProductIdRoute: AppInventoryProductIdRoute,
   AppInventoryScanRoute: AppInventoryScanRoute,
