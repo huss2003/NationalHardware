@@ -601,24 +601,74 @@ export function SaleBillForm({
         {entryMode === "tiles" && (
           <>
             {lines.length > 0 && (
-              <div className="bg-white border border-[#e8ecf1] rounded-xl shadow-sm divide-y divide-[#e8ecf1] mb-8">
-                {lines.map((l, i) => (
-                  <div key={i} className="flex items-center gap-3 px-4 py-3">
-                    <div className="min-w-0 flex-1">
-                      <p className="text-sm font-semibold text-slate-700 truncate">{l.name}</p>
-                      <p className="text-xs text-slate-500">{l.qty} {l.unit} × {inr(l.rate)}</p>
-                    </div>
-                    <span className="text-sm font-bold text-slate-800 tabular-nums shrink-0">{inr(l.qty * l.rate)}</span>
-                    <button
-                      type="button"
-                      aria-label="Remove item"
-                      onClick={() => rm(i)}
-                      className="rounded p-1 text-slate-400 hover:bg-red-50 hover:text-red-500 shrink-0"
-                    >
-                      <Trash2 className="h-4 w-4" />
-                    </button>
-                  </div>
-                ))}
+              <div className="bg-white border border-slate-300 rounded-md overflow-hidden shadow-sm mb-8">
+                <div className="overflow-x-auto">
+                  <table className="w-full border-collapse min-w-[720px] text-[13px] font-mono">
+                    <colgroup>
+                      <col style={{ width: 40 }} />
+                      <col />
+                      <col style={{ width: 120 }} />
+                      <col style={{ width: 110 }} />
+                      <col style={{ width: 130 }} />
+                      <col style={{ width: 70 }} />
+                      <col style={{ width: 130 }} />
+                      <col style={{ width: 36 }} />
+                    </colgroup>
+                    <thead>
+                      <tr className="bg-slate-100 text-[11px] uppercase tracking-wide text-slate-600 font-sans">
+                        <th className="border border-slate-300 px-2 py-1.5 text-center font-semibold">#</th>
+                        <th className="border border-slate-300 px-2 py-1.5 text-left font-semibold">Product</th>
+                        <th className="border border-slate-300 px-2 py-1.5 text-center font-semibold">Qty</th>
+                        <th className="border border-slate-300 px-2 py-1.5 text-left font-semibold">Alt Unit</th>
+                        <th className="border border-slate-300 px-2 py-1.5 text-right font-semibold">Rate</th>
+                        <th className="border border-slate-300 px-2 py-1.5 text-right font-semibold">GST%</th>
+                        <th className="border border-slate-300 px-2 py-1.5 text-right font-semibold">Amount</th>
+                        <th className="border border-slate-300 px-2 py-1.5" />
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {lines.map((l, i) => (
+                        <tr key={i} className="hover:bg-slate-50">
+                          <td className="border border-slate-300 px-2 py-1.5 text-center text-slate-400">{i + 1}</td>
+                          <td className="border border-slate-300 px-2 py-1.5 font-semibold text-slate-700">{l.name}</td>
+                          <td className="border border-slate-300 px-1 py-1 text-center">
+                            <input
+                              type="number"
+                              min={0}
+                              value={l.qty}
+                              onChange={(e) => upd(i, { qty: Number(e.target.value) })}
+                              className="w-full bg-transparent text-center tabular-nums focus:outline-none focus:bg-blue-50"
+                              aria-label={`Quantity for ${l.name}`}
+                            />
+                          </td>
+                          <td className="border border-slate-300 px-2 py-1.5 text-slate-500">{l.unit ?? "—"}</td>
+                          <td className="border border-slate-300 px-1 py-1 text-right">
+                            <input
+                              type="number"
+                              min={0}
+                              value={l.rate}
+                              onChange={(e) => upd(i, { rate: Number(e.target.value) })}
+                              className="w-full bg-transparent text-right tabular-nums focus:outline-none focus:bg-blue-50"
+                              aria-label={`Rate for ${l.name}`}
+                            />
+                          </td>
+                          <td className="border border-slate-300 px-2 py-1.5 text-right tabular-nums text-slate-500">{l.gst_rate}</td>
+                          <td className="border border-slate-300 px-2 py-1.5 text-right font-bold tabular-nums text-slate-800">{inr(l.qty * l.rate)}</td>
+                          <td className="border border-slate-300 px-1 py-1 text-center">
+                            <button
+                              type="button"
+                              aria-label="Remove item"
+                              onClick={() => rm(i)}
+                              className="rounded p-1 text-slate-400 hover:bg-red-50 hover:text-red-500"
+                            >
+                              <Trash2 className="h-4 w-4" />
+                            </button>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
               </div>
             )}
             <PlyWizardDialog open={plyOpen} onOpenChange={setPlyOpen} onAdd={addPlyLine} />
