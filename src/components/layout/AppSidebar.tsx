@@ -16,6 +16,7 @@ import { EMPLOYEE_NAV_KEYS } from "@/lib/roles";
 const items = [
   { key: "dashboard",  to: "/dashboard",       label: "Dashboard",  icon: LayoutDashboard },
   { key: "inventory",  to: "/inventory",       label: "Inventory",  icon: Boxes },
+  { key: "inventory2", to: "/inventory2",      label: "Inventory 2", icon: Layers },
   { key: "subcategories", to: "/inventory/subcategories", label: "Sub-Categories", icon: Layers },
   { key: "scan",       to: "/inventory/scan",  label: "Scan",       icon: ScanLine },
   { key: "stock_entry", to: "/inventory/stock-entry", label: "Stock Entry", icon: PackagePlus },

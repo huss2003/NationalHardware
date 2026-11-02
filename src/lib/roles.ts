@@ -4,6 +4,7 @@ import type { ShopRole } from "@/lib/auth-store";
 // ledger, settings) is admin-only.
 export const EMPLOYEE_NAV_KEYS = [
   "inventory",
+  "inventory2",
   "subcategories",
   "scan",
   "purchases",
@@ -20,6 +21,7 @@ export const EMPLOYEE_NAV_KEYS = [
 // these (e.g. /dashboard, /ledger, /settings) redirects to /inventory.
 export const EMPLOYEE_ALLOWED_PREFIXES = [
   "/inventory",
+  "/inventory2",
   "/purchases",
   "/purchase-returns",
   "/sales",
