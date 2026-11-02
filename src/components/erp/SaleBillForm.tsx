@@ -562,12 +562,13 @@ export function SaleBillForm({
         </header>
 
         {entryMode === "tiles" ? (
-          // ponytail: placeholder category tiles; click filtering wired later.
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-            {(["PLY", "MICA", "HARDWARE"] as const).map((label) => (
+          // ponytail: placeholder category tiles; PLY/MICA/HARDWARE click filtering wired later. DOORS reuses Add Door flow.
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
+            {(["PLY", "MICA", "HARDWARE", "DOORS"] as const).map((label) => (
               <button
                 key={label}
                 type="button"
+                onClick={label === "DOORS" ? goAddDoor : undefined}
                 className="group flex flex-col items-center justify-center gap-3 bg-white border border-[#e8ecf1] rounded-xl p-6 shadow-sm transition-all hover:border-[#3b82f6] hover:shadow-md active:scale-[0.98]"
               >
                 <img
