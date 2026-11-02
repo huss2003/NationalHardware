@@ -13,6 +13,10 @@ import {
 import { useUiConfig } from "@/lib/ui-config";
 import { ScanWarning, type ScanWarningKind } from "@/components/erp/ScanWarning";
 import { QuickCreatePartyDialog } from "@/components/erp/QuickCreatePartyDialog";
+import { PlyWizardDialog } from "@/components/erp/PlyWizardDialog";
+
+// Inactive placeholder product that custom PLY wizard lines reference (sales_items.product_id is NOT NULL).
+const PLY_CUSTOM_PRODUCT_ID = "3b53f4d0-550d-4206-b5a7-582a1e18fc09";
 
 type Line = {
   product_id: string; item_instance_id: string | null; name: string;
@@ -76,6 +80,7 @@ export function SaleBillForm({
   const [warn, setWarn] = useState<{ kind: ScanWarningKind; msg: string; code?: string } | null>(null);
   const [busy, setBusy] = useState(false);
   const [createCustomerOpen, setCreateCustomerOpen] = useState(false);
+  const [plyOpen, setPlyOpen] = useState(false);
   const [draftSub, setDraftSub] = useState<any | null>(null);
   const [draftQuery, setDraftQuery] = useState("");
   const [draftFocused, setDraftFocused] = useState(false);
@@ -361,6 +366,17 @@ export function SaleBillForm({
     setTimeout(() => draftRef.current?.focus(), 0);
   };
 
+  // PLY wizard line: qty = area (sq ft), rate = user rate. amount = qty*rate.
+  const addPlyLine = (item: { name: string; area: number; rate: number }) => {
+    setLines((prev) => [...prev, {
+      product_id: PLY_CUSTOM_PRODUCT_ID, item_instance_id: null, name: item.name,
+      qty: item.area, rate: item.rate, gst_rate: 0,
+      hsn: null, unit: "sqft", alt_unit: null, alt_conversion: null,
+      is_lot: false, max_qty: undefined,
+      source_godown_id: sourceGodownId || null,
+    }]);
+  };
+
   const pickDraftGroup = (g: any) => {
     const variants = (g.products ?? []) as ProductRow[];
     // Single product (no parameters) → add it directly. Else go to parameters.
@@ -568,7 +584,7 @@ export function SaleBillForm({
               <button
                 key={label}
                 type="button"
-                onClick={label === "DOORS" ? goAddDoor : undefined}
+                onClick={label === "DOORS" ? goAddDoor : label === "PLY" ? () => setPlyOpen(true) : undefined}
                 className="group flex flex-col items-center justify-center gap-3 bg-white border border-[#e8ecf1] rounded-xl p-6 shadow-sm transition-all hover:border-[#3b82f6] hover:shadow-md active:scale-[0.98]"
               >
                 <img
@@ -580,7 +596,36 @@ export function SaleBillForm({
               </button>
             ))}
           </div>
-        ) : (
+        ) : null}
+
+        {entryMode === "tiles" && (
+          <>
+            {lines.length > 0 && (
+              <div className="bg-white border border-[#e8ecf1] rounded-xl shadow-sm divide-y divide-[#e8ecf1] mb-8">
+                {lines.map((l, i) => (
+                  <div key={i} className="flex items-center gap-3 px-4 py-3">
+                    <div className="min-w-0 flex-1">
+                      <p className="text-sm font-semibold text-slate-700 truncate">{l.name}</p>
+                      <p className="text-xs text-slate-500">{l.qty} {l.unit} × {inr(l.rate)}</p>
+                    </div>
+                    <span className="text-sm font-bold text-slate-800 tabular-nums shrink-0">{inr(l.qty * l.rate)}</span>
+                    <button
+                      type="button"
+                      aria-label="Remove item"
+                      onClick={() => rm(i)}
+                      className="rounded p-1 text-slate-400 hover:bg-red-50 hover:text-red-500 shrink-0"
+                    >
+                      <Trash2 className="h-4 w-4" />
+                    </button>
+                  </div>
+                ))}
+              </div>
+            )}
+            <PlyWizardDialog open={plyOpen} onOpenChange={setPlyOpen} onAdd={addPlyLine} />
+          </>
+        )}
+
+        {entryMode === "scan" && (
         <>
         {/* Compact scanner strip (barcode wedge) */}
         <div className="flex items-center gap-2 bg-white border border-[#e8ecf1] rounded-lg px-3 py-2 shadow-sm">
