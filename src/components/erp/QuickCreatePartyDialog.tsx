@@ -4,6 +4,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogD
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { VoiceButton } from "@/components/erp/VoiceButton";
 import { toast } from "sonner";
 
 type Kind = "customer" | "supplier";
@@ -67,7 +68,10 @@ export function QuickCreatePartyDialog({ open, onOpenChange, kind, initialName =
         <div className="space-y-3">
           <div>
             <Label>{label} name<span className="text-destructive"> *</span></Label>
-            <Input value={name} onChange={(e) => setName(e.target.value)} placeholder={`${label} name`} maxLength={120} autoFocus />
+            <div className="flex gap-2">
+              <Input value={name} onChange={(e) => setName(e.target.value)} placeholder={`${label} name`} maxLength={120} autoFocus />
+              <VoiceButton onResult={(t) => setName(t)} />
+            </div>
           </div>
           <div>
             <Label>GSTIN <span className="text-muted-foreground">(optional)</span></Label>
@@ -75,7 +79,10 @@ export function QuickCreatePartyDialog({ open, onOpenChange, kind, initialName =
           </div>
           <div>
             <Label>Address <span className="text-muted-foreground">(optional)</span></Label>
-            <Input value={address} onChange={(e) => setAddress(e.target.value)} placeholder="Street, City, State" maxLength={255} />
+            <div className="flex gap-2">
+              <Input value={address} onChange={(e) => setAddress(e.target.value)} placeholder="Street, City, State" maxLength={255} />
+              <VoiceButton onResult={(t) => setAddress(t)} />
+            </div>
           </div>
           <div>
             <Label>Phone <span className="text-muted-foreground">(optional)</span></Label>
