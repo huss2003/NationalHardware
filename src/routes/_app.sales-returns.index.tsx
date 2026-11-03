@@ -319,6 +319,21 @@ function NewSalesReturnDialog({
     }));
     await supabase.from("sales_return_items").insert(lines);
 
+    // Refund leaves the cash book (money out): cash -> cash-in-hand, UPI/card -> bank.
+    // A credit note settles against the customer ledger, so it posts no cash.
+    if (["cash", "upi", "card"].includes(refundMode) && grand > 0) {
+      await supabase.from("cash_transactions").insert({
+        txn_date: new Date().toISOString().slice(0, 10),
+        txn_type: "refund",
+        vch_no: returnNo,
+        account_name: selectedSale?.customers?.name ?? "Customer",
+        debit: 0,
+        credit: grand,
+        ledger_account: refundMode === "cash" ? "cash" : "bank",
+        source: "app_return",
+      });
+    }
+
     // Update inventory & write history
     for (const c of cart) {
       if (!c.item_instance_id) continue;
