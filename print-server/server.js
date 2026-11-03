@@ -2,6 +2,7 @@ const express = require("express");
 const cors = require("cors");
 const path = require("path");
 const fs = require("fs");
+const os = require("os");
 const { execSync, exec } = require("child_process");
 const temp = require("temp");
 temp.track();
@@ -30,13 +31,17 @@ function htmlToPdf(html, outputPath) {
     const tmpHtml = temp.path({ suffix: ".html" });
     fs.writeFileSync(tmpHtml, html, "utf-8");
     const pdfPath = outputPath || temp.path({ suffix: ".pdf" });
+    // A unique user-data-dir forces a fresh Edge instance so an already-open
+    // Edge window can't make --headless attach-and-exit without rendering.
+    const udd = fs.mkdtempSync(path.join(os.tmpdir(), "edgeprint-"));
     const args = [
       "--headless=new",
       "--disable-gpu",
       "--no-sandbox",
+      "--no-first-run",
+      "--disable-extensions",
+      `--user-data-dir=${udd}`,
       "--no-pdf-header-footer",
-      "--run-all-compositor-stages-before-draw",
-      "--virtual-time-budget=1000",
       `--print-to-pdf=${pdfPath}`,
       `file:///${tmpHtml.replace(/\\/g, "/")}`,
     ];
@@ -46,12 +51,23 @@ function htmlToPdf(html, outputPath) {
         stdio: "pipe",
         windowsHide: true,
       });
-      console.log(`PDF saved: ${pdfPath} (${fs.statSync(pdfPath).size} bytes)`);
+      // Edge's launcher can return before its headless child finishes writing
+      // the PDF, so poll (up to ~10s) until the file exists and is non-empty.
+      const sleepSync = (ms) => Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, ms);
+      let size = 0;
+      for (let i = 0; i < 50; i++) {
+        try { size = fs.statSync(pdfPath).size; } catch { size = 0; }
+        if (size > 0) break;
+        sleepSync(200);
+      }
+      if (size <= 0) throw new Error("PDF was not produced in time");
+      console.log(`PDF saved: ${pdfPath} (${size} bytes)`);
       resolve(pdfPath);
     } catch (err) {
       reject(new Error(`Edge PDF generation failed: ${err.message}`));
     } finally {
       try { fs.unlinkSync(tmpHtml); } catch {}
+      try { fs.rmSync(udd, { recursive: true, force: true }); } catch {}
     }
   });
 }
