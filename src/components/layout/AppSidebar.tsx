@@ -8,6 +8,7 @@ import {
   Layers,
   PackagePlus,
   Wallet,
+  FileSpreadsheet,
 } from "lucide-react";
 import { useAuth } from "@/lib/auth-store";
 import { Button } from "@/components/ui/button";
@@ -31,6 +32,7 @@ const items = [
   { key: "godowns",          to: "/godowns",          label: "Godowns",          icon: Warehouse },
   { key: "door",             to: "/door",             label: "Door",             icon: DoorOpen },
   { key: "reports",    to: "/reports",         label: "Reports",    icon: BarChart3 },
+  { key: "tax_reports", to: "/tax-reports",    label: "GST Reports", icon: FileSpreadsheet },
   { key: "alerts",     to: "/alerts",          label: "Alerts",     icon: Bell },
   { key: "settings",   to: "/settings",        label: "Settings",   icon: Settings },
 ] as const;

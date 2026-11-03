@@ -12,6 +12,7 @@ import { Route as rootRouteImport } from './routes/__root'
 import { Route as LoginRouteImport } from './routes/login'
 import { Route as AppRouteImport } from './routes/_app'
 import { Route as IndexRouteImport } from './routes/index'
+import { Route as AppTaxReportsRouteImport } from './routes/_app.tax-reports'
 import { Route as AppSettingsRouteImport } from './routes/_app.settings'
 import { Route as AppSales2RouteImport } from './routes/_app.sales2'
 import { Route as AppReportsRouteImport } from './routes/_app.reports'
@@ -55,6 +56,13 @@ const IndexRoute = IndexRouteImport.update({
   path: '/',
   getParentRoute: () => rootRouteImport,
 } as any)
+const AppTaxReportsRoute = AppTaxReportsRouteImport.update({
+  id: '/tax-reports',
+  path: '/tax-reports',
+  getParentRoute: () => AppRoute,
+} as any).lazy(() =>
+  import('./routes/_app.tax-reports.lazy').then((d) => d.Route),
+)
 const AppSettingsRoute = AppSettingsRouteImport.update({
   id: '/settings',
   path: '/settings',
@@ -231,6 +239,7 @@ export interface FileRoutesByFullPath {
   '/reports': typeof AppReportsRoute
   '/sales2': typeof AppSales2Route
   '/settings': typeof AppSettingsRoute
+  '/tax-reports': typeof AppTaxReportsRoute
   '/inventory/$productId': typeof AppInventoryProductIdRoute
   '/inventory/scan': typeof AppInventoryScanRoute
   '/inventory/stock-entry': typeof AppInventoryStockEntryRoute
@@ -263,6 +272,7 @@ export interface FileRoutesByTo {
   '/reports': typeof AppReportsRoute
   '/sales2': typeof AppSales2Route
   '/settings': typeof AppSettingsRoute
+  '/tax-reports': typeof AppTaxReportsRoute
   '/inventory/$productId': typeof AppInventoryProductIdRoute
   '/inventory/scan': typeof AppInventoryScanRoute
   '/inventory/stock-entry': typeof AppInventoryStockEntryRoute
@@ -297,6 +307,7 @@ export interface FileRoutesById {
   '/_app/reports': typeof AppReportsRoute
   '/_app/sales2': typeof AppSales2Route
   '/_app/settings': typeof AppSettingsRoute
+  '/_app/tax-reports': typeof AppTaxReportsRoute
   '/_app/inventory/$productId': typeof AppInventoryProductIdRoute
   '/_app/inventory/scan': typeof AppInventoryScanRoute
   '/_app/inventory/stock-entry': typeof AppInventoryStockEntryRoute
@@ -331,6 +342,7 @@ export interface FileRouteTypes {
     | '/reports'
     | '/sales2'
     | '/settings'
+    | '/tax-reports'
     | '/inventory/$productId'
     | '/inventory/scan'
     | '/inventory/stock-entry'
@@ -363,6 +375,7 @@ export interface FileRouteTypes {
     | '/reports'
     | '/sales2'
     | '/settings'
+    | '/tax-reports'
     | '/inventory/$productId'
     | '/inventory/scan'
     | '/inventory/stock-entry'
@@ -396,6 +409,7 @@ export interface FileRouteTypes {
     | '/_app/reports'
     | '/_app/sales2'
     | '/_app/settings'
+    | '/_app/tax-reports'
     | '/_app/inventory/$productId'
     | '/_app/inventory/scan'
     | '/_app/inventory/stock-entry'
@@ -446,6 +460,13 @@ declare module '@tanstack/react-router' {
       fullPath: '/'
       preLoaderRoute: typeof IndexRouteImport
       parentRoute: typeof rootRouteImport
+    }
+    '/_app/tax-reports': {
+      id: '/_app/tax-reports'
+      path: '/tax-reports'
+      fullPath: '/tax-reports'
+      preLoaderRoute: typeof AppTaxReportsRouteImport
+      parentRoute: typeof AppRoute
     }
     '/_app/settings': {
       id: '/_app/settings'
@@ -656,6 +677,7 @@ interface AppRouteChildren {
   AppReportsRoute: typeof AppReportsRoute
   AppSales2Route: typeof AppSales2Route
   AppSettingsRoute: typeof AppSettingsRoute
+  AppTaxReportsRoute: typeof AppTaxReportsRoute
   AppInventoryProductIdRoute: typeof AppInventoryProductIdRoute
   AppInventoryScanRoute: typeof AppInventoryScanRoute
   AppInventoryStockEntryRoute: typeof AppInventoryStockEntryRoute
@@ -686,6 +708,7 @@ const AppRouteChildren: AppRouteChildren = {
   AppReportsRoute: AppReportsRoute,
   AppSales2Route: AppSales2Route,
   AppSettingsRoute: AppSettingsRoute,
+  AppTaxReportsRoute: AppTaxReportsRoute,
   AppInventoryProductIdRoute: AppInventoryProductIdRoute,
   AppInventoryScanRoute: AppInventoryScanRoute,
   AppInventoryStockEntryRoute: AppInventoryStockEntryRoute,
