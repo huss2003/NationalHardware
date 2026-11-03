@@ -462,6 +462,24 @@ export function SaleBillForm({
     if (error) { setBusy(false); toast.error(error.message); return; }
     const saleId = data as string;
     toast.success("Sale recorded");
+
+    // Auto-print the thermal receipt when a print server is configured (silent; no
+    // dialog). Does nothing if the server isn't set up — use the Thermal button then.
+    try {
+      const { isPrintServerEnabled, getPrintServerUrl, printReceiptHtml } = await import("@/lib/printServer");
+      if (isPrintServerEnabled() && getPrintServerUrl()) {
+        const [{ data: sale }, { data: shop }] = await Promise.all([
+          supabase.from("sales").select("invoice_no,invoice_date,bill_type,subtotal,discount,cgst,sgst,igst,round_off,grand_total,payment_mode").eq("id", saleId).single(),
+          supabase.from("app_settings").select("shop_name,address,gstin").eq("id", true).maybeSingle(),
+        ]);
+        if (sale) {
+          const { buildReceiptHtml } = await import("@/lib/receiptHtml");
+          const html = buildReceiptHtml({ shop: shop as any, sale: sale as any, items: lines.map((l) => ({ name: l.name, qty: l.qty, rate: l.rate, line_total: lineAmount(l) })) });
+          await printReceiptHtml(html).catch(() => {});
+        }
+      }
+    } catch { /* printing is best-effort */ }
+
     if (alsoWhatsApp) {
       try {
         const customer = customers.find((c) => c.id === customerId);
