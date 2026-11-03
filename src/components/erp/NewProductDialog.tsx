@@ -58,8 +58,12 @@ export function NewProductDialog({
   const [pricePerSqft, setPricePerSqft] = useState<number>(0);
   const [pricePerPc, setPricePerPc] = useState<number>(0);
   const [qty, setQty] = useState<number>(1);
+  const [unit, setUnit] = useState("");            // "" = auto from category
+  const [reorderLevel, setReorderLevel] = useState<number>(5);
   const [qrUrl, setQrUrl] = useState<string>("");
   const [busy, setBusy] = useState(false);
+
+  const effectiveUnit = unit.trim() || (hasDimensions(category) ? "sheet" : "pcs");
 
   const dimUnit: "ft" | "in" = category === "door" ? "in" : "ft";
   const toSqft = (l: number, w: number) => (category === "door" ? (l * w) / 144 : l * w);
@@ -86,7 +90,7 @@ export function NewProductDialog({
 
   const reset = () => {
     setName(""); setCategory("plywood"); setLength(0); setWidth(0);
-    setAreaInput(0); setSize(""); setPricePerSqft(0); setPricePerPc(0); setQty(1); setQrUrl("");
+    setAreaInput(0); setSize(""); setPricePerSqft(0); setPricePerPc(0); setQty(1); setUnit(""); setReorderLevel(5); setQrUrl("");
     setSubcategory(null);
   };
 
@@ -158,11 +162,11 @@ export function NewProductDialog({
           name: name.trim(),
           category: dbCategory,
           prefix,
-          unit: hasDimensions(category) ? "sheet" : "pcs",
+          unit: effectiveUnit,
           default_cost: unitPrice,
           default_price: unitPrice,
           gst_rate: 18,
-          reorder_level: 5,
+          reorder_level: Number(reorderLevel) || 0,
           subcategory_id: subcategory.id,
         } as any)
         .select()
@@ -317,6 +321,17 @@ export function NewProductDialog({
             <div>
               <Label className="text-xs">Quantity (PCS)</Label>
               <Input type="number" min={1} step={1} value={qty} onChange={(e) => setQty(Math.max(1, Number(e.target.value) || 1))} />
+            </div>
+            <div>
+              <Label className="text-xs">Unit</Label>
+              <Input list="unit-options" value={unit} onChange={(e) => setUnit(e.target.value)} placeholder={effectiveUnit} />
+              <datalist id="unit-options">
+                {["sheet", "piece", "sqft", "dozen", "running-foot", "box", "kg"].map((u) => <option key={u} value={u} />)}
+              </datalist>
+            </div>
+            <div>
+              <Label className="text-xs">Reorder level</Label>
+              <Input type="number" min={0} step={1} value={reorderLevel} onChange={(e) => setReorderLevel(Math.max(0, Number(e.target.value) || 0))} />
             </div>
           </div>
 
