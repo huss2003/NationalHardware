@@ -8,7 +8,9 @@ import { Button } from "@/components/ui/button";
 import { PageHeader } from "@/components/erp/PageHeader";
 import { ReturnTimelineDialog } from "@/components/erp/ReturnTimelineDialog";
 import { inr, fmtDate } from "@/lib/codes";
-import { Search, Users, Truck, FileText, ShoppingCart, Receipt as ReceiptIcon, RotateCcw, Wallet, Banknote, ArrowDownCircle, ArrowUpCircle } from "lucide-react";
+import { buildStatementPdf, statementFileName } from "@/lib/statement-pdf";
+import { toast } from "sonner";
+import { Search, Users, Truck, FileText, ShoppingCart, Receipt as ReceiptIcon, RotateCcw, Wallet, Banknote, ArrowDownCircle, ArrowUpCircle, FileDown } from "lucide-react";
 
 export const Route = createFileRoute("/_app/ledger")({ component: LedgerPage });
 
@@ -116,6 +118,8 @@ function LedgerPage() {
   const [search, setSearch] = useState("");
   const [selected, setSelected] = useState<Party | null>(null);
   const [returnView, setReturnView] = useState<{ id: string; no: string; refTable: "sales_returns" | "purchase_returns" } | null>(null);
+  const [stmtFrom, setStmtFrom] = useState("");
+  const [stmtTo, setStmtTo] = useState("");
 
   const { data: parties = [] } = useQuery({
     queryKey: ["ledger", "parties", kind],
@@ -307,6 +311,33 @@ function LedgerPage() {
   const totalCredit = entries.reduce((s, e) => s + e.credit, 0);
   const closing = totalDebit - totalCredit; // >0 Dr, <0 Cr
 
+  const downloadStatement = async () => {
+    if (!selected) return;
+    const from = stmtFrom || (fy === "2627" ? "2026-04-01" : "2025-04-01");
+    const to = stmtTo || new Date().toISOString().slice(0, 10);
+    const inRange = rows.filter((r) => r.date >= from && r.date <= to);
+    const before = rows.filter((r) => r.date < from);
+    const openingBal = before.length ? before[before.length - 1].balance : 0;
+    const stmtRows = [
+      { date: from, ref: "Opening Balance", debit: 0, credit: 0, balance: openingBal },
+      ...inRange.map((r) => ({ date: r.date, ref: r.ref, debit: r.debit, credit: r.credit, balance: r.balance })),
+    ];
+    const closingBal = inRange.length ? inRange[inRange.length - 1].balance : openingBal;
+    const { data: shop } = await supabase.from("app_settings").select("shop_name, address, gstin").eq("id", true).maybeSingle();
+    try {
+      const pdf = buildStatementPdf({
+        shop: shop ?? null,
+        partyName: selected.name,
+        partyPhone: selected.phone,
+        kindLabel: kind === "customer" ? "Customer" : "Supplier",
+        from, to, rows: stmtRows, closing: closingBal,
+      });
+      pdf.save(statementFileName(selected.name));
+    } catch (e: any) {
+      toast.error(e?.message ?? "Could not build statement");
+    }
+  };
+
   // Cash in hand running balance (Dr positive)
   const opening = cashTxns.find((t) => t.txn_type === "opening");
   const cashMovements = cashTxns.filter((t) => t.txn_type !== "opening");
@@ -462,6 +493,19 @@ function LedgerPage() {
                       <Link to="/sales/receipts"><ReceiptIcon className="h-4 w-4" /> Receipts</Link>
                     </Button>
                   )}
+                </div>
+                <div className="flex flex-wrap items-end gap-2 w-full border-t pt-3">
+                  <div>
+                    <div className="text-[10px] uppercase text-muted-foreground mb-0.5">From</div>
+                    <Input type="date" value={stmtFrom} onChange={(e) => setStmtFrom(e.target.value)} className="h-9 w-auto" />
+                  </div>
+                  <div>
+                    <div className="text-[10px] uppercase text-muted-foreground mb-0.5">To</div>
+                    <Input type="date" value={stmtTo} onChange={(e) => setStmtTo(e.target.value)} className="h-9 w-auto" />
+                  </div>
+                  <Button size="sm" variant="outline" className="gap-2" onClick={downloadStatement} disabled={rows.length === 0}>
+                    <FileDown className="h-4 w-4" /> Statement PDF
+                  </Button>
                 </div>
               </Card>
 
