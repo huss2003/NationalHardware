@@ -5,7 +5,7 @@ import { Mic } from "lucide-react";
 // nothing where it's unsupported; needs internet. Replaces the field on each result.
 export function VoiceButton({
   onResult,
-  lang = "hi-IN",
+  lang = "en-IN",
   title = "Speak to fill",
 }: {
   onResult: (text: string) => void;
