@@ -6,7 +6,8 @@ import { Button } from "@/components/ui/button";
 import { PageHeader } from "@/components/erp/PageHeader";
 import { DetailSkeleton, TableSkeleton } from "@/components/erp/Skeletons";
 import { inr, fmtDate, fmtDateTime } from "@/lib/codes";
-import { Printer, MessageCircle } from "lucide-react";
+import { Printer, MessageCircle, ReceiptText } from "lucide-react";
+import { printThermalReceipt } from "@/lib/receiptHtml";
 // jspdf + jspdf-autotable (~250KB) loaded only when the user clicks Send.
 import { toast } from "sonner";
 
@@ -66,6 +67,11 @@ function SaleDetail() {
           <Button variant="outline" className="h-11 gap-2" disabled={sending} onClick={sendWhatsApp}>
             <MessageCircle className="h-4 w-4" /> {sending ? "Sending…" : "Send WhatsApp Again"}
           </Button>
+          <Button variant="outline" className="h-11 gap-2" onClick={() => printThermalReceipt({
+            shop,
+            sale: s,
+            items: items.map((it) => ({ name: it.products?.name ?? "Item", qty: it.qty, rate: it.rate, line_total: it.line_total })),
+          })}><ReceiptText className="h-4 w-4" />Thermal</Button>
           <Button className="h-11 gap-2" onClick={() => window.print()}><Printer className="h-4 w-4" />Print</Button>
         </div>
       } />

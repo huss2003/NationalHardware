@@ -90,6 +90,11 @@ export async function printReceipt(opts: {
   });
 }
 
+// Send fully-rendered 58mm receipt HTML to the POS58 receipt printer.
+export async function printReceiptHtml(html: string, printerName: string = RECEIPT_PRINTER) {
+  return post("/api/print/html", { html, printerName, paperWidth: 58 });
+}
+
 // List printers the server can see (status check / connectivity test).
 export async function getPrinters() {
   const res = await fetch(`${base()}/api/printers`);
