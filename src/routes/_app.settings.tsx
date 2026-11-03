@@ -9,6 +9,7 @@ import { DetailSkeleton } from "@/components/erp/Skeletons";
 import { toast } from "sonner";
 import { Switch } from "@/components/ui/switch";
 import { useUiConfig, saveUiConfig, type UiConfig, type FieldCfg } from "@/lib/ui-config";
+import { getPrintServerUrl, setPrintServerUrl, isPrintServerEnabled, setPrintServerEnabled } from "@/lib/printServer";
 
 export const Route = createFileRoute("/_app/settings")({ component: Settings });
 function Settings() {
@@ -99,9 +100,64 @@ function Settings() {
           <Button onClick={async () => { if (!cust.name) return; await supabase.from("customers").insert(cust); setCust({ name: "", phone: "", gstin: "", address: "", state: "" }); load(); }}>Add customer</Button>
           <ul className="text-sm grid grid-cols-2 gap-1 max-h-40 overflow-auto">{customers.map(c => <li key={c.id} className="border-b py-1">{c.name} <span className="text-muted-foreground">{c.phone}</span></li>)}</ul>
         </Card>
+        <div className="lg:col-span-2"><PrintServerPanel /></div>
         <div className="lg:col-span-2"><DoorTypesPanel /></div>
       </div>
     </>
+  );
+}
+
+/* ---------- Thermal printer (shared, multi-device) ---------- */
+
+function PrintServerPanel() {
+  const [url, setUrl] = useState(getPrintServerUrl());
+  const [enabled, setEnabled] = useState(isPrintServerEnabled());
+  const [testing, setTesting] = useState(false);
+
+  const save = () => {
+    setPrintServerUrl(url);
+    setPrintServerEnabled(enabled);
+    toast.success("Printer settings saved on this device");
+  };
+
+  const test = async () => {
+    const u = url.trim().replace(/\/+$/, "");
+    if (!u) { toast.error("Enter the print server URL"); return; }
+    setTesting(true);
+    try {
+      const h = await fetch(`${u}/api/health`).then((r) => { if (!r.ok) throw new Error(`HTTP ${r.status}`); return r.json(); });
+      const printers = await fetch(`${u}/api/printers`).then((r) => r.json()).catch(() => null);
+      const n = Array.isArray(printers) ? `, ${printers.length} printer(s)` : "";
+      toast.success(`Connected (port ${h?.port ?? "?"})${n}`);
+    } catch (e: any) {
+      toast.error(`Cannot reach print server: ${e.message}`);
+    } finally {
+      setTesting(false);
+    }
+  };
+
+  return (
+    <Card className="p-5 space-y-3">
+      <div className="font-bold text-lg">Thermal printer (shared)</div>
+      <div className="text-sm text-muted-foreground">
+        Print from any device to the one USB thermal printer — free, over your shop Wi-Fi/LAN.
+        On the PC with the printer, run <code className="font-mono">print-server/start.bat</code> once; it shows a URL like
+        {" "}<code className="font-mono">http://192.168.x.x:3001</code>. Enter that URL on each device below.
+      </div>
+      <Input placeholder="http://192.168.1.50:3001" value={url} onChange={(e) => setUrl(e.target.value)} />
+      <label className="flex items-center justify-between text-sm">
+        <span>Use the print server on this device</span>
+        <Switch checked={enabled} onCheckedChange={setEnabled} />
+      </label>
+      <div className="flex gap-2">
+        <Button onClick={save}>Save</Button>
+        <Button variant="outline" onClick={test} disabled={testing}>{testing ? "Testing…" : "Test connection"}</Button>
+      </div>
+      <div className="text-xs text-muted-foreground">
+        If the printer isn’t set up, the Thermal button just opens your browser’s print dialog instead. Note: when the app is
+        opened over https, browsers block calls to a plain http printer URL — open the app over http on the LAN for silent printing.
+      </div>
+    </Card>
   );
 }
 
