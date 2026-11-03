@@ -1,6 +1,8 @@
 import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
 import { fmtDate } from "@/lib/codes";
+import { amountInWords } from "@/lib/amount-in-words";
+import { hsnSummary } from "@/lib/hsn-summary";
 
 export type InvoicePdfInput = {
   shop: { shop_name?: string; address?: string | null; gstin?: string | null } | null;
@@ -10,6 +12,8 @@ export type InvoicePdfInput = {
     subtotal: number; discount: number;
     cgst: number; sgst: number; igst: number; grand_total: number;
     payment_mode: string;
+    bill_type?: string | null;
+    round_off?: number | null;
   };
   customer: { name?: string | null; gstin?: string | null; address?: string | null; phone?: string | null } | null;
   items: Array<{ name: string; hsn?: string | null; qty: number; rate: number; gst_rate: number; line_total: number; item_instance_id?: string | null }>;
@@ -19,6 +23,8 @@ export function buildInvoicePdf(input: InvoicePdfInput): jsPDF {
   const doc = new jsPDF({ unit: "pt", format: "a4" });
   const W = doc.internal.pageSize.getWidth();
   const shopName = input.shop?.shop_name ?? "National Hardware and Plywood";
+  const isGst = (input.sale.bill_type ?? "gst") === "gst";
+  const sameState = Number(input.sale.igst) <= 0; // intra-state when no IGST
 
   // Brand band
   doc.setFillColor(15, 23, 42); // slate-900
@@ -32,7 +38,7 @@ export function buildInvoicePdf(input: InvoicePdfInput): jsPDF {
   if (input.shop?.gstin) { doc.text(`GSTIN: ${input.shop.gstin}`, 40, hy); }
 
   doc.setFont("helvetica", "bold"); doc.setFontSize(10);
-  doc.text("TAX INVOICE", W - 40, 34, { align: "right" });
+  doc.text(isGst ? "TAX INVOICE" : "ESTIMATE", W - 40, 34, { align: "right" });
   doc.setFontSize(16);
   doc.text(input.sale.invoice_no ?? "—", W - 40, 54, { align: "right" });
   doc.setFont("helvetica", "normal"); doc.setFontSize(9);
@@ -58,11 +64,11 @@ export function buildInvoicePdf(input: InvoicePdfInput): jsPDF {
   doc.setFillColor(245, 247, 250);
   doc.rect(mx, my - 12, (W - 80) / 2, 90, "F");
   doc.setFont("helvetica", "bold"); doc.setFontSize(9); doc.setTextColor(100);
-  doc.text("INVOICE DETAILS", mx + 12, my); my += 14;
+  doc.text(isGst ? "INVOICE DETAILS" : "ESTIMATE DETAILS", mx + 12, my); my += 14;
   doc.setTextColor(20); doc.setFont("helvetica", "normal"); doc.setFontSize(9);
   doc.text(`Date: ${fmtDate(input.sale.invoice_date)}`, mx + 12, my); my += 12;
   doc.text(`Payment: ${String(input.sale.payment_mode).toUpperCase()}`, mx + 12, my); my += 12;
-  doc.text(`Invoice #: ${input.sale.invoice_no ?? "—"}`, mx + 12, my);
+  doc.text(`${isGst ? "Invoice" : "Estimate"} #: ${input.sale.invoice_no ?? "—"}`, mx + 12, my);
 
   y = 230;
   autoTable(doc, {
@@ -105,16 +111,46 @@ export function buildInvoicePdf(input: InvoicePdfInput): jsPDF {
   if (Number(input.sale.cgst) > 0) row("CGST", Number(input.sale.cgst));
   if (Number(input.sale.sgst) > 0) row("SGST", Number(input.sale.sgst));
   if (Number(input.sale.igst) > 0) row("IGST", Number(input.sale.igst));
+  if (Math.abs(Number(input.sale.round_off ?? 0)) >= 0.005) row("Round Off", Number(input.sale.round_off));
   doc.setDrawColor(200); doc.line(tx, ty - 6, vx, ty - 6); ty += 6;
   doc.setFontSize(12);
   row("Grand Total", Number(input.sale.grand_total), true);
+
+  // Amount in words (left of / below the totals card)
+  let sy = Math.max(ty, afterY + 130) + 10;
+  doc.setFont("helvetica", "bold"); doc.setFontSize(9); doc.setTextColor(80);
+  doc.text("Amount in words:", 40, sy);
+  doc.setFont("helvetica", "normal"); doc.setTextColor(20);
+  doc.text(amountInWords(Number(input.sale.grand_total)), 40, sy + 13, { maxWidth: W - 80 });
+  sy += 36;
+
+  // HSN tax summary — GST invoices only
+  if (isGst) {
+    const hsn = hsnSummary(input.items, sameState);
+    if (hsn.length) {
+      doc.setFont("helvetica", "bold"); doc.setFontSize(9); doc.setTextColor(80);
+      doc.text("HSN / Tax Summary", 40, sy); sy += 6;
+      autoTable(doc, {
+        startY: sy,
+        head: [["HSN", "Taxable", "GST%", "CGST", "SGST", "IGST", "Total"]],
+        body: hsn.map((h) => [
+          h.hsn, h.taxable.toFixed(2), `${h.gstRate}%`,
+          h.cgst.toFixed(2), h.sgst.toFixed(2), h.igst.toFixed(2), h.total.toFixed(2),
+        ]),
+        styles: { fontSize: 8, cellPadding: 5, lineColor: [230, 230, 230], lineWidth: 0.5 },
+        headStyles: { fillColor: [241, 245, 249], textColor: 40, fontStyle: "bold" },
+        columnStyles: { 1: { halign: "right" }, 2: { halign: "right" }, 3: { halign: "right" }, 4: { halign: "right" }, 5: { halign: "right" }, 6: { halign: "right" } },
+        margin: { left: 40, right: 40 },
+      });
+    }
+  }
 
   // Footer
   const ph = doc.internal.pageSize.getHeight();
   doc.setDrawColor(220); doc.line(40, ph - 50, W - 40, ph - 50);
   doc.setFontSize(8); doc.setTextColor(120);
   doc.text(`Thank you for your business — ${shopName}.`, 40, ph - 32);
-  doc.text("This is a system-generated tax invoice.", W - 40, ph - 32, { align: "right" });
+  doc.text(isGst ? "This is a system-generated tax invoice." : "Estimate — not a tax invoice.", W - 40, ph - 32, { align: "right" });
   return doc;
 }
 
