@@ -15,6 +15,7 @@ import { ScanWarning, type ScanWarningKind } from "@/components/erp/ScanWarning"
 import { QuickCreatePartyDialog } from "@/components/erp/QuickCreatePartyDialog";
 import { PlyWizardDialog } from "@/components/erp/PlyWizardDialog";
 import { MicaWizardDialog } from "@/components/erp/MicaWizardDialog";
+import { UpiQrDialog } from "@/components/erp/UpiQrDialog";
 
 // Inactive placeholder products that custom wizard lines reference (sales_items.product_id is NOT NULL).
 const PLY_CUSTOM_PRODUCT_ID = "3b53f4d0-550d-4206-b5a7-582a1e18fc09";
@@ -90,6 +91,7 @@ export function SaleBillForm({
   const [createCustomerOpen, setCreateCustomerOpen] = useState(false);
   const [plyOpen, setPlyOpen] = useState(false);
   const [micaOpen, setMicaOpen] = useState(false);
+  const [upiQrOpen, setUpiQrOpen] = useState(false);
   const [draftSub, setDraftSub] = useState<any | null>(null);
   const [draftQuery, setDraftQuery] = useState("");
   const [draftFocused, setDraftFocused] = useState(false);
@@ -444,7 +446,7 @@ export function SaleBillForm({
         customer_id: customerId || null,
         customer_state: customerState,
         payment_mode: paymentMode,
-        paid_amount: paymentMode === "cash" ? total : 0,
+        paid_amount: paymentMode === "credit" ? 0 : total,
         discount,
         // record_sale computes line_total as qty*rate; fold per-piece area in
         // so pieces*(rate*area) is stored correctly for PLY wizard lines.
@@ -491,6 +493,13 @@ export function SaleBillForm({
   };
   const save = () => finalize(false);
   const saveAndWhatsApp = () => finalize(true);
+
+  // UPI bills: show a payment QR (amount prefilled) before saving; save on confirm.
+  const onSaveClick = () => {
+    if (lines.length === 0) { toast.error("Scan or add items"); return; }
+    if (paymentMode === "upi") { setUpiQrOpen(true); return; }
+    save();
+  };
 
   return (
     <div className="min-h-[calc(100dvh-1rem)] w-full bg-[#fafbfc] p-3 md:p-6 pb-32">
@@ -1053,7 +1062,7 @@ export function SaleBillForm({
               </Button>
               <Button
                 type="button"
-                onClick={save}
+                onClick={onSaveClick}
                 disabled={busy}
                 className="bg-[#3b82f6] hover:bg-blue-600 text-white px-3 md:px-4 h-9 rounded-lg font-semibold shadow-lg shadow-blue-500/20 gap-1.5 text-sm"
               >
@@ -1064,6 +1073,14 @@ export function SaleBillForm({
           </div>
         </div>
       </footer>
+
+      <UpiQrDialog
+        open={upiQrOpen}
+        onOpenChange={setUpiQrOpen}
+        amount={total}
+        busy={busy}
+        onConfirm={() => { void finalize(false); }}
+      />
 
       {/* Price History Dialog */}
       {rateHistoryOpen && (

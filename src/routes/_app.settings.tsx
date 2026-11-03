@@ -32,6 +32,9 @@ function Settings() {
   const save = async () => {
     const { error } = await supabase.from("app_settings").update({
       shop_name: s.shop_name, gstin: s.gstin, state: s.state, address: s.address, default_label_format: s.default_label_format, invoice_prefix: s.invoice_prefix,
+      upi_primary_vpa: s.upi_primary_vpa, upi_secondary_vpa: s.upi_secondary_vpa,
+      upi_payee_name: s.upi_payee_name, upi_merchant_code: s.upi_merchant_code,
+      upi_default: Number(s.upi_default) || 1,
     }).eq("id", true);
     if (error) toast.error(error.message); else toast.success("Settings saved");
   };
@@ -57,6 +60,19 @@ function Settings() {
             <option value="thermal_50x25">Thermal 50×25mm</option>
             <option value="a4">A4 sticker sheet</option>
           </select>
+          <div className="pt-2 border-t space-y-2">
+            <div className="font-semibold text-sm">UPI payment (Sales 2 QR)</div>
+            <Input placeholder="Primary UPI ID (HDFC)" value={s.upi_primary_vpa ?? ""} onChange={(e) => setS({...s, upi_primary_vpa: e.target.value})} />
+            <Input placeholder="Secondary UPI ID (PhonePe)" value={s.upi_secondary_vpa ?? ""} onChange={(e) => setS({...s, upi_secondary_vpa: e.target.value})} />
+            <div className="grid grid-cols-2 gap-2">
+              <Input placeholder="Payee name" value={s.upi_payee_name ?? ""} onChange={(e) => setS({...s, upi_payee_name: e.target.value})} />
+              <Input placeholder="Merchant code" value={s.upi_merchant_code ?? ""} onChange={(e) => setS({...s, upi_merchant_code: e.target.value})} />
+            </div>
+            <select className="h-11 w-full rounded-md border bg-background px-3" value={String(s.upi_default ?? 1)} onChange={(e) => setS({...s, upi_default: Number(e.target.value)})}>
+              <option value="1">Use Primary (HDFC) for QR</option>
+              <option value="2">Use Secondary (PhonePe) for QR</option>
+            </select>
+          </div>
           <Button onClick={save}>Save</Button>
         </Card>
         <Card className="p-5 space-y-3">
