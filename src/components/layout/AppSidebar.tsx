@@ -7,6 +7,7 @@ import {
   BookOpen,
   Layers,
   PackagePlus,
+  Wallet,
 } from "lucide-react";
 import { useAuth } from "@/lib/auth-store";
 import { Button } from "@/components/ui/button";
@@ -26,6 +27,7 @@ const items = [
   { key: "sales2",     to: "/sales2",          label: "Sales 2",    icon: Receipt },
   { key: "sales_returns",    to: "/sales-returns",    label: "Sales Returns",    icon: Undo2 },
   { key: "ledger",           to: "/ledger",           label: "Ledger",           icon: BookOpen },
+  { key: "daybook",          to: "/daybook",          label: "Day-book",         icon: Wallet },
   { key: "godowns",          to: "/godowns",          label: "Godowns",          icon: Warehouse },
   { key: "door",             to: "/door",             label: "Door",             icon: DoorOpen },
   { key: "reports",    to: "/reports",         label: "Reports",    icon: BarChart3 },
