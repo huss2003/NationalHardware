@@ -83,6 +83,7 @@ export function SaleBillForm({
   const [customerId, setCustomerId] = useState("");
   const [customerState, setCustomerState] = useState<string>("");
   const [paymentMode, setPaymentMode] = useState("cash");
+  const [isGst, setIsGst] = useState(false); // false = Estimate (non-GST), true = GST invoice
   const [discount, setDiscount] = useState(0);
   const [lines, setLines] = useState<Line[]>([]);
   const [sourceGodownId, setSourceGodownId] = useState<string>(""); // "" = shop floor
@@ -109,7 +110,7 @@ export function SaleBillForm({
   const hydrated = useRef(false);
 
   const today = new Date().toISOString().slice(0, 10);
-  const invoicePreview = `INV-${new Date().getFullYear()}-NEW`;
+  const invoicePreview = `${isGst ? "INV" : "EST"}-${new Date().getFullYear()}-NEW`;
 
   // Restore persisted state for this tab (+ pending door lines on the active tab) on mount.
   useEffect(() => {
@@ -382,7 +383,7 @@ export function SaleBillForm({
   const addPlyLine = (item: { name: string; area: number; rate: number; qty: number }) => {
     setLines((prev) => [...prev, {
       product_id: PLY_CUSTOM_PRODUCT_ID, item_instance_id: null, name: item.name,
-      qty: item.qty, rate: item.rate, gst_rate: 0, area: item.area,
+      qty: item.qty, rate: item.rate, gst_rate: 18, area: item.area,
       hsn: null, unit: "sqft", alt_unit: null, alt_conversion: null,
       is_lot: false, max_qty: undefined,
       source_godown_id: sourceGodownId || null,
@@ -393,7 +394,7 @@ export function SaleBillForm({
   const addMicaLine = (item: { name: string; amount: number; qty: number }) => {
     setLines((prev) => [...prev, {
       product_id: MICA_CUSTOM_PRODUCT_ID, item_instance_id: null, name: item.name,
-      qty: item.qty, rate: item.amount, gst_rate: 0,
+      qty: item.qty, rate: item.amount, gst_rate: 18,
       hsn: null, unit: "pcs", alt_unit: null, alt_conversion: null,
       is_lot: false, max_qty: undefined,
       source_godown_id: sourceGodownId || null,
@@ -433,8 +434,11 @@ export function SaleBillForm({
   const upd = (i: number, patch: Partial<Line>) => setLines(lines.map((l, idx) => idx === i ? { ...l, ...patch } : l));
 
   const subtotal = lines.reduce((a, l) => a + lineAmount(l), 0);
-  const tax = lines.reduce((a, l) => a + (lineAmount(l) * l.gst_rate / 100), 0);
-  const total = subtotal + tax - discount;
+  // Estimates carry no tax; GST invoices tax each line by its rate.
+  const tax = isGst ? lines.reduce((a, l) => a + (lineAmount(l) * l.gst_rate / 100), 0) : 0;
+  const rawTotal = subtotal + tax - discount;
+  const total = Math.round(rawTotal);        // nearest rupee
+  const roundOff = total - rawTotal;
 
   const finalize = async (alsoWhatsApp: boolean) => {
     if (lines.length === 0) { toast.error("Scan or add items"); return; }
@@ -446,6 +450,7 @@ export function SaleBillForm({
         customer_id: customerId || null,
         customer_state: customerState,
         payment_mode: paymentMode,
+        bill_type: isGst ? "gst" : "estimate",
         paid_amount: paymentMode === "credit" ? 0 : total,
         discount,
         // record_sale computes line_total as qty*rate; fold per-piece area in
@@ -513,7 +518,7 @@ export function SaleBillForm({
                 <ArrowLeft className="h-4 w-4" />
               </Button>
               <div className="space-y-0.5">
-                <p className="text-[10px] uppercase tracking-wider text-[#94a3b8] font-bold">Invoice No.</p>
+                <p className="text-[10px] uppercase tracking-wider text-[#94a3b8] font-bold">{isGst ? "Invoice No." : "Estimate No."}</p>
                 <h2 className="text-base md:text-lg font-bold text-slate-800 tabular-nums">{invoicePreview}</h2>
               </div>
               <div className="h-10 w-px bg-[#e8ecf1] hidden md:block" />
@@ -570,6 +575,27 @@ export function SaleBillForm({
                 </div>
               </div>
             )}
+
+            <div className="space-y-1">
+              <label className="text-[10px] uppercase tracking-wider text-[#94a3b8] font-bold">Bill type</label>
+              <div className="flex bg-[#fafbfc] p-1 border border-[#e8ecf1] rounded-lg">
+                {([["estimate", "Estimate"], ["gst", "GST"]] as const).map(([v, lbl]) => {
+                  const on = (v === "gst") === isGst;
+                  return (
+                    <button
+                      key={v}
+                      type="button"
+                      onClick={() => setIsGst(v === "gst")}
+                      className={`px-3 py-1.5 text-xs font-bold rounded transition-all min-h-[32px] ${
+                        on ? "bg-white shadow-sm text-[#3b82f6]" : "text-slate-500 hover:text-slate-700"
+                      }`}
+                    >
+                      {lbl}
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
           </div>
           <div className="mt-3 flex items-center gap-2 flex-wrap">
             <label className="text-[10px] uppercase tracking-wider text-[#94a3b8] font-bold flex items-center gap-1">
@@ -642,7 +668,7 @@ export function SaleBillForm({
                       <col style={{ width: 120 }} />
                       <col style={{ width: 110 }} />
                       <col style={{ width: 130 }} />
-                      <col style={{ width: 70 }} />
+                      {isGst && <col style={{ width: 70 }} />}
                       <col style={{ width: 130 }} />
                       <col style={{ width: 36 }} />
                     </colgroup>
@@ -653,7 +679,7 @@ export function SaleBillForm({
                         <th className="border border-slate-300 px-2 py-1.5 text-center font-semibold">Qty</th>
                         <th className="border border-slate-300 px-2 py-1.5 text-left font-semibold">Alt Unit</th>
                         <th className="border border-slate-300 px-2 py-1.5 text-right font-semibold">Rate</th>
-                        <th className="border border-slate-300 px-2 py-1.5 text-right font-semibold">GST%</th>
+                        {isGst && <th className="border border-slate-300 px-2 py-1.5 text-right font-semibold">GST%</th>}
                         <th className="border border-slate-300 px-2 py-1.5 text-right font-semibold">Amount</th>
                         <th className="border border-slate-300 px-2 py-1.5" />
                       </tr>
@@ -684,7 +710,7 @@ export function SaleBillForm({
                               aria-label={`Rate for ${l.name}`}
                             />
                           </td>
-                          <td className="border border-slate-300 px-2 py-1.5 text-right tabular-nums text-slate-500">{l.gst_rate}</td>
+                          {isGst && <td className="border border-slate-300 px-2 py-1.5 text-right tabular-nums text-slate-500">{l.gst_rate}</td>}
                           <td className="border border-slate-300 px-2 py-1.5 text-right font-bold tabular-nums text-slate-800">{inr(lineAmount(l))}</td>
                           <td className="border border-slate-300 px-1 py-1 text-center">
                             <button
@@ -1026,10 +1052,18 @@ export function SaleBillForm({
               <p className="text-[9px] uppercase font-bold text-[#94a3b8] leading-tight">Subtotal</p>
               <p className="text-sm font-bold text-slate-800 tabular-nums leading-tight">{inr(subtotal)}</p>
             </div>
-            <div className="shrink-0">
-              <p className="text-[9px] uppercase font-bold text-[#94a3b8] leading-tight">Tax (GST)</p>
-              <p className="text-sm font-bold text-slate-800 tabular-nums leading-tight">{inr(tax)}</p>
-            </div>
+            {isGst && (
+              <div className="shrink-0">
+                <p className="text-[9px] uppercase font-bold text-[#94a3b8] leading-tight">Tax (GST)</p>
+                <p className="text-sm font-bold text-slate-800 tabular-nums leading-tight">{inr(tax)}</p>
+              </div>
+            )}
+            {Math.abs(roundOff) >= 0.005 && (
+              <div className="shrink-0">
+                <p className="text-[9px] uppercase font-bold text-[#94a3b8] leading-tight">Round off</p>
+                <p className="text-sm font-bold text-slate-800 tabular-nums leading-tight">{roundOff >= 0 ? "+" : "−"}{inr(Math.abs(roundOff))}</p>
+              </div>
+            )}
             {f.discount.visible && (
               <div className="shrink-0">
                 <p className="text-[9px] uppercase font-bold text-[#94a3b8] leading-tight">Discount</p>
