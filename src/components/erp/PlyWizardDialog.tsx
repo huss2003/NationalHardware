@@ -4,10 +4,7 @@ import { Button } from "@/components/ui/button";
 import { ArrowLeft, Check } from "lucide-react";
 import { inr } from "@/lib/codes";
 import { DiscountStep, QuantityStep, type DiscountMode } from "@/components/erp/WizardSteps";
-
-const THICKNESS = ["18 mm", "12 mm", "9 mm", "8 mm", "6 mm", "25 mm Board"] as const;
-const BRANDS = ["Applewood Ultra", "Applewood Premium", "Velocity", "Primo Wud"] as const;
-const SIZES = ["8*4", "7*4", "7*3", "6*4", "6*3", "8*3"] as const;
+import { useRootNodeId, useChildren } from "@/lib/inventoryNodes";
 
 // "8*4" -> 32 (sq ft). Falls back to 0 on anything unexpected.
 export function sizeArea(size: string): number {
@@ -40,15 +37,24 @@ export function PlyWizardDialog({
 }) {
   const [step, setStep] = useState(0);
   const [thickness, setThickness] = useState("");
+  const [thicknessId, setThicknessId] = useState<string | null>(null);
   const [brand, setBrand] = useState("");
+  const [brandId, setBrandId] = useState<string | null>(null);
   const [size, setSize] = useState("");
   const [rate, setRate] = useState("");
   const [qty, setQty] = useState("1");
   const [discMode, setDiscMode] = useState<DiscountMode>("pct");
   const [disc, setDisc] = useState("");
 
+  // Live tree from Inventory 2: PLY root -> thickness -> brand -> size.
+  const { data: plyRoot } = useRootNodeId("PLY");
+  const { data: thicknesses = [] } = useChildren(plyRoot);
+  const { data: brands = [] } = useChildren(thicknessId);
+  const { data: sizes = [] } = useChildren(brandId);
+
   const reset = () => {
-    setStep(0); setThickness(""); setBrand(""); setSize(""); setRate(""); setQty("1"); setDiscMode("pct"); setDisc("");
+    setStep(0); setThickness(""); setThicknessId(null); setBrand(""); setBrandId(null);
+    setSize(""); setRate(""); setQty("1"); setDiscMode("pct"); setDisc("");
   };
   const close = () => { onOpenChange(false); reset(); };
 
@@ -130,9 +136,12 @@ export function PlyWizardDialog({
         <div className="flex-1 overflow-y-auto bg-[#faf7f3] px-5 py-5">
           {step === 0 && (
             <div className="grid grid-cols-2 gap-3">
-              {THICKNESS.map((t) => (
-                <button key={t} type="button" className={tileClass} onClick={() => { setThickness(t); setStep(1); }}>
-                  {t}
+              {thicknesses.length === 0 && (
+                <p className="col-span-2 py-6 text-center text-sm text-slate-400">No thicknesses yet — add them in Inventory 2 → PLY.</p>
+              )}
+              {thicknesses.map((t) => (
+                <button key={t.id} type="button" className={tileClass} onClick={() => { setThickness(t.name); setThicknessId(t.id); setStep(1); }}>
+                  {t.name}
                 </button>
               ))}
             </div>
@@ -140,11 +149,14 @@ export function PlyWizardDialog({
 
           {step === 1 && (
             <div className="grid grid-cols-2 gap-3">
-              {BRANDS.map((b) => (
+              {brands.length === 0 && (
+                <p className="col-span-2 py-6 text-center text-sm text-slate-400">No brands under {thickness} — add them in Inventory 2.</p>
+              )}
+              {brands.map(({ id, name: b }) => (
                 <button
-                  key={b}
+                  key={id}
                   type="button"
-                  onClick={() => { setBrand(b); setStep(2); }}
+                  onClick={() => { setBrand(b); setBrandId(id); setStep(2); }}
                   className="group flex flex-col gap-2.5 rounded-2xl border border-slate-200 bg-white p-2.5 text-left shadow-sm transition-all active:scale-[0.97] hover:border-[color:var(--accent)]"
                 >
                   <img
@@ -162,8 +174,11 @@ export function PlyWizardDialog({
 
           {step === 2 && (
             <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
-              {SIZES.map((s) => (
-                <button key={s} type="button" className={tileClass} onClick={() => { setSize(s); setStep(3); }}>
+              {sizes.length === 0 && (
+                <p className="col-span-2 sm:col-span-3 py-6 text-center text-sm text-slate-400">No sizes under {brand} — add them in Inventory 2.</p>
+              )}
+              {sizes.map(({ id, name: s }) => (
+                <button key={id} type="button" className={tileClass} onClick={() => { setSize(s); setStep(3); }}>
                   <span className="flex flex-col items-center leading-tight">
                     {s}
                     <span className="mt-0.5 text-[11px] font-medium text-slate-400">{sizeArea(s)} sq ft</span>

@@ -4,8 +4,7 @@ import { Button } from "@/components/ui/button";
 import { ArrowLeft, Check } from "lucide-react";
 import { inr } from "@/lib/codes";
 import { DiscountStep, QuantityStep, type DiscountMode } from "@/components/erp/WizardSteps";
-
-const CATEGORIES = ["National old", "National Digital", "National Premium", "Lami Décor"] as const;
+import { useRootNodeId, useChildren } from "@/lib/inventoryNodes";
 
 type Added = { name: string; amount: number; qty: number };
 
@@ -31,6 +30,8 @@ export function MicaWizardDialog({
   const [step, setStep] = useState(0);
   const [category, setCategory] = useState("");
   const [micaNo, setMicaNo] = useState("");
+  const { data: micaRoot } = useRootNodeId("MICA");
+  const { data: categories = [] } = useChildren(micaRoot);
   const [amount, setAmount] = useState("");
   const [qty, setQty] = useState("1");
   const [discMode, setDiscMode] = useState<DiscountMode>("pct");
@@ -107,7 +108,10 @@ export function MicaWizardDialog({
         <div className="flex-1 overflow-y-auto bg-[#f5faf9] px-5 py-5">
           {step === 0 && (
             <div className="grid grid-cols-2 gap-3">
-              {CATEGORIES.map((c) => (
+              {categories.length === 0 && (
+                <p className="col-span-2 py-6 text-center text-sm text-slate-400">No categories yet — add them in Inventory 2 → MICA.</p>
+              )}
+              {categories.map(({ name: c }) => (
                 <button
                   key={c}
                   type="button"
