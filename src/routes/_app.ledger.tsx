@@ -209,23 +209,25 @@ function LedgerPage() {
         }
       }
 
-      // 2) Live in-app activity is appended only to FY26-27, after the imported sheet's
-      //    coverage window (so nothing inside the sheet's window is double-counted).
+      // 2) Live in-app activity is appended only to FY26-27. When an imported sheet
+      //    exists for this party we start after its coverage window (avoid double-count);
+      //    when it does NOT (no import loaded), show all live activity from the start.
+      const liveFrom = ((led as LedgerRow[] | null)?.length ?? 0) > 0 ? LIVE_CUTOFF : "2000-01-01";
       let liveSeq = 1_000_000;
       if (fy === "2627" && kind === "customer") {
         const [s, r, sr] = await Promise.all([
           supabase.from("sales")
             .select("id, invoice_no, invoice_date, grand_total, paid_amount, notes")
             .eq("customer_id", p.id).is("deleted_at", null)
-            .gte("invoice_date", LIVE_CUTOFF).order("invoice_date", { ascending: true }),
+            .gte("invoice_date", liveFrom).order("invoice_date", { ascending: true }),
           supabase.from("receipts")
             .select("id, receipt_no, amount, mode, created_at, notes")
             .eq("customer_id", p.id)
-            .gte("created_at", LIVE_CUTOFF).order("created_at", { ascending: true }),
+            .gte("created_at", liveFrom).order("created_at", { ascending: true }),
           supabase.from("sales_returns")
             .select("id, return_no, return_date, grand_total, reason, refund_amount, refund_mode")
             .eq("customer_id", p.id).is("deleted_at", null)
-            .gte("return_date", LIVE_CUTOFF).order("return_date", { ascending: true }),
+            .gte("return_date", liveFrom).order("return_date", { ascending: true }),
         ]);
         for (const x of s.data ?? []) {
           list.push({
@@ -264,15 +266,15 @@ function LedgerPage() {
           supabase.from("purchases")
             .select("id, bill_no, bill_date, grand_total")
             .eq("supplier_id", p.id).is("deleted_at", null)
-            .gte("bill_date", LIVE_CUTOFF).order("bill_date", { ascending: true }),
+            .gte("bill_date", liveFrom).order("bill_date", { ascending: true }),
           supabase.from("purchase_returns")
             .select("id, return_no, return_date, grand_total, reason")
             .eq("supplier_id", p.id).is("deleted_at", null)
-            .gte("return_date", LIVE_CUTOFF).order("return_date", { ascending: true }),
+            .gte("return_date", liveFrom).order("return_date", { ascending: true }),
           supabase.from("supplier_payments")
             .select("id, payment_no, payment_date, amount, mode, notes")
             .eq("supplier_id", p.id)
-            .gte("payment_date", LIVE_CUTOFF).order("payment_date", { ascending: true }),
+            .gte("payment_date", liveFrom).order("payment_date", { ascending: true }),
         ]);
         // Supplier (creditor) convention: purchase increases what we owe (credit), payment reduces it (debit)
         for (const x of pu.data ?? []) {
