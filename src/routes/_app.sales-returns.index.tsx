@@ -180,6 +180,7 @@ function NewSalesReturnDialog({
   const [savedAndPendingClose, setSavedAndPendingClose] = useState(false);
   const [reason, setReason] = useState("");
   const [refundMode, setRefundMode] = useState("cash");
+  const [returnQty, setReturnQty] = useState<Record<string, number>>({});
   const [scanError, setScanError] = useState<{ kind: ScanWarningKind; msg: string; code?: string } | null>(null);
   const [busy, setBusy] = useState(false);
 
@@ -199,16 +200,26 @@ function NewSalesReturnDialog({
   }, []);
 
   useEffect(() => {
-    setSelected(new Set()); setScanError(null);
+    setSelected(new Set()); setScanError(null); setReturnQty({});
     if (!saleId) { setSaleLines([]); return; }
     (async () => {
       const { data } = await supabase
         .from("sales_items")
-        .select("id, item_instance_id, product_id, qty, rate, gst_rate, products(name), item_instances(status)")
+        .select("id, item_instance_id, product_id, qty, rate, gst_rate, products(name), item_instances(status, is_lot)")
         .eq("sale_id", saleId);
       setSaleLines(data ?? []);
     })();
   }, [saleId]);
+
+  // Return qty per line (defaults to the full sold qty). Only lot and
+  // no-sticker (tile) lines with qty > 1 can be partially returned.
+  const rowKeyOf = (l: any) => (l.item_instance_id ?? `line:${l.id}`) as string;
+  const maxQtyOf = (l: any) => Math.max(1, Number(l.qty ?? 1));
+  const qtyFor = (l: any) => Math.min(returnQty[rowKeyOf(l)] ?? maxQtyOf(l), maxQtyOf(l));
+  const setQtyFor = (l: any, v: number) => {
+    const max = maxQtyOf(l);
+    setReturnQty((prev) => ({ ...prev, [rowKeyOf(l)]: Math.min(Math.max(1, Math.floor(v) || 1), max) }));
+  };
 
   const selectedSale = sales.find((s) => s.id === saleId);
 
@@ -245,8 +256,9 @@ function NewSalesReturnDialog({
       product_name: l.products?.name ?? "Item",
       rate: Number(l.rate ?? 0),
       gst_rate: Number(l.gst_rate ?? 0),
-      qty: Number(l.qty ?? 1),
-    })), [saleLines, selected]);
+      qty: qtyFor(l),
+      is_lot: !!l.item_instances?.is_lot,
+    })), [saleLines, selected, returnQty]);
 
   const subtotal = cart.reduce((s, c) => s + c.rate * c.qty, 0);
   const tax = cart.reduce((s, c) => s + (c.rate * c.qty * c.gst_rate) / 100, 0);
@@ -337,8 +349,17 @@ function NewSalesReturnDialog({
     // Update inventory & write history
     for (const c of cart) {
       if (!c.item_instance_id) continue;
-      const update: any = { status: "returned" };
+      const update: any = {};
       if (godownId) update.godown_id = godownId;
+      if (c.is_lot) {
+        // Lot: add the returned qty back to on-hand (supports partial returns).
+        const { data: ii } = await supabase.from("item_instances").select("qty_on_hand").eq("id", c.item_instance_id).single();
+        update.qty_on_hand = Number(ii?.qty_on_hand ?? 0) + c.qty;
+        update.status = "available";
+      } else {
+        // Individual unit: one sticker = one unit, mark it returned.
+        update.status = "returned";
+      }
       await supabase.from("item_instances").update(update).eq("id", c.item_instance_id);
       await supabase.from("item_history").insert({
         item_id: c.item_instance_id,
@@ -453,6 +474,9 @@ function NewSalesReturnDialog({
               }}
               onReprint={reprintOne}
               reprintBusy={reprintBusy}
+              qtyFor={qtyFor}
+              maxQtyOf={maxQtyOf}
+              onQty={setQtyFor}
             />
             <div className="flex flex-wrap items-center gap-2 pt-1">
               <ScanInput onScan={onScan} placeholder="Optional: scan to toggle an item" invalid={!!scanError} />
@@ -518,6 +542,7 @@ function NewSalesReturnDialog({
 
 function InvoiceItemsPicker({
   lines, selected, onToggle, allEligibleSelected, onToggleAll, onReprint, reprintBusy,
+  qtyFor, maxQtyOf, onQty,
 }: {
   lines: any[];
   selected: Set<string>;
@@ -526,6 +551,9 @@ function InvoiceItemsPicker({
   onToggleAll: () => void;
   onReprint: (id: string) => void;
   reprintBusy: string | null;
+  qtyFor: (l: any) => number;
+  maxQtyOf: (l: any) => number;
+  onQty: (l: any, v: number) => void;
 }) {
   if (lines.length === 0) {
     return (
@@ -545,6 +573,7 @@ function InvoiceItemsPicker({
             <TableHead className="text-[11px] uppercase tracking-wider">Item ID</TableHead>
             <TableHead className="text-[11px] uppercase tracking-wider">Product</TableHead>
             <TableHead className="text-[11px] uppercase tracking-wider">Status</TableHead>
+            <TableHead className="text-[11px] uppercase tracking-wider text-center">Return Qty</TableHead>
             <TableHead className="text-[11px] uppercase tracking-wider text-right">Rate</TableHead>
             <TableHead className="text-[11px] uppercase tracking-wider text-right pr-3">Reprint</TableHead>
           </TableRow>
@@ -568,6 +597,23 @@ function InvoiceItemsPicker({
                 <TableCell className="font-mono text-xs">{instId ?? <span className="text-muted-foreground italic">no sticker</span>}</TableCell>
                 <TableCell>{l.products?.name ?? "Item"}</TableCell>
                 <TableCell><span className="text-[11px] uppercase tracking-wider text-muted-foreground">{status}</span></TableCell>
+                <TableCell className="text-center tabular-nums">
+                  {maxQtyOf(l) > 1 ? (
+                    <input
+                      type="number"
+                      min={1}
+                      max={maxQtyOf(l)}
+                      value={qtyFor(l)}
+                      disabled={!isChecked}
+                      onChange={(e) => onQty(l, Number(e.target.value))}
+                      className="w-16 rounded border border-input bg-background px-2 py-1 text-center text-sm disabled:opacity-40"
+                      aria-label="Return quantity"
+                    />
+                  ) : (
+                    <span className="text-muted-foreground">{maxQtyOf(l)}</span>
+                  )}
+                  {maxQtyOf(l) > 1 && <span className="ml-1 text-[10px] text-muted-foreground">/ {maxQtyOf(l)}</span>}
+                </TableCell>
                 <TableCell className="text-right tabular-nums">{inr(l.rate)}</TableCell>
                 <TableCell className="text-right pr-3">
                   {instId ? (
