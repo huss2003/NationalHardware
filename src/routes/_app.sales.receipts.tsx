@@ -15,7 +15,7 @@ import { toast } from "sonner";
 import { ArrowLeft, Receipt as ReceiptIcon, Wallet, FileText, Check, MessageCircle, Printer as ThermalIcon } from "lucide-react";
 import { TableSkeleton } from "@/components/erp/Skeletons";
 // jspdf + jspdf-autotable (~250KB) loaded only when the user prints/downloads a receipt.
-import { Printer, Download } from "lucide-react";
+import { Printer, Download, Trash2 } from "lucide-react";
 
 export const Route = createFileRoute("/_app/sales/receipts")({ component: ReceiptsPage });
 
@@ -78,6 +78,16 @@ function ReceiptsPage() {
   const receipts = data?.receipts ?? [];
   const shop = data?.shop ?? null;
   const load = () => queryClient.invalidateQueries({ queryKey: ["receipts-page"] });
+
+  const deleteReceipt = async (r: Receipt) => {
+    if (!window.confirm(`Delete receipt ${r.receipt_no} (${inr(Number(r.amount))})? This also reverses its cash-book entry and the customer's payment.`)) return;
+    // Remove the cash-book entry the receipt posted, then the receipt itself.
+    await supabase.from("cash_transactions").delete().eq("source", "app_receipt").eq("vch_no", r.receipt_no);
+    const { error } = await supabase.from("receipts").delete().eq("id", r.id);
+    if (error) { toast.error(error.message); return; }
+    toast.success("Receipt deleted");
+    load();
+  };
 
   const buildPdfFor = async (r: Receipt) => {
     const { buildReceiptPdf } = await import("@/lib/invoice-pdf");
@@ -254,6 +264,9 @@ function ReceiptsPage() {
                       </Button>
                       <Button size="sm" variant="outline" className="gap-1 h-8" onClick={() => whatsappReceipt(r)}>
                         <MessageCircle className="h-3.5 w-3.5" /> WhatsApp
+                      </Button>
+                      <Button size="sm" variant="outline" className="gap-1 h-8 text-red-600 hover:bg-red-50" onClick={() => deleteReceipt(r)} title="Delete receipt">
+                        <Trash2 className="h-3.5 w-3.5" />
                       </Button>
                     </div>
                   </td>

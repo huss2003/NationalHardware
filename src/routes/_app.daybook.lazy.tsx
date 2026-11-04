@@ -7,13 +7,13 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Dialog, DialogContent, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { inr } from "@/lib/codes";
-import { Plus, Wallet, Landmark, ArrowDownLeft, ArrowUpRight } from "lucide-react";
+import { Plus, Wallet, Landmark, ArrowDownLeft, ArrowUpRight, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 
 export const Route = createLazyFileRoute("/_app/daybook")({ component: DayBook });
 
 type Account = "cash" | "bank";
-type Txn = { id: string; txn_type: string; vch_no: string | null; account_name: string; narration: string | null; debit: number; credit: number };
+type Txn = { id: string; txn_type: string; vch_no: string | null; account_name: string; narration: string | null; debit: number; credit: number; source: string | null };
 
 const todayLocal = () => {
   const d = new Date();
@@ -44,7 +44,7 @@ function DayBook() {
     queryFn: async () => {
       const { data, error } = await supabase
         .from("cash_transactions")
-        .select("id, txn_type, vch_no, account_name, narration, debit, credit")
+        .select("id, txn_type, vch_no, account_name, narration, debit, credit, source")
         .eq("ledger_account", account).eq("txn_date", date)
         .order("created_at", { ascending: true });
       if (error) throw error;
@@ -60,6 +60,14 @@ function DayBook() {
   const refresh = () => {
     qc.invalidateQueries({ queryKey: ["daybook", "summary", account, date] });
     qc.invalidateQueries({ queryKey: ["daybook", "txns", account, date] });
+  };
+
+  const deleteExpense = async (t: Txn) => {
+    if (!window.confirm(`Delete expense ${t.account_name} (${inr(Number(t.credit))})?`)) return;
+    const { error } = await supabase.from("cash_transactions").delete().eq("id", t.id);
+    if (error) { toast.error(error.message); return; }
+    toast.success("Expense deleted");
+    refresh();
   };
 
   const addExpense = async () => {
@@ -117,13 +125,13 @@ function DayBook() {
 
         {/* Transactions */}
         <div className="overflow-hidden rounded-2xl border border-[#e8ecf1] bg-white shadow-sm">
-          <div className="grid grid-cols-[1fr_auto_auto] gap-2 border-b border-slate-100 bg-slate-50 px-4 py-2 text-[11px] font-bold uppercase tracking-wide text-slate-500">
-            <span>Particulars</span><span className="text-right">In</span><span className="text-right">Out</span>
+          <div className="grid grid-cols-[1fr_auto_auto_auto] gap-2 border-b border-slate-100 bg-slate-50 px-4 py-2 text-[11px] font-bold uppercase tracking-wide text-slate-500">
+            <span>Particulars</span><span className="text-right">In</span><span className="text-right">Out</span><span className="w-7" />
           </div>
           {txns.length === 0 ? (
             <div className="px-4 py-8 text-center text-sm text-slate-400">No {account} transactions on this day.</div>
           ) : txns.map((t) => (
-            <div key={t.id} className="grid grid-cols-[1fr_auto_auto] items-center gap-2 border-b border-slate-50 px-4 py-2.5 text-sm">
+            <div key={t.id} className="grid grid-cols-[1fr_auto_auto_auto] items-center gap-2 border-b border-slate-50 px-4 py-2.5 text-sm">
               <div className="min-w-0">
                 <p className="truncate font-semibold text-slate-700">{t.account_name || t.txn_type}</p>
                 <p className="truncate text-xs text-slate-400">
@@ -132,6 +140,13 @@ function DayBook() {
               </div>
               <span className="w-20 text-right font-bold tabular-nums text-emerald-600">{Number(t.debit) ? inr(Number(t.debit)) : "—"}</span>
               <span className="w-20 text-right font-bold tabular-nums text-amber-600">{Number(t.credit) ? inr(Number(t.credit)) : "—"}</span>
+              <span className="w-7 text-right">
+                {t.source === "app_expense" && (
+                  <button type="button" aria-label="Delete expense" onClick={() => deleteExpense(t)} className="rounded p-1 text-slate-400 hover:bg-red-50 hover:text-red-500">
+                    <Trash2 className="h-3.5 w-3.5" />
+                  </button>
+                )}
+              </span>
             </div>
           ))}
         </div>
