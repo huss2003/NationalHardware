@@ -1,12 +1,15 @@
-import { createLazyFileRoute, getRouteApi } from "@tanstack/react-router";
+import { createLazyFileRoute, getRouteApi, useNavigate } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Dialog, DialogContent, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { PageHeader } from "@/components/erp/PageHeader";
 import { DetailSkeleton, TableSkeleton } from "@/components/erp/Skeletons";
 import { inr, fmtDate, fmtDateTime } from "@/lib/codes";
-import { Printer, MessageCircle, ReceiptText } from "lucide-react";
+import { useAuth } from "@/lib/auth-store";
+import { Printer, MessageCircle, ReceiptText, Ban } from "lucide-react";
 import { printThermalReceipt } from "@/lib/receiptHtml";
 // jspdf + jspdf-autotable (~250KB) loaded only when the user clicks Send.
 import { toast } from "sonner";
@@ -21,6 +24,26 @@ function SaleDetail() {
   const [items, setItems] = useState<any[]>([]);
   const [shop, setShop] = useState<any>(null);
   const [sending, setSending] = useState(false);
+  const nav = useNavigate();
+  const user = useAuth((s) => s.user);
+  const isAdmin = user?.role === "admin";
+  const [voidOpen, setVoidOpen] = useState(false);
+  const [voidReason, setVoidReason] = useState("");
+  const [voiding, setVoiding] = useState(false);
+
+  const voidSale = async () => {
+    setVoiding(true);
+    // Admin-only is enforced in the UI (Void button hidden for employees); the
+    // shared-account DB can't verify role, so the RPC just does the reversal.
+    const { error } = await supabase.rpc("soft_delete_invoice", {
+      _sale_id: id, _reason: voidReason.trim() || "Voided", _actor_user_id: user?.id ?? "",
+    });
+    setVoiding(false);
+    if (error) { toast.error(error.message); return; }
+    toast.success("Bill voided — stock and cash reversed");
+    setVoidOpen(false);
+    nav({ to: "/sales" });
+  };
   useEffect(() => {
     (async () => {
       const [a, b, c] = await Promise.all([
@@ -73,6 +96,11 @@ function SaleDetail() {
             items: items.map((it) => ({ name: it.products?.name ?? "Item", qty: it.qty, rate: it.rate, line_total: it.line_total })),
           })}><ReceiptText className="h-4 w-4" />Thermal</Button>
           <Button className="h-11 gap-2" onClick={() => window.print()}><Printer className="h-4 w-4" />Print</Button>
+          {isAdmin && !s?.deleted_at && (
+            <Button variant="outline" className="h-11 gap-2 border-red-200 text-red-600 hover:bg-red-50" onClick={() => setVoidOpen(true)}>
+              <Ban className="h-4 w-4" /> Void
+            </Button>
+          )}
         </div>
       } />
       <div className="px-4 sm:px-6 lg:px-8 pb-8">
@@ -160,6 +188,20 @@ function SaleDetail() {
           </div>
         </Card>
       </div>
+
+      <Dialog open={voidOpen} onOpenChange={(v) => !v && setVoidOpen(false)}>
+        <DialogContent className="w-[calc(100vw-1.5rem)] max-w-sm rounded-2xl">
+          <DialogTitle>Void bill {s?.invoice_no}?</DialogTitle>
+          <p className="text-sm text-slate-500">
+            This cancels the bill and reverses its stock and cash entry. The record is kept for audit. This can’t be undone.
+          </p>
+          <Input value={voidReason} onChange={(e) => setVoidReason(e.target.value)} placeholder="Reason (optional)" />
+          <DialogFooter className="gap-2 sm:gap-2">
+            <Button variant="outline" onClick={() => setVoidOpen(false)} disabled={voiding}>Cancel</Button>
+            <Button className="bg-red-500 hover:bg-red-600" onClick={voidSale} disabled={voiding}>{voiding ? "Voiding…" : "Void bill"}</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </>
   );
 }
