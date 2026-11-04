@@ -544,7 +544,7 @@ export function SaleBillForm({
 
         {/* Top Header */}
         <header className="bg-white border border-[#e8ecf1] rounded-xl p-4 md:p-5 shadow-sm">
-          <div className="flex flex-wrap items-end justify-between gap-4">
+          <div className="flex flex-col gap-4 lg:flex-row lg:flex-wrap lg:items-end lg:justify-between">
             <div className="flex items-center gap-3 md:gap-4">
               <Button variant="ghost" size="icon" aria-label="Back to sales" className="h-9 w-9 -ml-1" onClick={() => nav({ to: "/sales" })}>
                 <ArrowLeft className="h-4 w-4" />
@@ -564,13 +564,13 @@ export function SaleBillForm({
             </div>
 
             {f.customer.visible && (
-              <div className="w-full sm:flex-1 sm:w-auto min-w-0 sm:min-w-[220px] space-y-1">
+              <div className="w-full lg:flex-1 lg:w-auto min-w-0 lg:min-w-[240px] space-y-1">
                 <label className="text-[10px] uppercase tracking-wider text-[#94a3b8] font-bold">
                   Customer {f.customer.required && <span className="text-red-500">*</span>}
                 </label>
                 <div className="flex gap-2">
                   <select
-                    className="flex-1 h-10 px-3 bg-[#fafbfc] border border-[#e8ecf1] rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[#3b82f6]/20 focus:border-[#3b82f6]"
+                    className="flex-1 min-w-0 h-10 px-3 bg-[#fafbfc] border border-[#e8ecf1] rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[#3b82f6]/20 focus:border-[#3b82f6]"
                     value={customerId}
                     onChange={(e) => setCustomerId(e.target.value)}
                   >
@@ -579,53 +579,56 @@ export function SaleBillForm({
                       <option key={c.id} value={c.id}>{c.name}{c.state ? ` — ${c.state}` : ""}</option>
                     ))}
                   </select>
-                  <Button type="button" variant="outline" size="sm" className="h-10 gap-1" onClick={() => setCreateCustomerOpen(true)}>
+                  <Button type="button" variant="outline" size="sm" className="h-10 gap-1 shrink-0 whitespace-nowrap" onClick={() => setCreateCustomerOpen(true)}>
                     <Plus className="h-4 w-4" /> <span>New</span>
                   </Button>
                 </div>
               </div>
             )}
 
-            {f.payment_mode.visible && (
-              <div className="space-y-1">
-                <label className="text-[10px] uppercase tracking-wider text-[#94a3b8] font-bold">Payment</label>
-                <div className="flex bg-[#fafbfc] p-1 border border-[#e8ecf1] rounded-lg">
-                  {["cash", "upi", "card", "credit"].map((m) => (
-                    <button
-                      key={m}
-                      type="button"
-                      onClick={() => setPaymentMode(m)}
-                      className={`px-3 py-1.5 text-xs font-bold rounded transition-all capitalize min-h-[32px] ${
-                        paymentMode === m
-                          ? "bg-white shadow-sm text-[#3b82f6]"
-                          : "text-slate-500 hover:text-slate-700"
-                      }`}
-                    >
-                      {m}
-                    </button>
-                  ))}
+            {/* Payment + Bill type: full-width stacked on mobile, inline on desktop */}
+            <div className="flex flex-col sm:flex-row flex-wrap items-stretch sm:items-end gap-4 w-full lg:w-auto">
+              {f.payment_mode.visible && (
+                <div className="space-y-1 w-full sm:w-auto">
+                  <label className="text-[10px] uppercase tracking-wider text-[#94a3b8] font-bold">Payment</label>
+                  <div className="flex bg-[#fafbfc] p-1 border border-[#e8ecf1] rounded-lg">
+                    {["cash", "upi", "card", "credit"].map((m) => (
+                      <button
+                        key={m}
+                        type="button"
+                        onClick={() => setPaymentMode(m)}
+                        className={`flex-1 sm:flex-none px-3 py-1.5 text-xs font-bold rounded transition-all capitalize min-h-[32px] ${
+                          paymentMode === m
+                            ? "bg-white shadow-sm text-[#3b82f6]"
+                            : "text-slate-500 hover:text-slate-700"
+                        }`}
+                      >
+                        {m}
+                      </button>
+                    ))}
+                  </div>
                 </div>
-              </div>
-            )}
+              )}
 
-            <div className="space-y-1">
-              <label className="text-[10px] uppercase tracking-wider text-[#94a3b8] font-bold">Bill type</label>
-              <div className="flex bg-[#fafbfc] p-1 border border-[#e8ecf1] rounded-lg">
-                {([["estimate", "Estimate"], ["gst", "GST"]] as const).map(([v, lbl]) => {
-                  const on = (v === "gst") === isGst;
-                  return (
-                    <button
-                      key={v}
-                      type="button"
-                      onClick={() => setIsGst(v === "gst")}
-                      className={`px-3 py-1.5 text-xs font-bold rounded transition-all min-h-[32px] ${
-                        on ? "bg-white shadow-sm text-[#3b82f6]" : "text-slate-500 hover:text-slate-700"
-                      }`}
-                    >
-                      {lbl}
-                    </button>
-                  );
-                })}
+              <div className="space-y-1 w-full sm:w-auto">
+                <label className="text-[10px] uppercase tracking-wider text-[#94a3b8] font-bold">Bill type</label>
+                <div className="flex bg-[#fafbfc] p-1 border border-[#e8ecf1] rounded-lg">
+                  {([["estimate", "Estimate"], ["gst", "GST"]] as const).map(([v, lbl]) => {
+                    const on = (v === "gst") === isGst;
+                    return (
+                      <button
+                        key={v}
+                        type="button"
+                        onClick={() => setIsGst(v === "gst")}
+                        className={`flex-1 sm:flex-none px-3 py-1.5 text-xs font-bold rounded transition-all min-h-[32px] ${
+                          on ? "bg-white shadow-sm text-[#3b82f6]" : "text-slate-500 hover:text-slate-700"
+                        }`}
+                      >
+                        {lbl}
+                      </button>
+                    );
+                  })}
+                </div>
               </div>
             </div>
           </div>
