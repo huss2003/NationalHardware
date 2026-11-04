@@ -8,7 +8,7 @@ import { Input } from "@/components/ui/input";
 import { Switch } from "@/components/ui/switch";
 import { Card } from "@/components/ui/card";
 import { inr } from "@/lib/codes";
-import { aggregateHsn, aggregateRate, splitB2bB2c, buildGstr1Json, toCsv, type ItemRec, type SaleRec } from "@/lib/gst-reports";
+import { aggregateHsn, buildGstr1Json, toCsv, b2bInvoices, b2cRows, type ItemRec, type SaleRec } from "@/lib/gst-reports";
 import { FileJson, FileSpreadsheet } from "lucide-react";
 import { toast } from "sonner";
 
@@ -32,6 +32,7 @@ function download(name: string, content: string, type: string) {
 function TaxReports() {
   const [month, setMonth] = useState(thisMonth());
   const [gstOnly, setGstOnly] = useState(true);
+  const [tab, setTab] = useState<"r1" | "3b">("r1");
 
   const { data, isFetching } = useQuery({
     queryKey: ["tax-reports", month, gstOnly],
@@ -98,8 +99,8 @@ function TaxReports() {
     return s;
   }, [saleRecs]);
   const hsn = useMemo(() => aggregateHsn(items), [items]);
-  const rate = useMemo(() => aggregateRate(items), [items]);
-  const bx = useMemo(() => splitB2bB2c(saleRecs), [saleRecs]);
+  const b2b = useMemo(() => b2bInvoices(saleRecs, items), [saleRecs, items]);
+  const b2c = useMemo(() => b2cRows(saleRecs, items), [saleRecs, items]);
 
   // GSTR-3B: output tax (from sales) minus ITC (from purchases) = net payable.
   // Purchases store only a tax_total, so ITC is split as intra-state (half CGST / half SGST).
@@ -118,6 +119,25 @@ function TaxReports() {
       },
     };
   }, [summary, itc]);
+
+  // Flatten B2B invoices into filing rows (invoice value shown once per invoice).
+  const b2bView = useMemo(() => {
+    const rows: (string | number)[][] = [];
+    let t = { taxable: 0, igst: 0, cgst: 0, sgst: 0, val: 0 };
+    for (const inv of b2b) {
+      inv.lines.forEach((ln, i) => {
+        rows.push([
+          i === 0 ? inv.gstin : "", i === 0 ? inv.inum : "", i === 0 ? inv.idt : "",
+          inv.pos, `${ln.rate}%`, inr(ln.taxable), inr(ln.iamt), inr(ln.camt), inr(ln.samt),
+          i === 0 ? inr(inv.val) : "",
+        ]);
+        t.taxable += ln.taxable; t.igst += ln.iamt; t.cgst += ln.camt; t.sgst += ln.samt;
+      });
+      t.val += inv.val;
+    }
+    const totals = ["Total", "", "", "", "", inr(t.taxable), inr(t.igst), inr(t.cgst), inr(t.sgst), inr(t.val)];
+    return { rows, totals };
+  }, [b2b]);
 
   const fp = month.split("-").reverse().join(""); // yyyy-mm -> mmyyyy
 
@@ -151,30 +171,79 @@ function TaxReports() {
           </div>
         </div>
 
-        {isFetching ? <div className="py-16 text-center text-muted-foreground">Loading…</div> : (
+        {/* Return filing tabs */}
+        <div className="flex rounded-lg border border-input bg-card p-1 w-fit">
+          {([["r1", "GSTR-1 (Outward)"], ["3b", "GSTR-3B"]] as const).map(([v, lbl]) => (
+            <button key={v} onClick={() => setTab(v)}
+              className={`h-9 px-4 rounded-md text-sm font-semibold transition-colors ${tab === v ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:text-foreground"}`}>
+              {lbl}
+            </button>
+          ))}
+        </div>
+
+        {isFetching ? <div className="py-16 text-center text-muted-foreground">Loading…</div> : tab === "r1" ? (
           <>
-            <div className="grid grid-cols-2 gap-3 sm:grid-cols-5">
-              <Stat label="Taxable" value={summary.taxable} />
-              <Stat label="CGST" value={summary.cgst} />
-              <Stat label="SGST" value={summary.sgst} />
-              <Stat label="IGST" value={summary.igst} />
-              <Stat label="Grand" value={summary.grand} accent />
-            </div>
-            <p className="text-xs text-muted-foreground">{summary.count} bill(s) in {month}. GSTR-1 JSON is best-effort — verify once on the GST portal before filing.</p>
+            <p className="text-xs text-muted-foreground">
+              Return period {fp} · {summary.count} invoice(s). Amounts in ₹. GSTR-1 JSON is best-effort — verify on the GST portal before filing.
+            </p>
 
-            <Section title="GSTR-3B — Summary (output tax − ITC = net payable)" cols={["", "Taxable", "CGST", "SGST", "IGST", "Tax"]}
+            <TTable
+              title="4A, 4B, 4C, 6B, 6C — B2B Invoices"
+              cols={[L("GSTIN/UIN of Recipient"), L("Invoice No."), L("Date"), R("POS"), R("Rate"), R("Taxable"), R("IGST"), R("CGST"), R("SGST"), R("Invoice Value")]}
+              rows={b2bView.rows}
+              totals={b2bView.totals}
+            />
+
+            <TTable
+              title="7 — B2C (Others)"
+              cols={[L("Place of Supply"), R("Rate"), R("Taxable"), R("IGST"), R("CGST"), R("SGST")]}
+              rows={b2c.map((r) => [r.pos, `${r.rate}%`, inr(r.taxable), inr(r.iamt), inr(r.camt), inr(r.samt)])}
+              totals={["Total", "", inr(sum(b2c, "taxable")), inr(sum(b2c, "iamt")), inr(sum(b2c, "camt")), inr(sum(b2c, "samt"))]}
+            />
+
+            <TTable
+              title="12 — HSN Summary of Outward Supplies"
+              cols={[L("HSN"), R("Rate"), R("UQC"), R("Qty"), R("Taxable"), R("IGST"), R("CGST"), R("SGST"), R("Total")]}
+              rows={hsn.map((h) => [h.hsn, `${h.rate}%`, "NOS", 0, inr(h.taxable), inr(h.igst), inr(h.cgst), inr(h.sgst), inr(h.total)])}
+              totals={["Total", "", "", "", inr(summary.taxable), inr(summary.igst), inr(summary.cgst), inr(summary.sgst), inr(summary.grand)]}
+            />
+          </>
+        ) : (
+          <>
+            <p className="text-xs text-muted-foreground">Return period {fp}. Amounts in ₹. ITC is taken from purchase bills in the month.</p>
+
+            <TTable
+              title="3.1 — Details of Outward Supplies"
+              cols={[L("Nature of Supply"), R("Taxable"), R("IGST"), R("CGST"), R("SGST")]}
               rows={[
-                ["Outward (sales)", inr(gstr3b.out.taxable), inr(gstr3b.out.cgst), inr(gstr3b.out.sgst), inr(gstr3b.out.igst), inr(gstr3b.out.tax)],
-                ["ITC (purchases)", inr(gstr3b.itc.taxable), inr(gstr3b.itc.cgst), inr(gstr3b.itc.sgst), inr(gstr3b.itc.igst), inr(gstr3b.itc.tax)],
-                ["Net payable", "—", inr(gstr3b.net.cgst), inr(gstr3b.net.sgst), inr(gstr3b.net.igst), inr(gstr3b.net.tax)],
-              ]} />
+                ["(a) Outward taxable (other than zero-rated, nil, exempt)", inr(gstr3b.out.taxable), inr(gstr3b.out.igst), inr(gstr3b.out.cgst), inr(gstr3b.out.sgst)],
+                ["(b) Outward zero-rated", "—", "—", "—", "—"],
+                ["(c) Other outward (nil / exempt)", "—", "—", "—", "—"],
+                ["(d) Inward liable to reverse charge", "—", "—", "—", "—"],
+                ["(e) Non-GST outward", "—", "—", "—", "—"],
+              ]}
+            />
 
-            <Section title="HSN-wise" cols={["HSN", "Rate%", "Taxable", "CGST", "SGST", "IGST", "Total"]}
-              rows={hsn.map((h) => [h.hsn, `${h.rate}%`, inr(h.taxable), inr(h.cgst), inr(h.sgst), inr(h.igst), inr(h.total)])} />
-            <Section title="Rate-wise" cols={["Rate%", "Taxable", "CGST", "SGST", "IGST", "Total"]}
-              rows={rate.map((r) => [`${r.rate}%`, inr(r.taxable), inr(r.cgst), inr(r.sgst), inr(r.igst), inr(r.total)])} />
-            <Section title="B2B vs B2C" cols={["Type", "Bills", "Taxable", "Tax"]}
-              rows={[["B2B (GSTIN)", bx.b2b.count, inr(bx.b2b.taxable), inr(bx.b2b.tax)], ["B2C", bx.b2c.count, inr(bx.b2c.taxable), inr(bx.b2c.tax)]]} />
+            <TTable
+              title="4 — Eligible ITC"
+              cols={[L("Details"), R("IGST"), R("CGST"), R("SGST")]}
+              rows={[
+                ["(A)(5) All other ITC", inr(gstr3b.itc.igst), inr(gstr3b.itc.cgst), inr(gstr3b.itc.sgst)],
+                ["(B) ITC Reversed", "—", "—", "—"],
+                ["(C) Net ITC Available (A − B)", inr(gstr3b.itc.igst), inr(gstr3b.itc.cgst), inr(gstr3b.itc.sgst)],
+              ]}
+            />
+
+            <TTable
+              title="6.1 — Payment of Tax"
+              cols={[L("Head"), R("Tax Payable"), R("ITC Utilised"), R("Tax Paid in Cash")]}
+              rows={[
+                ["IGST", inr(gstr3b.out.igst), inr(Math.min(gstr3b.out.igst, gstr3b.itc.igst)), inr(gstr3b.net.igst)],
+                ["CGST", inr(gstr3b.out.cgst), inr(Math.min(gstr3b.out.cgst, gstr3b.itc.cgst)), inr(gstr3b.net.cgst)],
+                ["SGST", inr(gstr3b.out.sgst), inr(Math.min(gstr3b.out.sgst, gstr3b.itc.sgst)), inr(gstr3b.net.sgst)],
+              ]}
+              totals={["Total", inr(gstr3b.out.tax), inr(gstr3b.out.tax - gstr3b.net.tax), inr(gstr3b.net.tax)]}
+            />
           </>
         )}
       </div>
@@ -182,33 +251,45 @@ function TaxReports() {
   );
 }
 
-function Stat({ label, value, accent }: { label: string; value: number; accent?: boolean }) {
-  return (
-    <div className="rounded-2xl border border-[#e8ecf1] bg-white p-3 shadow-sm">
-      <div className="text-[10px] font-bold uppercase tracking-wide text-slate-400">{label}</div>
-      <p className={`mt-1 text-lg font-extrabold tabular-nums ${accent ? "text-[#3b82f6]" : "text-slate-800"}`}>{inr(value)}</p>
-    </div>
-  );
-}
+type Col = { label: string; align: "l" | "r" };
+const L = (label: string): Col => ({ label, align: "l" });
+const R = (label: string): Col => ({ label, align: "r" });
+const sum = <T,>(arr: T[], k: keyof T) => arr.reduce((s, x) => s + Number(x[k] as any), 0);
 
-function Section({ title, cols, rows }: { title: string; cols: string[]; rows: (string | number)[][] }) {
+// Tally / GST-portal style section table: titled, bordered, right-aligned numbers, bold totals.
+function TTable({ title, cols, rows, totals }: { title: string; cols: Col[]; rows: (string | number)[][]; totals?: (string | number)[] }) {
   return (
-    <Card className="overflow-hidden">
-      <div className="border-b bg-slate-50 px-4 py-2 text-sm font-bold text-slate-700">{title}</div>
+    <Card className="overflow-hidden border-slate-300">
+      <div className="border-b border-slate-300 bg-slate-100 px-4 py-2 text-sm font-bold text-slate-800">{title}</div>
       <div className="overflow-x-auto">
-        <table className="w-full text-sm">
-          <thead className="bg-muted/40 text-xs uppercase tracking-wide text-muted-foreground">
-            <tr>{cols.map((c, i) => <th key={c} className={`p-2.5 ${i === 0 ? "text-left pl-4" : "text-right"}`}>{c}</th>)}</tr>
+        <table className="w-full border-collapse text-[13px]">
+          <thead className="bg-slate-50 text-[11px] uppercase tracking-wide text-slate-500">
+            <tr>
+              {cols.map((c, i) => (
+                <th key={i} className={`border-b border-slate-200 px-3 py-2 ${c.align === "r" ? "text-right" : "text-left"}`}>{c.label}</th>
+              ))}
+            </tr>
           </thead>
           <tbody>
             {rows.length === 0 ? (
-              <tr><td colSpan={cols.length} className="p-6 text-center text-muted-foreground">No data.</td></tr>
+              <tr><td colSpan={cols.length} className="px-3 py-6 text-center text-muted-foreground">No data for this period.</td></tr>
             ) : rows.map((r, ri) => (
-              <tr key={ri} className="border-t">
-                {r.map((cell, ci) => <td key={ci} className={`p-2.5 tabular-nums ${ci === 0 ? "text-left pl-4 font-medium text-slate-700" : "text-right"}`}>{cell}</td>)}
+              <tr key={ri} className="border-b border-slate-100 last:border-0 hover:bg-slate-50/60">
+                {r.map((cell, ci) => (
+                  <td key={ci} className={`px-3 py-1.5 tabular-nums ${cols[ci]?.align === "r" ? "text-right" : "text-left"} ${ci === 0 ? "font-medium text-slate-700" : "text-slate-600"}`}>{cell}</td>
+                ))}
               </tr>
             ))}
           </tbody>
+          {totals && rows.length > 0 && (
+            <tfoot>
+              <tr className="border-t-2 border-slate-300 bg-slate-50 font-bold text-slate-800">
+                {totals.map((cell, ci) => (
+                  <td key={ci} className={`px-3 py-2 tabular-nums ${cols[ci]?.align === "r" ? "text-right" : "text-left"}`}>{cell}</td>
+                ))}
+              </tr>
+            </tfoot>
+          )}
         </table>
       </div>
     </Card>

@@ -47,6 +47,51 @@ export const aggregateHsn = (items: ItemRec[]) =>
 export const aggregateRate = (items: ItemRec[]) =>
   groupTax(items, (i) => String(i.gst_rate));
 
+const groupBySale = (items: ItemRec[]) => {
+  const m = new Map<string, ItemRec[]>();
+  for (const it of items) (m.get(it.sale_id) ?? m.set(it.sale_id, []).get(it.sale_id)!).push(it);
+  return m;
+};
+
+// GSTR-1 §4 B2B: invoice-level, split per tax rate (portal/Tally layout).
+export type B2bInvoice = {
+  gstin: string; inum: string; idt: string; val: number; pos: string;
+  lines: { rate: number; taxable: number; iamt: number; camt: number; samt: number }[];
+};
+export function b2bInvoices(sales: SaleRec[], items: ItemRec[]): B2bInvoice[] {
+  const bySale = groupBySale(items);
+  const out: B2bInvoice[] = [];
+  for (const s of sales) {
+    if (!s.cust_gstin) continue;
+    const lines = groupTax(bySale.get(s.id) ?? [], (i) => String(i.gst_rate))
+      .map((r) => ({ rate: r.rate, taxable: r.taxable, iamt: r.igst, camt: r.cgst, samt: r.sgst }));
+    out.push({
+      gstin: s.cust_gstin, inum: s.invoice_no ?? "", idt: fmtIdt(s.invoice_date),
+      val: r2(Number(s.grand_total)), pos: stateCode(s.cust_state), lines,
+    });
+  }
+  return out.sort((a, b) => a.inum.localeCompare(b.inum));
+}
+
+// GSTR-1 §7 B2C (Others): consolidated by place-of-supply + rate.
+export type B2cRow = { pos: string; rate: number; taxable: number; iamt: number; camt: number; samt: number };
+export function b2cRows(sales: SaleRec[], items: ItemRec[]): B2cRow[] {
+  const bySale = groupBySale(items);
+  const m = new Map<string, B2cRow>();
+  for (const s of sales) {
+    if (s.cust_gstin) continue;
+    const pos = stateCode(s.cust_state);
+    for (const r of groupTax(bySale.get(s.id) ?? [], (i) => String(i.gst_rate))) {
+      const key = `${pos}|${r.rate}`;
+      const ex = m.get(key) ?? { pos, rate: r.rate, taxable: 0, iamt: 0, camt: 0, samt: 0 };
+      ex.taxable = r2(ex.taxable + r.taxable); ex.iamt = r2(ex.iamt + r.igst);
+      ex.camt = r2(ex.camt + r.cgst); ex.samt = r2(ex.samt + r.sgst);
+      m.set(key, ex);
+    }
+  }
+  return [...m.values()].sort((a, b) => a.pos.localeCompare(b.pos) || a.rate - b.rate);
+}
+
 export function splitB2bB2c(sales: SaleRec[]) {
   const acc = { b2b: { count: 0, taxable: 0, tax: 0 }, b2c: { count: 0, taxable: 0, tax: 0 } };
   for (const s of sales) {
