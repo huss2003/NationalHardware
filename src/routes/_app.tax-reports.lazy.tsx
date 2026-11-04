@@ -48,7 +48,7 @@ function TaxReports() {
       const ids = sales.map((s) => s.id);
       const custIds = [...new Set(sales.map((s) => s.customer_id).filter(Boolean))] as string[];
 
-      const [itemsRes, custRes, shopRes] = await Promise.all([
+      const [itemsRes, custRes, shopRes, purRes] = await Promise.all([
         ids.length
           ? supabase.from("sales_items").select("sale_id, gst_rate, line_total, products(hsn)").in("sale_id", ids)
           : Promise.resolve({ data: [] as any[] }),
@@ -56,7 +56,13 @@ function TaxReports() {
           ? supabase.from("customers").select("id, gstin, state").in("id", custIds)
           : Promise.resolve({ data: [] as any[] }),
         supabase.from("app_settings").select("gstin").eq("id", true).maybeSingle(),
+        // Purchases in the month → input tax credit (ITC) for GSTR-3B.
+        supabase.from("purchases").select("subtotal, tax_total").is("deleted_at", null).gte("bill_date", from).lt("bill_date", to),
       ]);
+      const itc = (purRes.data ?? []).reduce(
+        (a: { taxable: number; tax: number }, p: any) => {
+          a.taxable += Number(p.subtotal ?? 0); a.tax += Number(p.tax_total ?? 0); return a;
+        }, { taxable: 0, tax: 0 });
 
       const custMap = new Map((custRes.data ?? []).map((c: any) => [c.id, c]));
       const saleMap = new Map(sales.map((s) => [s.id, s]));
@@ -75,7 +81,7 @@ function TaxReports() {
         };
       });
 
-      return { saleRecs, items, shopGstin: (shopRes.data as any)?.gstin ?? "" };
+      return { saleRecs, items, shopGstin: (shopRes.data as any)?.gstin ?? "", itc };
     },
   });
 
@@ -94,6 +100,24 @@ function TaxReports() {
   const hsn = useMemo(() => aggregateHsn(items), [items]);
   const rate = useMemo(() => aggregateRate(items), [items]);
   const bx = useMemo(() => splitB2bB2c(saleRecs), [saleRecs]);
+
+  // GSTR-3B: output tax (from sales) minus ITC (from purchases) = net payable.
+  // Purchases store only a tax_total, so ITC is split as intra-state (half CGST / half SGST).
+  const itc = data?.itc ?? { taxable: 0, tax: 0 };
+  const gstr3b = useMemo(() => {
+    const outTax = summary.cgst + summary.sgst + summary.igst;
+    const itcCgst = itc.tax / 2, itcSgst = itc.tax / 2;
+    return {
+      out: { taxable: summary.taxable, cgst: summary.cgst, sgst: summary.sgst, igst: summary.igst, tax: outTax },
+      itc: { taxable: itc.taxable, cgst: itcCgst, sgst: itcSgst, igst: 0, tax: itc.tax },
+      net: {
+        cgst: Math.max(0, summary.cgst - itcCgst),
+        sgst: Math.max(0, summary.sgst - itcSgst),
+        igst: Math.max(0, summary.igst - 0),
+        tax: Math.max(0, outTax - itc.tax),
+      },
+    };
+  }, [summary, itc]);
 
   const fp = month.split("-").reverse().join(""); // yyyy-mm -> mmyyyy
 
@@ -137,6 +161,13 @@ function TaxReports() {
               <Stat label="Grand" value={summary.grand} accent />
             </div>
             <p className="text-xs text-muted-foreground">{summary.count} bill(s) in {month}. GSTR-1 JSON is best-effort — verify once on the GST portal before filing.</p>
+
+            <Section title="GSTR-3B — Summary (output tax − ITC = net payable)" cols={["", "Taxable", "CGST", "SGST", "IGST", "Tax"]}
+              rows={[
+                ["Outward (sales)", inr(gstr3b.out.taxable), inr(gstr3b.out.cgst), inr(gstr3b.out.sgst), inr(gstr3b.out.igst), inr(gstr3b.out.tax)],
+                ["ITC (purchases)", inr(gstr3b.itc.taxable), inr(gstr3b.itc.cgst), inr(gstr3b.itc.sgst), inr(gstr3b.itc.igst), inr(gstr3b.itc.tax)],
+                ["Net payable", "—", inr(gstr3b.net.cgst), inr(gstr3b.net.sgst), inr(gstr3b.net.igst), inr(gstr3b.net.tax)],
+              ]} />
 
             <Section title="HSN-wise" cols={["HSN", "Rate%", "Taxable", "CGST", "SGST", "IGST", "Total"]}
               rows={hsn.map((h) => [h.hsn, `${h.rate}%`, inr(h.taxable), inr(h.cgst), inr(h.sgst), inr(h.igst), inr(h.total)])} />
