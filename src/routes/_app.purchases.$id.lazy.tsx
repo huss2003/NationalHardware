@@ -1,13 +1,17 @@
-import { createLazyFileRoute, getRouteApi } from "@tanstack/react-router";
+import { createLazyFileRoute, getRouteApi, useNavigate } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Dialog, DialogContent, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { PageHeader } from "@/components/erp/PageHeader";
 import { DetailSkeleton, TableSkeleton } from "@/components/erp/Skeletons";
 import { inr, fmtDate } from "@/lib/codes";
+import { useAuth } from "@/lib/auth-store";
 import { LabelSheet, type LabelItem } from "@/components/erp/LabelSheet";
-import { Printer } from "lucide-react";
+import { Printer, Ban } from "lucide-react";
+import { toast } from "sonner";
 
 export const Route = createLazyFileRoute("/_app/purchases/$id")({ component: PurchaseDetail });
 
@@ -19,6 +23,24 @@ function PurchaseDetail() {
   const [items, setItems] = useState<any[]>([]);
   const [units, setUnits] = useState<LabelItem[]>([]);
   const [format, setFormat] = useState<"thermal" | "a4">("thermal");
+  const nav = useNavigate();
+  const user = useAuth((s) => s.user);
+  const isAdmin = user?.role === "admin";
+  const [voidOpen, setVoidOpen] = useState(false);
+  const [voidReason, setVoidReason] = useState("");
+  const [voiding, setVoiding] = useState(false);
+
+  const voidPurchase = async () => {
+    setVoiding(true);
+    const { error } = await supabase.rpc("void_purchase", {
+      _purchase_id: id, _reason: voidReason.trim() || "Voided", _actor_user_id: user?.id ?? "",
+    });
+    setVoiding(false);
+    if (error) { toast.error(error.message); return; }
+    toast.success("Purchase voided — stock reversed");
+    setVoidOpen(false);
+    nav({ to: "/purchases" });
+  };
 
   useEffect(() => {
     (async () => {
@@ -48,6 +70,11 @@ function PurchaseDetail() {
               <option value="a4">A4 sticker sheet</option>
             </select>
             <Button className="h-12" onClick={() => window.print()}><Printer className="mr-1 h-5 w-5" />Print labels</Button>
+            {isAdmin && !pur?.deleted_at && (
+              <Button variant="outline" className="h-12 gap-2 border-red-200 text-red-600 hover:bg-red-50" onClick={() => setVoidOpen(true)}>
+                <Ban className="h-5 w-5" /> Void
+              </Button>
+            )}
           </div>
         }
       />
@@ -81,6 +108,20 @@ function PurchaseDetail() {
         </Card>
       </div>
       <LabelSheet items={units} format={format} />
+
+      <Dialog open={voidOpen} onOpenChange={(v) => !v && setVoidOpen(false)}>
+        <DialogContent className="w-[calc(100vw-1.5rem)] max-w-sm rounded-2xl">
+          <DialogTitle>Void purchase {pur?.bill_no}?</DialogTitle>
+          <p className="text-sm text-slate-500">
+            This cancels the purchase and removes the stock it added. If any purchased item was already sold, it won’t void. The record is kept for audit.
+          </p>
+          <Input value={voidReason} onChange={(e) => setVoidReason(e.target.value)} placeholder="Reason (optional)" />
+          <DialogFooter className="gap-2 sm:gap-2">
+            <Button variant="outline" onClick={() => setVoidOpen(false)} disabled={voiding}>Cancel</Button>
+            <Button className="bg-red-500 hover:bg-red-600" onClick={voidPurchase} disabled={voiding}>{voiding ? "Voiding…" : "Void purchase"}</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </>
   );
 }
