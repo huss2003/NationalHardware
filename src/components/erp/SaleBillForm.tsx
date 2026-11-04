@@ -15,11 +15,13 @@ import { ScanWarning, type ScanWarningKind } from "@/components/erp/ScanWarning"
 import { QuickCreatePartyDialog } from "@/components/erp/QuickCreatePartyDialog";
 import { PlyWizardDialog } from "@/components/erp/PlyWizardDialog";
 import { MicaWizardDialog } from "@/components/erp/MicaWizardDialog";
+import { HardwareWizardDialog } from "@/components/erp/HardwareWizardDialog";
 import { UpiQrDialog } from "@/components/erp/UpiQrDialog";
 
 // Inactive placeholder products that custom wizard lines reference (sales_items.product_id is NOT NULL).
 const PLY_CUSTOM_PRODUCT_ID = "3b53f4d0-550d-4206-b5a7-582a1e18fc09";
 const MICA_CUSTOM_PRODUCT_ID = "128823b7-bf9b-461a-be1b-902b5055e46f";
+const HARDWARE_CUSTOM_PRODUCT_ID = "d4e5f6a7-b8c9-4a0b-9c1d-2e3f40516273";
 
 type Line = {
   product_id: string; item_instance_id: string | null; name: string;
@@ -92,6 +94,7 @@ export function SaleBillForm({
   const [createCustomerOpen, setCreateCustomerOpen] = useState(false);
   const [plyOpen, setPlyOpen] = useState(false);
   const [micaOpen, setMicaOpen] = useState(false);
+  const [hardwareOpen, setHardwareOpen] = useState(false);
   const [upiQrOpen, setUpiQrOpen] = useState(false);
   const [draftSub, setDraftSub] = useState<any | null>(null);
   const [draftQuery, setDraftQuery] = useState("");
@@ -401,6 +404,17 @@ export function SaleBillForm({
     }]);
   };
 
+  // HARDWARE wizard line: qty = pieces, rate = effective per-piece amount (discount baked in).
+  const addHardwareLine = (item: { name: string; amount: number; qty: number }) => {
+    setLines((prev) => [...prev, {
+      product_id: HARDWARE_CUSTOM_PRODUCT_ID, item_instance_id: null, name: item.name,
+      qty: item.qty, rate: item.amount, gst_rate: 18,
+      hsn: null, unit: "pcs", alt_unit: null, alt_conversion: null,
+      is_lot: false, max_qty: undefined,
+      source_godown_id: sourceGodownId || null,
+    }]);
+  };
+
   const pickDraftGroup = (g: any) => {
     const variants = (g.products ?? []) as ProductRow[];
     // Single product (no parameters) → add it directly. Else go to parameters.
@@ -654,13 +668,13 @@ export function SaleBillForm({
         </header>
 
         {entryMode === "tiles" ? (
-          // ponytail: placeholder category tiles; PLY/MICA/HARDWARE click filtering wired later. DOORS reuses Add Door flow.
+          // Category tiles: PLY/MICA/HARDWARE open their wizards (live from Inventory 2); DOORS reuses Add Door flow.
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
             {(["PLY", "MICA", "HARDWARE", "DOORS"] as const).map((label) => (
               <button
                 key={label}
                 type="button"
-                onClick={label === "DOORS" ? goAddDoor : label === "PLY" ? () => setPlyOpen(true) : label === "MICA" ? () => setMicaOpen(true) : undefined}
+                onClick={label === "DOORS" ? goAddDoor : label === "PLY" ? () => setPlyOpen(true) : label === "MICA" ? () => setMicaOpen(true) : () => setHardwareOpen(true)}
                 className="group flex flex-col items-center justify-center gap-3 bg-white border border-[#e8ecf1] rounded-xl p-6 shadow-sm transition-all hover:border-[#3b82f6] hover:shadow-md active:scale-[0.98]"
               >
                 <img
@@ -749,6 +763,7 @@ export function SaleBillForm({
             )}
             <PlyWizardDialog open={plyOpen} onOpenChange={setPlyOpen} onAdd={addPlyLine} />
             <MicaWizardDialog open={micaOpen} onOpenChange={setMicaOpen} onAdd={addMicaLine} />
+            <HardwareWizardDialog open={hardwareOpen} onOpenChange={setHardwareOpen} onAdd={addHardwareLine} />
           </>
         )}
 
