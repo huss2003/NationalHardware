@@ -535,15 +535,26 @@ function GeneralOrderForm({
             />
           </Field>
           <Field label="Party Door Height (inches)">
-            <Input
-              value={(draft.party_door_size.split(/[*x×]/i)[1] ?? "").trim()}
-              onChange={(e) => {
-                const w = (draft.party_door_size.split(/[*x×]/i)[0] ?? "").trim();
-                setDraft({ ...draft, party_door_size: `${w}*${e.target.value.trim()}` });
-              }}
-              placeholder="e.g. 32.28"
-              inputMode="decimal"
-            />
+            {(draft.party_door_size.split(/[*x×]/i)[0] ?? "").trim() ? (
+              <SizePickerField
+                value={(draft.party_door_size.split(/[*x×]/i)[1] ?? "").trim()}
+                onChange={(h) => {
+                  const w = (draft.party_door_size.split(/[*x×]/i)[0] ?? "").trim();
+                  setDraft({ ...draft, party_door_size: `${w}*${h}` });
+                }}
+                min={72}
+                max={90}
+                placeholder="Select height"
+              />
+            ) : (
+              <button
+                type="button"
+                disabled
+                className="flex h-10 w-full items-center justify-between rounded-md border border-input bg-muted px-3 text-sm text-muted-foreground"
+              >
+                Select width first
+              </button>
+            )}
           </Field>
           <Field label="Front Mica">
             <Input value={draft.front_mica} onChange={(e) => setDraft({ ...draft, front_mica: e.target.value })} />
