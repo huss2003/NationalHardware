@@ -183,7 +183,7 @@ function DoorPage() {
             <div className="text-[#5b21b6] font-medium">
               Door entry mode: lines will be added to the open sales bill (no separate door order created).
             </div>
-            <Button variant="outline" size="sm" onClick={() => nav({ to: "/sales/new" })}>
+            <Button variant="outline" size="sm" onClick={() => nav({ to: "/sales2" })}>
               Back to sale
             </Button>
           </div>
@@ -408,7 +408,7 @@ function GeneralOrderForm({
         sessionStorage.setItem("pending_door_lines", JSON.stringify(saleLines));
         setBusy(false);
         toast.success(`Adding ${saleLines.length} door(s) to sale`);
-        nav({ to: "/sales/new" });
+        nav({ to: "/sales2" });
         return;
       } catch (e: any) {
         setBusy(false);
@@ -793,7 +793,7 @@ function VypaariForm({
         sessionStorage.setItem("pending_door_lines", JSON.stringify([saleLine]));
         setBusy(false);
         toast.success("Adding door to sale");
-        nav({ to: "/sales/new" });
+        nav({ to: "/sales2" });
         return;
       } catch (e: any) {
         setBusy(false);
