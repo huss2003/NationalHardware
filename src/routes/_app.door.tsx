@@ -19,6 +19,7 @@ import { toast } from "sonner";
 import { Plus, DoorOpen, Trash2, FileText } from "lucide-react";
 import { QuickCreatePartyDialog } from "@/components/erp/QuickCreatePartyDialog";
 import { buildDoorOrderPdf, openPdfInNewTab } from "@/lib/invoice-pdf";
+import { SizePickerField } from "@/components/erp/SizePickerField";
 
 export const Route = createFileRoute("/_app/door")({
   validateSearch: (search: Record<string, unknown>) => ({
@@ -523,11 +524,25 @@ function GeneralOrderForm({
       <Card className="p-5 space-y-4">
         <div className="font-semibold text-sm">Add door</div>
         <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-3">
-          <Field label="Party Door Size (inches, e.g. 72.05*32.28)">
+          <Field label="Party Door Width (inches)">
+            <SizePickerField
+              value={(draft.party_door_size.split(/[*x×]/i)[0] ?? "").trim()}
+              onChange={(w) => {
+                const h = (draft.party_door_size.split(/[*x×]/i)[1] ?? "").trim();
+                setDraft({ ...draft, party_door_size: h ? `${w}*${h}` : `${w}*` });
+              }}
+              placeholder="Select width"
+            />
+          </Field>
+          <Field label="Party Door Height (inches)">
             <Input
-              value={draft.party_door_size}
-              onChange={(e) => setDraft({ ...draft, party_door_size: e.target.value })}
-              placeholder="72.05*32.28"
+              value={(draft.party_door_size.split(/[*x×]/i)[1] ?? "").trim()}
+              onChange={(e) => {
+                const w = (draft.party_door_size.split(/[*x×]/i)[0] ?? "").trim();
+                setDraft({ ...draft, party_door_size: `${w}*${e.target.value.trim()}` });
+              }}
+              placeholder="e.g. 32.28"
+              inputMode="decimal"
             />
           </Field>
           <Field label="Front Mica">
