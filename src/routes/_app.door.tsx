@@ -263,6 +263,7 @@ type DoorLine = {
   billable_sqft: number;
   rate_per_sqft: number;
   mica_addon: number;
+  additional: number;
   line_total: number;
 };
 
@@ -271,7 +272,7 @@ function emptyLine(): Omit<DoorLine, "key"> {
     party_door_size: "", front_mica: "", back_mica: "", door_taken_size: "",
     door_type_id: "", door_type_name: "", door_made: "", qty: 1,
     party_sqft: 0, taken_sqft: 0, billable_sqft: 0, rate_per_sqft: 0,
-    mica_addon: 0, line_total: 0,
+    mica_addon: 0, additional: 0, line_total: 0,
   };
 }
 
@@ -345,7 +346,8 @@ function GeneralOrderForm({
   const billableSqft = Math.max(partySqft, takenSqft);
   const previewTotal = round2(
     billableSqft * (draft.rate_per_sqft || 0) * (draft.qty || 0) +
-      (Number(draft.mica_addon) || 0),
+      (Number(draft.mica_addon) || 0) +
+      (Number(draft.additional) || 0),
   );
 
   const grandTotal = useMemo(
@@ -370,6 +372,7 @@ function GeneralOrderForm({
       taken_sqft: takenSqft,
       billable_sqft: billableSqft,
       mica_addon: Number(draft.mica_addon) || 0,
+      additional: Number(draft.additional) || 0,
       line_total: previewTotal,
     };
     setLines((prev) => [...prev, line]);
@@ -623,6 +626,14 @@ function GeneralOrderForm({
           </Field>
           <Field label="Total">
             <Input value={inr(previewTotal)} disabled />
+          </Field>
+          <Field label="Additional">
+            <Input
+              type="number" min={0}
+              value={draft.additional}
+              onChange={(e) => setDraft({ ...draft, additional: Number(e.target.value || 0) })}
+              placeholder="0"
+            />
           </Field>
         </div>
 
